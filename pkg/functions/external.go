@@ -16,7 +16,7 @@ func External(rw http.ResponseWriter, req *http.Request) {
 
 	dbSecret := os.Getenv("FAUNADB_SECRET")
 
-	hdl := handlers.New(db.NewFaunaDB(faunadb.NewFaunaClient(dbSecret)), nil)
+	hdl := handlers.New(db.NewFaunaDB(faunadb.NewFaunaClient(dbSecret)), nil, nil)
 
 	router := httprouter.New()
 	router.HandlerFunc(http.MethodGet, "/:uuid", hdl.Get)

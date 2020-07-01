@@ -10,6 +10,7 @@ import (
 	"github.com/containous/plugin-service/pkg/handlers"
 	"github.com/fauna/faunadb-go/faunadb"
 	"github.com/julienschmidt/httprouter"
+	"github.com/ldez/grignotin/goproxy"
 )
 
 // Public creates zeit function.
@@ -25,6 +26,7 @@ func Public(rw http.ResponseWriter, req *http.Request) {
 
 	handler := handlers.New(
 		db.NewFaunaDB(faunadb.NewFaunaClient(dbSecret)),
+		goproxy.NewClient(""),
 		token.New(tokenBaseURL, string(serviceAccessToken)),
 	)
 

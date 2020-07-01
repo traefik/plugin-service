@@ -8,10 +8,8 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
-	"net/url"
 	"path"
 	"strings"
-	"unicode"
 
 	"github.com/fauna/faunadb-go/faunadb"
 )
@@ -80,38 +78,13 @@ func (h Handlers) Download(rw http.ResponseWriter, req *http.Request) {
 		log.Println("Someone is trying to hack the archive:", moduleName, version, sum)
 	}
 
-	baseURL, err := url.Parse(mainGoProxy)
-	if err != nil {
-		jsonError(rw, http.StatusInternalServerError, err.Error())
-		return
-	}
-
-	endpoint, err := baseURL.Parse(path.Join(safeModuleName(moduleName), "@v", version+".zip"))
+	sources, err := h.goProxy.DownloadSources(moduleName, version)
 	if err != nil {
 		jsonError(rw, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	reqP, err := http.NewRequest(http.MethodGet, endpoint.String(), nil)
-	if err != nil {
-		jsonError(rw, http.StatusInternalServerError, err.Error())
-		return
-	}
-
-	// TODO http.DefaultClient
-	resp, err := http.DefaultClient.Do(reqP)
-	if err != nil {
-		jsonError(rw, http.StatusInternalServerError, err.Error())
-		return
-	}
-
-	defer func() { _ = resp.Body.Close() }()
-
-	if resp.StatusCode/100 != 2 {
-		raw, _ := ioutil.ReadAll(resp.Body)
-		jsonErrorf(rw, resp.StatusCode, "invalid response: %s [%d]: %s", resp.Status, resp.StatusCode, string(raw))
-		return
-	}
+	defer func() { _ = sources.Close() }()
 
 	_, err = h.db.GetHashByName(moduleName, version)
 	var notFoundError faunadb.NotFound
@@ -121,7 +94,7 @@ func (h Handlers) Download(rw http.ResponseWriter, req *http.Request) {
 	}
 
 	if err == nil {
-		_, err = io.Copy(rw, resp.Body)
+		_, err = io.Copy(rw, sources)
 		if err != nil {
 			jsonErrorf(rw, http.StatusInternalServerError, "failed to read response body: %v", err)
 			return
@@ -129,7 +102,7 @@ func (h Handlers) Download(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	raw, err := ioutil.ReadAll(resp.Body)
+	raw, err := ioutil.ReadAll(sources)
 	if err != nil {
 		jsonError(rw, http.StatusInternalServerError, err.Error())
 		return
@@ -201,19 +174,6 @@ func (h Handlers) Validate(rw http.ResponseWriter, req *http.Request) {
 	}
 
 	rw.WriteHeader(http.StatusNotFound)
-}
-
-func safeModuleName(name string) string {
-	var to []byte
-	for _, r := range name {
-		if 'A' <= r && r <= 'Z' {
-			to = append(to, '!', byte(unicode.ToLower(r)))
-		} else {
-			to = append(to, byte(r))
-		}
-	}
-
-	return string(to)
 }
 
 func cleanModuleName(moduleName string) string {
