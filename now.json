@@ -1,0 +1,46 @@
+{
+  "version": 2,
+  "github": {
+    "silent": true,
+    "enabled": true
+  },
+  "regions": ["pdx1", "sfo1", "gru1", "cle1", "iad1", "dub1", "sin1"],
+  "env": {
+    "PLAEN_JWT_CERT": "@plaen-jwt-cert"
+  },
+  "build": {
+    "env": {
+      "GIT_CREDENTIALS": "@github-credentials"
+    }
+  },
+  "builds": [
+    {
+      "src": "/pkg/functions/external.go",
+      "use": "@now/go"
+    },
+    {
+      "src": "/pkg/functions/internal.go",
+      "use": "@now/go"
+    }
+  ],
+  "redirects": [
+    {
+      "source": "/",
+      "destination": "/external/"
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/public/(.*)",
+      "destination": "/pkg/functions/public.go"
+    },
+    {
+      "source": "/internal/(.*)",
+      "destination": "/pkg/functions/internal.go"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/pkg/functions/external.go"
+    }
+  ]
+}
