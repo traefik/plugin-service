@@ -37,8 +37,8 @@ func Public(rw http.ResponseWriter, req *http.Request) {
 	)
 
 	router := httprouter.New()
-	router.HandlerFunc(http.MethodGet, "/download", handler.Download)
-	router.HandlerFunc(http.MethodGet, "/validate", handler.Validate)
+	router.HandlerFunc(http.MethodGet, "/download/", handler.Download)
+	router.HandlerFunc(http.MethodGet, "/validate/", handler.Validate)
 
 	router.NotFound = http.HandlerFunc(handlers.NotFound)
 	router.PanicHandler = handlers.PanicHandler
