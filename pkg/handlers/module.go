@@ -42,7 +42,7 @@ func (h Handlers) Download(rw http.ResponseWriter, req *http.Request) {
 	moduleName, version := path.Split(strings.TrimPrefix(req.URL.Path, "/download/"))
 	moduleName = cleanModuleName(moduleName)
 
-	_, err = h.db.Get(moduleName)
+	_, err = h.db.GetByName(moduleName)
 	if err != nil {
 		var notFoundError faunadb.NotFound
 		if errors.As(err, &notFoundError) {
