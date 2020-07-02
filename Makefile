@@ -10,7 +10,7 @@ default: clean check test build
 
 start-local-db:
 ifneq ($(LOCAL_DB),faunadb)
-	docker run -d --name faunadb -p 8443:8443 -p 8084:8084 fauna/faunadb:2.11.2
+	docker run -d --name faunadb -p 8443:8443 -p 8084:8084 fauna/faunadb:2.12.1
 endif
 
 stop-local-db:

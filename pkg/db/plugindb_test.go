@@ -19,6 +19,7 @@ func TestNameDB(t *testing.T) {
 	db := createTempDB(t, nil)
 
 	data, err := db.Create(Plugin{
+		ID:            "123",
 		Name:          "github.com/containous/plugintest",
 		DisplayName:   "Add Header",
 		Author:        "ldez",
@@ -40,7 +41,7 @@ func TestNameDB(t *testing.T) {
 
 	fmt.Println(data)
 
-	_, err = db.Update("test", Plugin{
+	_, err = db.Update(data.ID, Plugin{
 		Name:          "test",
 		DisplayName:   "",
 		Author:        "ldez",
