@@ -53,7 +53,7 @@ func (h Handlers) Download(rw http.ResponseWriter, req *http.Request) {
 			return
 		}
 
-		log.Printf("failed to get plugin: %v", err)
+		log.Printf("failed to get plugin (%s@%s): %v", moduleName, version, err)
 		jsonError(rw, http.StatusInternalServerError, "failed to get plugin")
 		return
 	}
@@ -88,7 +88,7 @@ func (h Handlers) Download(rw http.ResponseWriter, req *http.Request) {
 	_, err = h.db.GetHashByName(moduleName, version)
 	var notFoundError faunadb.NotFound
 	if !errors.As(err, &notFoundError) {
-		log.Printf("failed to get plugin hash: %s@%s", moduleName, version)
+		log.Printf("failed to get plugin hash: %s@%s: %v", moduleName, version, err)
 		jsonError(rw, http.StatusInternalServerError, "failed to get plugin")
 		return
 	}

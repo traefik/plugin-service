@@ -42,8 +42,8 @@ func TestNameDB(t *testing.T) {
 	fmt.Println(data)
 
 	_, err = db.Update(data.ID, Plugin{
-		Name:          "test",
-		DisplayName:   "",
+		Name:          "github.com/containous/plugintest",
+		DisplayName:   "Foo",
 		Author:        "ldez",
 		Type:          "middleware",
 		Import:        "abc",
@@ -63,7 +63,7 @@ func TestNameDB(t *testing.T) {
 	fmt.Println(next)
 	fmt.Println(list)
 
-	value, err := db.GetByName("test")
+	value, err := db.GetByName("github.com/containous/plugintest")
 	require.NoError(t, err)
 
 	fmt.Println(value)
