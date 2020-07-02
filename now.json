@@ -6,7 +6,9 @@
   },
   "regions": ["pdx1", "sfo1", "gru1", "cle1", "iad1", "dub1", "sin1"],
   "env": {
-    "PLAEN_JWT_CERT": "@plaen-jwt-cert"
+    "PLAEN_JWT_CERT": "@plaen-jwt-cert",
+    "PLAEN_SERVICES_ACCESS_TOKEN": "@plaen-plugin-access-token",
+    "PLAEN_TOKEN_URL": "https://token.plaen.io/internal/"
   },
   "build": {
     "env": {
