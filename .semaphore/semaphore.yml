@@ -58,6 +58,7 @@ blocks:
         - name: Build on branches
           commands:
             - make
+            - make image publish-latest
 
   - name: Build on PR
     dependencies: ["Warm cache"]

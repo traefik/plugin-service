@@ -35,5 +35,9 @@ image:
 publish:
 	docker push containous/plugin-service:$(VERSION)
 
+publish-latest:
+	docker tag containous/plugin-service:$(VERSION) containous/plugin-service:latest
+	docker push containous/plugin-service:latest
+
 check:
 	golangci-lint run
