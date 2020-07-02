@@ -23,6 +23,10 @@
     {
       "src": "/pkg/functions/internal.go",
       "use": "@now/go"
+    },
+    {
+      "src": "/pkg/functions/public.go",
+      "use": "@now/go"
     }
   ],
   "redirects": [
