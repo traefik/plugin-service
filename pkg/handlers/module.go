@@ -87,7 +87,7 @@ func (h Handlers) Download(rw http.ResponseWriter, req *http.Request) {
 
 	_, err = h.db.GetHashByName(moduleName, version)
 	var notFoundError faunadb.NotFound
-	if !errors.As(err, &notFoundError) {
+	if err != nil && !errors.As(err, &notFoundError) {
 		log.Printf("failed to get plugin hash: %s@%s: %v", moduleName, version, err)
 		jsonError(rw, http.StatusInternalServerError, "failed to get plugin")
 		return
