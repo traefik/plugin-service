@@ -28,6 +28,7 @@ func Internal(rw http.ResponseWriter, req *http.Request) {
 	router.HandlerFunc(http.MethodGet, "/", hdl.List)
 	router.HandlerFunc(http.MethodPost, "/", hdl.Create)
 	router.HandlerFunc(http.MethodPut, "/:uuid", hdl.Update)
+	router.HandlerFunc(http.MethodDelete, "/:uuid", hdl.Delete)
 
 	router.PanicHandler = handlers.PanicHandler
 

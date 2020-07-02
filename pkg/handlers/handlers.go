@@ -206,6 +206,36 @@ func (h Handlers) Update(rw http.ResponseWriter, req *http.Request) {
 	}
 }
 
+// Delete deletes an instance info.
+func (h Handlers) Delete(rw http.ResponseWriter, req *http.Request) {
+	id, err := getPathParam(req.URL)
+	if err != nil {
+		jsonError(rw, http.StatusBadRequest, "missing instance info id")
+		return
+	}
+
+	_, err = h.db.Get(id)
+	if err != nil {
+		log.Printf("failed to get plugin information: %v", err)
+		NotFound(rw, req)
+		return
+	}
+
+	err = h.db.Delete(id)
+	if err != nil {
+		log.Printf("failed to delete the plugin info: %v", err)
+		jsonError(rw, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	err = h.db.DeleteHash(id)
+	if err != nil {
+		log.Printf("failed to delete the plugin hash: %v", err)
+		jsonError(rw, http.StatusBadRequest, err.Error())
+		return
+	}
+}
+
 // NotFound a not found handler.
 func NotFound(rw http.ResponseWriter, _ *http.Request) {
 	jsonError(rw, http.StatusNotFound, http.StatusText(http.StatusNotFound))

@@ -8,11 +8,13 @@ const collNameHashSuffix = "-hash"
 // PluginDB is a db interface for Plugin.
 type PluginDB interface {
 	Get(id string) (Plugin, error)
+	Delete(id string) error
 	Create(Plugin) (Plugin, error)
 	List(Pagination) ([]Plugin, string, error)
 	GetByName(string) (Plugin, error)
 	Update(string, Plugin) (Plugin, error)
 
+	DeleteHash(id string) error
 	CreateHash(module string, version string, hash string) (PluginHash, error)
 	GetHashByName(module string, version string) (PluginHash, error)
 }
@@ -45,6 +47,20 @@ func (d *FaunaDB) Get(id string) (Plugin, error) {
 	}
 
 	return decodePlugin(res)
+}
+
+// Delete deletes a plugin.
+func (d *FaunaDB) Delete(id string) error {
+	_, err := d.client.Query(
+		f.Delete(
+			f.RefCollection(f.Collection(d.collName), id),
+		),
+	)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // Create creates a plugin in the db.
@@ -149,7 +165,7 @@ func (d *FaunaDB) CreateHash(module string, version string, hash string) (Plugin
 	}
 
 	res, err := d.client.Query(f.Create(
-		f.RefCollection(f.Collection(d.collName), id),
+		f.RefCollection(f.Collection(d.collName+collNameHashSuffix), id),
 		f.Obj{
 			"data": f.Merge(PluginHash{Name: module + "@" + version, Hash: hash}, f.Obj{
 				"createdAt": f.Now(),
@@ -167,7 +183,7 @@ func (d *FaunaDB) CreateHash(module string, version string, hash string) (Plugin
 func (d *FaunaDB) GetHashByName(module string, version string) (PluginHash, error) {
 	res, err := d.client.Query(
 		f.Get(
-			f.MatchTerm(f.Index(d.collName+"_by_value"), module+"@"+version),
+			f.MatchTerm(f.Index(d.collName+collNameHashSuffix+"_by_value"), module+"@"+version),
 		),
 	)
 	if err != nil {
@@ -175,6 +191,20 @@ func (d *FaunaDB) GetHashByName(module string, version string) (PluginHash, erro
 	}
 
 	return decodePluginHash(res)
+}
+
+// DeleteHash deletes a plugin hash.
+func (d *FaunaDB) DeleteHash(id string) error {
+	_, err := d.client.Query(
+		f.Delete(
+			f.RefCollection(f.Collection(d.collName+collNameHashSuffix), id),
+		),
+	)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // Bootstrap create collection and indexes if not present.
