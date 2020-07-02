@@ -14,16 +14,9 @@ import (
 	"github.com/fauna/faunadb-go/faunadb"
 )
 
-const mainGoProxy = "https://proxy.golang.org"
-
-// TODO GoProxy fallback
-// const mainGoProxy = "https://goproxy.io"
-// const mainGoProxy = "https://gocenter.io"
-// const mainGoProxy = "https://goproxy.cn"
-
 const (
 	tokenHeader = "X-Token"
-	hashHeader  = "X-Plugin-Hash" // FIXME header name
+	hashHeader  = "X-Plugin-Hash"
 )
 
 // Download a plugin archive.

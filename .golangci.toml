@@ -20,6 +20,10 @@
   [linters-settings.misspell]
     locale = "US"
 
+  [linters-settings.funlen]
+    lines = 60 # default 60
+    statements = 40 # default 40
+
 [linters]
   enable-all = true
   disable = [
@@ -46,3 +50,13 @@
   [[issues.exclude-rules]]
     path = ".*_test.go"
     linters = ["funlen","unused"]
+
+  [[issues.exclude-rules]]
+    path = "pkg/handlers/module.go"
+    text = "Function 'Download' is too long (.*)"
+  [[issues.exclude-rules]]
+    path = "pkg/handlers/module.go"
+    text = "Function 'Download' has too many statements (.*)"
+  [[issues.exclude-rules]]
+    path = "pkg/handlers/module.go"
+    text = "cyclomatic complexity (\\d+) of func `\\(Handlers\\)\\.Download` is high \\(> 12\\)"
