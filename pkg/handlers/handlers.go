@@ -50,7 +50,7 @@ func (h Handlers) Get(rw http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		var notFoundError faunadb.NotFound
 		if errors.As(err, &notFoundError) {
-			jsonError(rw, http.StatusNotFound, "token not found")
+			jsonError(rw, http.StatusNotFound, "plugin not found")
 			return
 		}
 
@@ -188,7 +188,7 @@ func (h Handlers) Update(rw http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		var notFoundError faunadb.NotFound
 		if errors.As(err, &notFoundError) {
-			jsonError(rw, http.StatusNotFound, "token not found")
+			jsonError(rw, http.StatusNotFound, "plugin not found")
 			return
 		}
 

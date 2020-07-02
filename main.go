@@ -53,9 +53,9 @@ func main() {
 		log.Fatalf("Error while bootstraping: %v", err)
 	}
 
-	http.HandleFunc("/public", functions.Public)
-	http.HandleFunc("/internal", functions.Internal)
-	http.HandleFunc("/external", functions.External)
+	http.HandleFunc("/public/", functions.Public)
+	http.HandleFunc("/internal/", functions.Internal)
+	http.HandleFunc("/external/", functions.External)
 
 	err = http.ListenAndServe(*host, nil)
 	if err != nil {
@@ -70,7 +70,7 @@ func usage() {
 }
 
 func initDB(secret string, options []faunadb.ClientConfig) (string, error) {
-	dbName := "instance-info"
+	dbName := "plugin"
 
 	adminClient := faunadb.NewFaunaClient(secret, options...)
 	result, err := adminClient.Query(faunadb.Exists(faunadb.Database(dbName)))

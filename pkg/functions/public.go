@@ -23,9 +23,15 @@ func Public(rw http.ResponseWriter, req *http.Request) {
 	}
 
 	dbSecret := os.Getenv("FAUNADB_SECRET")
+	dbEndpoint := os.Getenv("FAUNADB_ENDPOINT")
+
+	var options []faunadb.ClientConfig
+	if dbEndpoint != "" {
+		options = append(options, faunadb.Endpoint(dbEndpoint))
+	}
 
 	handler := handlers.New(
-		db.NewFaunaDB(faunadb.NewFaunaClient(dbSecret)),
+		db.NewFaunaDB(faunadb.NewFaunaClient(dbSecret, options...)),
 		goproxy.NewClient(""),
 		token.New(tokenBaseURL, string(serviceAccessToken)),
 	)

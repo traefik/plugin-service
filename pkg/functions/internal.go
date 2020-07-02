@@ -15,8 +15,14 @@ func Internal(rw http.ResponseWriter, req *http.Request) {
 	cert := os.Getenv("PLAEN_JWT_CERT")
 
 	dbSecret := os.Getenv("FAUNADB_SECRET")
+	dbEndpoint := os.Getenv("FAUNADB_ENDPOINT")
 
-	hdl := handlers.New(db.NewFaunaDB(faunadb.NewFaunaClient(dbSecret)), nil, nil)
+	var options []faunadb.ClientConfig
+	if dbEndpoint != "" {
+		options = append(options, faunadb.Endpoint(dbEndpoint))
+	}
+
+	hdl := handlers.New(db.NewFaunaDB(faunadb.NewFaunaClient(dbSecret, options...)), nil, nil)
 
 	router := httprouter.New()
 	router.HandlerFunc(http.MethodGet, "/", hdl.List)
