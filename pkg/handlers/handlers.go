@@ -42,6 +42,7 @@ func (h Handlers) Get(rw http.ResponseWriter, req *http.Request) {
 
 	id, err := getPathParam(req.URL)
 	if err != nil {
+		log.Println("missing plugin id")
 		jsonError(rw, http.StatusBadRequest, "missing plugin id")
 		return
 	}
@@ -50,6 +51,7 @@ func (h Handlers) Get(rw http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		var notFoundError faunadb.NotFound
 		if errors.As(err, &notFoundError) {
+			log.Printf("plugin not found: %s", id)
 			jsonError(rw, http.StatusNotFound, "plugin not found")
 			return
 		}
@@ -77,6 +79,7 @@ func (h Handlers) List(rw http.ResponseWriter, req *http.Request) {
 		if err != nil {
 			var notFoundError faunadb.NotFound
 			if errors.As(err, &notFoundError) {
+				log.Printf("plugin not found: %s", name)
 				jsonError(rw, http.StatusNotFound, "plugin not found")
 				return
 			}
@@ -188,6 +191,7 @@ func (h Handlers) Update(rw http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		var notFoundError faunadb.NotFound
 		if errors.As(err, &notFoundError) {
+			log.Printf("plugin not found: %s", id)
 			jsonError(rw, http.StatusNotFound, "plugin not found")
 			return
 		}
