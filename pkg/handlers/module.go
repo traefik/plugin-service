@@ -39,7 +39,7 @@ func (h Handlers) Download(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	moduleName, version := path.Split(strings.TrimPrefix(req.URL.Path, "/public/download/"))
+	moduleName, version := path.Split(strings.TrimPrefix(req.URL.Path, "/download/"))
 	moduleName = cleanModuleName(moduleName)
 
 	_, err = h.db.Get(moduleName)
@@ -145,7 +145,7 @@ func (h Handlers) Validate(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	moduleName, version := path.Split(strings.TrimPrefix(req.URL.Path, "/public/validate/"))
+	moduleName, version := path.Split(strings.TrimPrefix(req.URL.Path, "/validate/"))
 	moduleName = strings.TrimSuffix(strings.TrimPrefix(moduleName, "/"), "/")
 
 	headerSum := req.Header.Get(hashHeader)
