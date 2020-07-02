@@ -39,7 +39,7 @@
       "destination": "/pkg/functions/internal.go"
     },
     {
-      "source": "/(.*)",
+      "source": "/external/(.*)",
       "destination": "/pkg/functions/external.go"
     }
   ]
