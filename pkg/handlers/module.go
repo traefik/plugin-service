@@ -78,7 +78,8 @@ func (h Handlers) Download(rw http.ResponseWriter, req *http.Request) {
 
 	sources, err := h.goProxy.DownloadSources(moduleName, version)
 	if err != nil {
-		jsonError(rw, http.StatusBadRequest, err.Error())
+		log.Printf("failed to download sources: %v", err)
+		jsonError(rw, http.StatusInternalServerError, "failed to get plugin")
 		return
 	}
 
