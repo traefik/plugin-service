@@ -187,7 +187,7 @@ func (h Handlers) Update(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	tok, err := h.db.Update(id, input)
+	pg, err := h.db.Update(id, input)
 	if err != nil {
 		var notFoundError faunadb.NotFound
 		if errors.As(err, &notFoundError) {
@@ -203,7 +203,7 @@ func (h Handlers) Update(rw http.ResponseWriter, req *http.Request) {
 	}
 
 	rw.WriteHeader(http.StatusOK)
-	if err := json.NewEncoder(rw).Encode(tok); err != nil {
+	if err := json.NewEncoder(rw).Encode(pg); err != nil {
 		log.Printf("failed to marshal token: %v", err)
 		jsonError(rw, http.StatusInternalServerError, "could not write response")
 		return
@@ -234,9 +234,12 @@ func (h Handlers) Delete(rw http.ResponseWriter, req *http.Request) {
 
 	err = h.db.DeleteHash(id)
 	if err != nil {
-		log.Printf("failed to delete the plugin hash: %v", err)
-		jsonError(rw, http.StatusBadRequest, err.Error())
-		return
+		var notFoundError faunadb.NotFound
+		if !errors.As(err, &notFoundError) {
+			log.Printf("failed to delete the plugin hash: %v", err)
+			jsonError(rw, http.StatusBadRequest, err.Error())
+			return
+		}
 	}
 }
 
