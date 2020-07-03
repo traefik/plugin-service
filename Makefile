@@ -27,7 +27,7 @@ test: clean start-local-db
 
 build: clean
 	@echo Version: $(VERSION) $(BUILD_DATE)
-	go build -v -ldflags '-X "main.version=${VERSION}" -X "main.commit=${SHA}" -X "main.date=${BUILD_DATE}"'
+	CGO_ENABLED=0 go build -v -ldflags '-X "main.version=${VERSION}" -X "main.commit=${SHA}" -X "main.date=${BUILD_DATE}"'
 
 image:
 	docker build -t containous/plugin-service:$(VERSION) .
