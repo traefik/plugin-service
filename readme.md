@@ -4,6 +4,14 @@
 
 ```
 
+- `FAUNADB_SECRET`
+- `FAUNADB_ENDPOINT`
+- `PLAEN_TOKEN_URL`
+- `PLAEN_SERVICES_ACCESS_TOKEN`
+- `PLAEN_GO_PROXY_URL` (optional)
+- `PLAEN_GO_PROXY_USERNAME` (optional)
+- `PLAEN_GO_PROXY_PASSWORD` (optional)
+
 # Vercel regions
 
 - pdx1: Portland, West US - AWS us-west-2

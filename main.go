@@ -53,11 +53,12 @@ func main() {
 		log.Fatalf("Error while bootstraping: %v", err)
 	}
 
-	http.HandleFunc("/public/", functions.Public)
-	http.HandleFunc("/internal/", functions.Internal)
-	http.HandleFunc("/external/", functions.External)
+	mux := http.NewServeMux()
+	mux.HandleFunc("/public/", functions.Public)
+	mux.HandleFunc("/internal/", functions.Internal)
+	mux.HandleFunc("/external/", functions.External)
 
-	err = http.ListenAndServe(*host, nil)
+	err = http.ListenAndServe(*host, mux)
 	if err != nil {
 		log.Fatalf("Error in http server: %v", err)
 	}
