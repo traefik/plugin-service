@@ -1,6 +1,7 @@
 package functions
 
 import (
+	"context"
 	"encoding/base64"
 	"log"
 	"net/http"
@@ -10,8 +11,10 @@ import (
 	"github.com/containous/plugin-service/pkg/db"
 	"github.com/containous/plugin-service/pkg/handlers"
 	"github.com/fauna/faunadb-go/faunadb"
+	"github.com/google/go-github/v32/github"
 	"github.com/julienschmidt/httprouter"
 	"github.com/ldez/grignotin/goproxy"
+	"golang.org/x/oauth2"
 )
 
 // Public creates zeit function.
@@ -33,27 +36,23 @@ func Public(rw http.ResponseWriter, req *http.Request) {
 	}
 
 	proxyURL := os.Getenv("PLAEN_GO_PROXY_URL")
-
-	gpClient := goproxy.NewClient(proxyURL)
-
 	proxyUsername := os.Getenv("PLAEN_GO_PROXY_USERNAME")
 	proxyPassword := os.Getenv("PLAEN_GO_PROXY_PASSWORD")
 
-	if proxyURL != "" && proxyUsername != "" && proxyPassword != "" {
-		tr, err := goproxy.NewBasicAuthTransport(proxyUsername, proxyPassword)
-		if err != nil {
-			log.Println(err)
-			jsonError(rw, http.StatusInternalServerError, "internal error")
-		}
-
-		gpClient.HTTPClient = tr.Client()
+	gpClient, err := newGoProxyClient(proxyURL, proxyUsername, proxyPassword)
+	if err != nil {
+		log.Println(err)
+		jsonError(rw, http.StatusInternalServerError, "internal error")
 	}
 
-	handler := handlers.New(
-		db.NewFaunaDB(faunadb.NewFaunaClient(dbSecret, options...)),
-		gpClient,
-		token.New(tokenBaseURL, string(serviceAccessToken)),
-	)
+	ghToken := os.Getenv("PLAEN_GITHUB_TOKEN")
+
+	var ghClient *github.Client
+	if ghToken != "" {
+		ghClient = newGitHubClient(context.Background(), ghToken)
+	}
+
+	handler := handlers.New(db.NewFaunaDB(faunadb.NewFaunaClient(dbSecret, options...)), gpClient, ghClient, token.New(tokenBaseURL, string(serviceAccessToken)))
 
 	router := httprouter.New()
 	router.HandlerFunc(http.MethodGet, "/download/*all", handler.Download)
@@ -63,4 +62,30 @@ func Public(rw http.ResponseWriter, req *http.Request) {
 	router.PanicHandler = handlers.PanicHandler
 
 	http.StripPrefix("/public", router).ServeHTTP(rw, req)
+}
+
+func newGoProxyClient(proxyURL, username, password string) (*goproxy.Client, error) {
+	gpClient := goproxy.NewClient(proxyURL)
+
+	if proxyURL != "" && username != "" && password != "" {
+		tr, err := goproxy.NewBasicAuthTransport(username, password)
+		if err != nil {
+			return nil, err
+		}
+
+		gpClient.HTTPClient = tr.Client()
+	}
+
+	return gpClient, nil
+}
+
+func newGitHubClient(ctx context.Context, token string) *github.Client {
+	if len(token) == 0 {
+		return github.NewClient(nil)
+	}
+
+	ts := oauth2.StaticTokenSource(
+		&oauth2.Token{AccessToken: token},
+	)
+	return github.NewClient(oauth2.NewClient(ctx, ts))
 }

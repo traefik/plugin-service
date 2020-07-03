@@ -56,7 +56,7 @@
     text = "Function 'Download' is too long (.*)"
   [[issues.exclude-rules]]
     path = "pkg/handlers/module.go"
-    text = "Function 'Download' has too many statements (.*)"
+    text = "Function 'downloadGoProxy' is too long (.*)"
   [[issues.exclude-rules]]
     path = "pkg/handlers/module.go"
-    text = "cyclomatic complexity (\\d+) of func `\\(Handlers\\)\\.Download` is high \\(> 12\\)"
+    text = "Function 'downloadGitHub' is too long (.*)"

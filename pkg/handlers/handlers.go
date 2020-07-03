@@ -12,6 +12,7 @@ import (
 	"github.com/containous/plugin-service/internal/token"
 	"github.com/containous/plugin-service/pkg/db"
 	"github.com/fauna/faunadb-go/faunadb"
+	"github.com/google/go-github/v32/github"
 	"github.com/ldez/grignotin/goproxy"
 )
 
@@ -24,11 +25,12 @@ const (
 type Handlers struct {
 	db      db.PluginDB
 	goProxy *goproxy.Client
+	gh      *github.Client
 	token   *token.Client
 }
 
 // New creates all HTTP handlers.
-func New(db db.PluginDB, goProxy *goproxy.Client, tokenClient *token.Client) Handlers {
+func New(db db.PluginDB, goProxy *goproxy.Client, gh *github.Client, tokenClient *token.Client) Handlers {
 	return Handlers{
 		db:      db,
 		goProxy: goProxy,

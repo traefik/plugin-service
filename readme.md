@@ -11,6 +11,7 @@
 - `PLAEN_GO_PROXY_URL` (optional)
 - `PLAEN_GO_PROXY_USERNAME` (optional)
 - `PLAEN_GO_PROXY_PASSWORD` (optional)
+- `PLAEN_GITHUB_TOKEN` (optional) for testing purpose only.
 
 # Vercel regions
 

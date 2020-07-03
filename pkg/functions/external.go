@@ -22,7 +22,7 @@ func External(rw http.ResponseWriter, req *http.Request) {
 		options = append(options, faunadb.Endpoint(dbEndpoint))
 	}
 
-	hdl := handlers.New(db.NewFaunaDB(faunadb.NewFaunaClient(dbSecret, options...)), nil, nil)
+	hdl := handlers.New(db.NewFaunaDB(faunadb.NewFaunaClient(dbSecret, options...)), nil, nil, nil)
 
 	router := httprouter.New()
 	router.HandlerFunc(http.MethodGet, "/", hdl.List)
