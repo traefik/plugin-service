@@ -106,7 +106,6 @@ func (h Handlers) List(rw http.ResponseWriter, req *http.Request) {
 		Start: start,
 		Size:  defaultPerPage,
 	})
-
 	if err != nil {
 		log.Printf("Error fetching plugins: %v", err)
 		jsonError(rw, http.StatusNotFound, "could not fetch plugins")

@@ -224,7 +224,7 @@ func (h Handlers) downloadGitHub(moduleName, version string) http.HandlerFunc {
 	}
 }
 
-func (h Handlers) getArchiveLinkRequest(ctx context.Context, moduleName string, version string) (*http.Request, error) {
+func (h Handlers) getArchiveLinkRequest(ctx context.Context, moduleName, version string) (*http.Request, error) {
 	opts := &github.RepositoryContentGetOptions{Ref: version}
 
 	owner, repoName := path.Split(strings.TrimPrefix(moduleName, "github.com/"))

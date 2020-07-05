@@ -34,6 +34,7 @@
     "gomnd",
     "testpackage",
     "goerr113",
+    "noctx",
   ]
 
 [issues]

@@ -2,8 +2,10 @@ package db
 
 import f "github.com/fauna/faunadb-go/faunadb"
 
-const collName = "plugin"
-const collNameHashSuffix = "-hash"
+const (
+	collName           = "plugin"
+	collNameHashSuffix = "-hash"
+)
 
 // PluginDB is a db interface for Plugin.
 type PluginDB interface {
@@ -15,8 +17,8 @@ type PluginDB interface {
 	Update(string, Plugin) (Plugin, error)
 
 	DeleteHash(id string) error
-	CreateHash(module string, version string, hash string) (PluginHash, error)
-	GetHashByName(module string, version string) (PluginHash, error)
+	CreateHash(module, version, hash string) (PluginHash, error)
+	GetHashByName(module, version string) (PluginHash, error)
 }
 
 // FaunaDB is a faunadb implementation.
@@ -111,7 +113,6 @@ func (d *FaunaDB) Update(id string, plugin Plugin) (Plugin, error) {
 			f.Select("ref", f.Get(f.RefCollection(f.Collection(d.collName), id))),
 			f.Obj{"data": plugin},
 		))
-
 	if err != nil {
 		return Plugin{}, err
 	}
@@ -158,7 +159,7 @@ func (d *FaunaDB) list(expr f.Expr, pagination Pagination) ([]Plugin, string, er
 // -- Hash
 
 // CreateHash stores a plugin hash.
-func (d *FaunaDB) CreateHash(module string, version string, hash string) (PluginHash, error) {
+func (d *FaunaDB) CreateHash(module, version, hash string) (PluginHash, error) {
 	id, err := d.client.Query(f.NewId())
 	if err != nil {
 		return PluginHash{}, err
@@ -180,7 +181,7 @@ func (d *FaunaDB) CreateHash(module string, version string, hash string) (Plugin
 }
 
 // GetHashByName gets a plugin hash by plugin name.
-func (d *FaunaDB) GetHashByName(module string, version string) (PluginHash, error) {
+func (d *FaunaDB) GetHashByName(module, version string) (PluginHash, error) {
 	res, err := d.client.Query(
 		f.Get(
 			f.MatchTerm(f.Index(d.collName+collNameHashSuffix+"_by_value"), module+"@"+version),
@@ -262,7 +263,7 @@ func (d *FaunaDB) queryForRef(expr f.Expr) (f.RefV, error) {
 	return ref, err
 }
 
-func (d *FaunaDB) createIndex(indexName string, collRes f.RefV, terms f.Arr, values f.Arr) error {
+func (d *FaunaDB) createIndex(indexName string, collRes f.RefV, terms, values f.Arr) error {
 	_, err := d.client.Query(
 		f.CreateIndex(f.Obj{
 			"name":   indexName,

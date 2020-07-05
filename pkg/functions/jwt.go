@@ -31,7 +31,7 @@ type JWTHandler struct {
 	next http.Handler
 }
 
-func newJWTHandler(cert string, audience string, iss string, claims map[string]check, next http.Handler) JWTHandler {
+func newJWTHandler(cert, audience, iss string, claims map[string]check, next http.Handler) JWTHandler {
 	return JWTHandler{
 		certValue: cert,
 		audience:  audience,

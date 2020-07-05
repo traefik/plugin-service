@@ -19,7 +19,7 @@ type Client struct {
 }
 
 // New creates a token service client.
-func New(baseURL string, accessToken string) *Client {
+func New(baseURL, accessToken string) *Client {
 	return &Client{
 		baseURL:     baseURL,
 		httpClient:  &http.Client{Timeout: 10 * time.Second},
