@@ -35,8 +35,8 @@ blocks:
         - name: Run
           commands:
             - |
-              TOKEN=$(curl -s --request POST --url https://sso.plaen.io/oauth/token --header 'content-type: application/json' --data @/home/semaphore/datas/data.json | jq -r .access_token | tr -d '\n' | base64)
+              TOKEN=$(curl -s --request POST --url https://sso.pilot.traefik.io/oauth/token --header 'content-type: application/json' --data @/home/semaphore/datas/data.json | jq -r .access_token | tr -d '\n' | base64)
             - echo ${TOKEN}
-            - now secrets rm plaen-plugin-access-token --token ${VERCEL_TOKEN} --scope containous --yes
-            - now secrets add plaen-plugin-access-token "${TOKEN}" --token ${VERCEL_TOKEN} --scope containous
+            - now secrets rm pilot-plugin-access-token --token ${VERCEL_TOKEN} --scope containous --yes
+            - now secrets add pilot-plugin-access-token "${TOKEN}" --token ${VERCEL_TOKEN} --scope containous
             - now --token ${VERCEL_TOKEN} --scope containous

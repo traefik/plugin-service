@@ -6,12 +6,12 @@
 
 - `FAUNADB_SECRET`
 - `FAUNADB_ENDPOINT`
-- `PLAEN_TOKEN_URL`
-- `PLAEN_SERVICES_ACCESS_TOKEN`
-- `PLAEN_GO_PROXY_URL` (optional)
-- `PLAEN_GO_PROXY_USERNAME` (optional)
-- `PLAEN_GO_PROXY_PASSWORD` (optional)
-- `PLAEN_GITHUB_TOKEN` (optional) for testing purpose only.
+- `PILOT_TOKEN_URL`
+- `PILOT_SERVICES_ACCESS_TOKEN`
+- `PILOT_GO_PROXY_URL` (optional)
+- `PILOT_GO_PROXY_USERNAME` (optional)
+- `PILOT_GO_PROXY_PASSWORD` (optional)
+- `PILOT_GITHUB_TOKEN` (optional) for testing purpose only.
 
 # Vercel regions
 

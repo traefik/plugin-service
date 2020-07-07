@@ -19,9 +19,9 @@ import (
 
 // Public creates zeit function.
 func Public(rw http.ResponseWriter, req *http.Request) {
-	tokenBaseURL := os.Getenv("PLAEN_TOKEN_URL")
+	tokenBaseURL := os.Getenv("PILOT_TOKEN_URL")
 
-	serviceAccessToken, err := base64.StdEncoding.DecodeString(os.Getenv("PLAEN_SERVICES_ACCESS_TOKEN"))
+	serviceAccessToken, err := base64.StdEncoding.DecodeString(os.Getenv("PILOT_SERVICES_ACCESS_TOKEN"))
 	if err != nil {
 		log.Println(err)
 		jsonError(rw, http.StatusInternalServerError, "internal error")
@@ -35,9 +35,9 @@ func Public(rw http.ResponseWriter, req *http.Request) {
 		options = append(options, faunadb.Endpoint(dbEndpoint))
 	}
 
-	proxyURL := os.Getenv("PLAEN_GO_PROXY_URL")
-	proxyUsername := os.Getenv("PLAEN_GO_PROXY_USERNAME")
-	proxyPassword := os.Getenv("PLAEN_GO_PROXY_PASSWORD")
+	proxyURL := os.Getenv("PILOT_GO_PROXY_URL")
+	proxyUsername := os.Getenv("PILOT_GO_PROXY_USERNAME")
+	proxyPassword := os.Getenv("PILOT_GO_PROXY_PASSWORD")
 
 	gpClient, err := newGoProxyClient(proxyURL, proxyUsername, proxyPassword)
 	if err != nil {
@@ -45,7 +45,7 @@ func Public(rw http.ResponseWriter, req *http.Request) {
 		jsonError(rw, http.StatusInternalServerError, "internal error")
 	}
 
-	ghToken := os.Getenv("PLAEN_GITHUB_TOKEN")
+	ghToken := os.Getenv("PILOT_GITHUB_TOKEN")
 
 	var ghClient *github.Client
 	if ghToken != "" {
