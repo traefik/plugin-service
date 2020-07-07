@@ -12,7 +12,7 @@ import (
 
 // Internal creates zeit function.
 func Internal(rw http.ResponseWriter, req *http.Request) {
-	cert := os.Getenv("PLAEN_JWT_CERT")
+	cert := os.Getenv("PILOT_JWT_CERT")
 
 	dbSecret := os.Getenv("FAUNADB_SECRET")
 	dbEndpoint := os.Getenv("FAUNADB_ENDPOINT")
@@ -33,8 +33,8 @@ func Internal(rw http.ResponseWriter, req *http.Request) {
 	router.PanicHandler = handlers.PanicHandler
 
 	newJWTHandler(cert,
-		"https://services.plaen.io/",
-		"https://sso.plaen.io/",
+		"https://services.pilot.traefik.io/",
+		"https://sso.pilot.traefik.io/",
 		map[string]check{"sub": {value: "Ie2dYtbQ5N5hRz4cNHZNKJ3WHrp62Mr7@clients"}},
 		http.StripPrefix("/internal", router),
 	).ServeHTTP(rw, req)
