@@ -34,7 +34,7 @@ func Internal(rw http.ResponseWriter, req *http.Request) {
 
 	newJWTHandler(cert,
 		"https://services.pilot.traefik.io/",
-		"https://sso.pilot.traefik.io/",
+		"https://sso.traefik.io/",
 		map[string]check{"sub": {value: "Ie2dYtbQ5N5hRz4cNHZNKJ3WHrp62Mr7@clients"}},
 		http.StripPrefix("/internal", router),
 	).ServeHTTP(rw, req)
