@@ -79,12 +79,18 @@ func (h Handlers) Download(rw http.ResponseWriter, req *http.Request) {
 		log.Println("Someone is trying to hack the archive:", moduleName, version, sum)
 	}
 
-	if h.gh == nil {
-		h.downloadGoProxy(moduleName, version)(rw, req)
+	modFile, err := h.goProxy.GetModFile(moduleName, version)
+	if err != nil {
+		log.Println(err)
 		return
 	}
 
-	h.downloadGitHub(moduleName, version)(rw, req)
+	if h.gh != nil && len(modFile.Require) > 0 {
+		h.downloadGitHub(moduleName, version)(rw, req)
+		return
+	}
+
+	h.downloadGoProxy(moduleName, version)(rw, req)
 }
 
 func (h Handlers) downloadGoProxy(moduleName, version string) http.HandlerFunc {
