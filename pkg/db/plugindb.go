@@ -109,7 +109,7 @@ func (d *FaunaDB) GetByName(value string) (Plugin, error) {
 // Update Updates a plugin in the db.
 func (d *FaunaDB) Update(id string, plugin Plugin) (Plugin, error) {
 	res, err := d.client.Query(
-		f.Update(
+		f.Replace(
 			f.Select("ref", f.Get(f.RefCollection(f.Collection(d.collName), id))),
 			f.Obj{"data": plugin},
 		))
