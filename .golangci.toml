@@ -22,7 +22,7 @@
 
   [linters-settings.funlen]
     lines = 60 # default 60
-    statements = 40 # default 40
+    statements = 50 # default 40
 
 [linters]
   enable-all = true
