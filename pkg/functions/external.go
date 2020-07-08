@@ -12,7 +12,7 @@ import (
 
 // External creates zeit function.
 func External(rw http.ResponseWriter, req *http.Request) {
-	cert := os.Getenv("PLAEN_JWT_CERT")
+	cert := os.Getenv("PILOT_JWT_CERT")
 
 	dbSecret := os.Getenv("FAUNADB_SECRET")
 	dbEndpoint := os.Getenv("FAUNADB_ENDPOINT")
@@ -31,9 +31,9 @@ func External(rw http.ResponseWriter, req *http.Request) {
 	router.PanicHandler = handlers.PanicHandler
 
 	newJWTHandler(cert,
-		"https://clients.plaen.io/",
-		"https://sso.plaen.io/",
-		map[string]check{"https://clients.plaen.io/user_id": {header: "X-User-Id"}},
+		"https://clients.pilot.traefik.io/",
+		"https://sso.traefik.io/",
+		map[string]check{"https://clients.pilot.traefik.io/user_id": {header: "X-User-Id"}},
 		http.StripPrefix("/external", router),
 	).ServeHTTP(rw, req)
 }

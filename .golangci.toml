@@ -8,7 +8,7 @@
     check-shadowing = true
 
   [linters-settings.gocyclo]
-    min-complexity = 12.0
+    min-complexity = 14.0
 
   [linters-settings.maligned]
     suggest-new = true
@@ -22,7 +22,7 @@
 
   [linters-settings.funlen]
     lines = 60 # default 60
-    statements = 40 # default 40
+    statements = 50 # default 40
 
 [linters]
   enable-all = true
