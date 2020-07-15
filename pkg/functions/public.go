@@ -12,7 +12,7 @@ import (
 	"github.com/containous/plugin-service/pkg/handlers"
 	"github.com/fauna/faunadb-go/faunadb"
 	"github.com/google/go-github/v32/github"
-	"github.com/julienschmidt/httprouter"
+	"github.com/gorilla/mux"
 	"github.com/ldez/grignotin/goproxy"
 	"golang.org/x/oauth2"
 )
@@ -54,14 +54,15 @@ func Public(rw http.ResponseWriter, req *http.Request) {
 
 	handler := handlers.New(db.NewFaunaDB(faunadb.NewFaunaClient(dbSecret, options...)), gpClient, ghClient, token.New(tokenBaseURL, string(serviceAccessToken)))
 
-	router := httprouter.New()
-	router.HandlerFunc(http.MethodGet, "/download/*all", handler.Download)
-	router.HandlerFunc(http.MethodGet, "/validate/*all", handler.Validate)
+	r := mux.NewRouter()
+	r.HandleFunc("/", handler.List)
+	r.HandleFunc("/download/{all:.+}", handler.Download)
+	r.HandleFunc("/validate/{all:.+}", handler.Validate)
+	r.HandleFunc("/{uuid}", handler.Get)
 
-	router.NotFound = http.HandlerFunc(handlers.NotFound)
-	router.PanicHandler = handlers.PanicHandler
+	r.NotFoundHandler = http.HandlerFunc(handlers.NotFound)
 
-	http.StripPrefix("/public", router).ServeHTTP(rw, req)
+	http.StripPrefix("/public", r).ServeHTTP(rw, req)
 }
 
 func newGoProxyClient(proxyURL, username, password string) (*goproxy.Client, error) {
