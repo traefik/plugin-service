@@ -3,9 +3,10 @@ package functions
 import (
 	"context"
 	"encoding/base64"
-	"log"
 	"net/http"
 	"os"
+
+	"github.com/rs/zerolog/log"
 
 	"github.com/containous/plugin-service/internal/token"
 	"github.com/containous/plugin-service/pkg/db"
@@ -23,7 +24,7 @@ func Public(rw http.ResponseWriter, req *http.Request) {
 
 	serviceAccessToken, err := base64.StdEncoding.DecodeString(os.Getenv("PILOT_SERVICES_ACCESS_TOKEN"))
 	if err != nil {
-		log.Println(err)
+		log.Error().Msg(err.Error())
 		jsonError(rw, http.StatusInternalServerError, "internal error")
 	}
 
@@ -41,7 +42,7 @@ func Public(rw http.ResponseWriter, req *http.Request) {
 
 	gpClient, err := newGoProxyClient(proxyURL, proxyUsername, proxyPassword)
 	if err != nil {
-		log.Println(err)
+		log.Error().Msg(err.Error())
 		jsonError(rw, http.StatusInternalServerError, "internal error")
 	}
 
