@@ -8,13 +8,12 @@ import (
 	"net/url"
 	"regexp"
 
-	"github.com/rs/zerolog/log"
-
 	"github.com/containous/plugin-service/internal/token"
 	"github.com/containous/plugin-service/pkg/db"
 	"github.com/fauna/faunadb-go/faunadb"
 	"github.com/google/go-github/v32/github"
 	"github.com/ldez/grignotin/goproxy"
+	"github.com/rs/zerolog/log"
 )
 
 const (
@@ -45,7 +44,7 @@ func (h Handlers) Get(rw http.ResponseWriter, req *http.Request) {
 
 	id, err := getPathParam(req.URL)
 	if err != nil {
-		log.Info().Msg("missing plugin id")
+		log.Error().Msg("missing plugin id")
 		jsonError(rw, http.StatusBadRequest, "missing plugin id")
 		return
 	}
@@ -54,19 +53,19 @@ func (h Handlers) Get(rw http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		var notFoundError faunadb.NotFound
 		if errors.As(err, &notFoundError) {
-			log.Info().Msgf("plugin not found: %s", id)
+			log.Error().Str("pluginID", id).Msg("plugin not found")
 			jsonError(rw, http.StatusNotFound, "plugin not found")
 			return
 		}
 
-		log.Error().Err(err).Msg("Error while fetch")
+		log.Error().Err(err).Str("pluginID", id).Msg("Error while fetch")
 
 		jsonError(rw, http.StatusInternalServerError, "error")
 		return
 	}
 
 	if err := json.NewEncoder(rw).Encode(plugin); err != nil {
-		log.Error().Err(err).Msg("failed to get plugin")
+		log.Error().Str("pluginID", id).Err(err).Msg("failed to get plugin")
 		jsonError(rw, http.StatusInternalServerError, "could not write response")
 		return
 	}
@@ -82,19 +81,19 @@ func (h Handlers) List(rw http.ResponseWriter, req *http.Request) {
 		if err != nil {
 			var notFoundError faunadb.NotFound
 			if errors.As(err, &notFoundError) {
-				log.Info().Msgf("plugin not found: %s", name)
+				log.Error().Str("pluginName", name).Msg("plugin not found")
 				jsonError(rw, http.StatusNotFound, "plugin not found")
 				return
 			}
 
-			log.Error().Err(err).Msg("Error while fetch")
+			log.Error().Err(err).Str("pluginName", name).Msg("Error while fetch")
 
 			jsonError(rw, http.StatusInternalServerError, "error")
 			return
 		}
 
 		if err := json.NewEncoder(rw).Encode([]*db.Plugin{&plugin}); err != nil {
-			log.Error().Err(err).Msg("failed to get plugin")
+			log.Error().Err(err).Str("pluginName", name).Msg("failed to get plugin")
 			jsonError(rw, http.StatusInternalServerError, "could not write response")
 			return
 		}
@@ -158,14 +157,14 @@ func (h Handlers) Create(rw http.ResponseWriter, req *http.Request) {
 
 	created, err := h.db.Create(pl)
 	if err != nil {
-		log.Error().Err(err).Msgf("Error persisting plugin %s", pl.Name)
+		log.Error().Err(err).Str("moduleName", pl.Name).Msg("Error persisting plugin")
 		jsonError(rw, http.StatusInternalServerError, "could not persist data")
 		return
 	}
 
 	rw.WriteHeader(http.StatusCreated)
 	if err := json.NewEncoder(rw).Encode(created); err != nil {
-		log.Error().Err(err).Msg("Error sending create response")
+		log.Error().Err(err).Str("moduleName", pl.Name).Msg("Error sending create response")
 		jsonError(rw, http.StatusInternalServerError, "could not write response")
 		return
 	}
@@ -177,14 +176,15 @@ func (h Handlers) Update(rw http.ResponseWriter, req *http.Request) {
 
 	id, err := getPathParam(req.URL)
 	if err != nil {
-		jsonError(rw, http.StatusBadRequest, "missing token id")
+		log.Error().Err(err).Msg("missing plugin id")
+		jsonError(rw, http.StatusBadRequest, "missing plugin id")
 		return
 	}
 
 	input := db.Plugin{}
 	err = json.NewDecoder(req.Body).Decode(&input)
 	if err != nil {
-		log.Error().Err(err).Msg("Error reading body for update")
+		log.Error().Err(err).Str("pluginID", id).Msg("Error reading body for update")
 		jsonError(rw, http.StatusBadRequest, err.Error())
 		return
 	}
@@ -193,12 +193,12 @@ func (h Handlers) Update(rw http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		var notFoundError faunadb.NotFound
 		if errors.As(err, &notFoundError) {
-			log.Info().Msgf("plugin not found: %s", id)
+			log.Error().Str("pluginID", id).Msg("plugin not found")
 			jsonError(rw, http.StatusNotFound, "plugin not found")
 			return
 		}
 
-		log.Error().Err(err).Msg("Error updating token")
+		log.Error().Err(err).Str("pluginID", id).Msg("Error updating token")
 
 		jsonError(rw, http.StatusInternalServerError, "could not update token")
 		return
@@ -206,7 +206,7 @@ func (h Handlers) Update(rw http.ResponseWriter, req *http.Request) {
 
 	rw.WriteHeader(http.StatusOK)
 	if err := json.NewEncoder(rw).Encode(pg); err != nil {
-		log.Error().Err(err).Msg("failed to marshal token")
+		log.Error().Err(err).Str("pluginID", id).Msg("failed to marshal token")
 		jsonError(rw, http.StatusInternalServerError, "could not write response")
 		return
 	}
@@ -216,21 +216,22 @@ func (h Handlers) Update(rw http.ResponseWriter, req *http.Request) {
 func (h Handlers) Delete(rw http.ResponseWriter, req *http.Request) {
 	id, err := getPathParam(req.URL)
 	if err != nil {
-		jsonError(rw, http.StatusBadRequest, "missing instance info id")
+		log.Error().Err(err).Msg("missing plugin id")
+		jsonError(rw, http.StatusBadRequest, "missing plugin id")
 		return
 	}
 
 	_, err = h.db.Get(id)
 	if err != nil {
-		log.Error().Err(err).Msg("failed to get plugin information")
+		log.Error().Err(err).Str("pluginID", id).Msg("failed to get plugin information")
 		NotFound(rw, req)
 		return
 	}
 
 	err = h.db.Delete(id)
 	if err != nil {
-		log.Error().Err(err).Msg("failed to delete the plugin info")
-		jsonError(rw, http.StatusBadRequest, err.Error())
+		log.Error().Err(err).Str("pluginID", id).Msg("failed to delete the plugin info")
+		jsonError(rw, http.StatusBadRequest, "failed to delete plugin info")
 		return
 	}
 
@@ -238,8 +239,8 @@ func (h Handlers) Delete(rw http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		var notFoundError faunadb.NotFound
 		if !errors.As(err, &notFoundError) {
-			log.Error().Err(err).Msg("failed to delete the plugin hash")
-			jsonError(rw, http.StatusBadRequest, err.Error())
+			log.Error().Err(err).Str("pluginID", id).Msg("failed to delete the plugin hash")
+			jsonError(rw, http.StatusBadRequest, "failed to delete plugin hash")
 			return
 		}
 	}

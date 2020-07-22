@@ -4,11 +4,10 @@ import (
 	"flag"
 	"os"
 
-	"github.com/rs/zerolog/log"
-
 	"github.com/containous/plugin-service/pkg/db"
 	"github.com/containous/plugin-service/pkg/logger"
 	"github.com/fauna/faunadb-go/faunadb"
+	"github.com/rs/zerolog/log"
 )
 
 func main() {
@@ -25,6 +24,6 @@ func main() {
 	database := db.NewFaunaDB(faunadb.NewFaunaClient(*secret))
 	err := database.Bootstrap()
 	if err != nil {
-		log.Fatal().Err(err).Msgf("Error while bootstraping")
+		log.Fatal().Err(err).Msg("Error while bootstraping")
 	}
 }

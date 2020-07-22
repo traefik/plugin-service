@@ -5,12 +5,11 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/rs/zerolog/log"
-
 	"github.com/containous/plugin-service/pkg/db"
 	"github.com/containous/plugin-service/pkg/functions"
 	"github.com/containous/plugin-service/pkg/logger"
 	"github.com/fauna/faunadb-go/faunadb"
+	"github.com/rs/zerolog/log"
 )
 
 func main() {

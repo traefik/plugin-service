@@ -6,8 +6,6 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/rs/zerolog/log"
-
 	"github.com/containous/plugin-service/internal/token"
 	"github.com/containous/plugin-service/pkg/db"
 	"github.com/containous/plugin-service/pkg/handlers"
@@ -15,6 +13,7 @@ import (
 	"github.com/google/go-github/v32/github"
 	"github.com/gorilla/mux"
 	"github.com/ldez/grignotin/goproxy"
+	"github.com/rs/zerolog/log"
 	"golang.org/x/oauth2"
 )
 
@@ -24,7 +23,7 @@ func Public(rw http.ResponseWriter, req *http.Request) {
 
 	serviceAccessToken, err := base64.StdEncoding.DecodeString(os.Getenv("PILOT_SERVICES_ACCESS_TOKEN"))
 	if err != nil {
-		log.Error().Msg(err.Error())
+		log.Error().Err(err).Msg("Failed to get PILOT_SERVICES_ACCESS_TOKEN")
 		jsonError(rw, http.StatusInternalServerError, "internal error")
 	}
 
@@ -42,7 +41,7 @@ func Public(rw http.ResponseWriter, req *http.Request) {
 
 	gpClient, err := newGoProxyClient(proxyURL, proxyUsername, proxyPassword)
 	if err != nil {
-		log.Error().Msg(err.Error())
+		log.Error().Err(err).Msg("Failed to create go proxy client")
 		jsonError(rw, http.StatusInternalServerError, "internal error")
 	}
 
