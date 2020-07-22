@@ -49,23 +49,25 @@ func (h Handlers) Get(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	logger := log.Error().Str("pluginID", id)
+
 	plugin, err := h.db.Get(id)
 	if err != nil {
 		var notFoundError faunadb.NotFound
 		if errors.As(err, &notFoundError) {
-			log.Error().Str("pluginID", id).Msg("plugin not found")
+			logger.Msg("plugin not found")
 			jsonError(rw, http.StatusNotFound, "plugin not found")
 			return
 		}
 
-		log.Error().Str("pluginID", id).Err(err).Msg("Error while fetch")
+		logger.Err(err).Msg("Error while fetch")
 
 		jsonError(rw, http.StatusInternalServerError, "error")
 		return
 	}
 
 	if err := json.NewEncoder(rw).Encode(plugin); err != nil {
-		log.Error().Str("pluginID", id).Err(err).Msg("failed to get plugin")
+		logger.Err(err).Msg("failed to get plugin")
 		jsonError(rw, http.StatusInternalServerError, "could not write response")
 		return
 	}
