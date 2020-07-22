@@ -7,10 +7,9 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/rs/zerolog/log"
-
 	"github.com/dgrijalva/jwt-go"
 	jwtreq "github.com/dgrijalva/jwt-go/request"
+	"github.com/rs/zerolog/log"
 )
 
 const authorizationHeader = "Authorization"
