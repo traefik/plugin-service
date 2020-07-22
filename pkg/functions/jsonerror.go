@@ -3,8 +3,9 @@ package functions
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
+
+	"github.com/rs/zerolog/log"
 )
 
 type apiError struct {
@@ -21,7 +22,7 @@ func jsonError(rw http.ResponseWriter, code int, error string) {
 
 	content, err := json.Marshal(msg)
 	if err != nil {
-		log.Printf("failed to process error %q: %v", error, err)
+		log.Error().Err(err).Msgf("failed to process error %q", error)
 
 		_, _ = fmt.Fprintln(rw, `{"error": "internal error"}`)
 		return
