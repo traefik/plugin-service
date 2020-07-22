@@ -22,7 +22,7 @@ func jsonError(rw http.ResponseWriter, code int, error string) {
 
 	content, err := json.Marshal(msg)
 	if err != nil {
-		log.Error().Msgf("failed to process error %q: %v", error, err.Error())
+		log.Error().Err(err).Msgf("failed to process error %q", error)
 
 		_, _ = fmt.Fprintln(rw, `{"error": "internal error"}`)
 		return

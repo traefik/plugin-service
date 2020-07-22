@@ -59,14 +59,14 @@ func (h Handlers) Get(rw http.ResponseWriter, req *http.Request) {
 			return
 		}
 
-		log.Error().Msgf("Error while fetch: %v", err.Error())
+		log.Error().Err(err).Msg("Error while fetch")
 
 		jsonError(rw, http.StatusInternalServerError, "error")
 		return
 	}
 
 	if err := json.NewEncoder(rw).Encode(plugin); err != nil {
-		log.Error().Msgf("failed to get plugin: %v", err.Error())
+		log.Error().Err(err).Msg("failed to get plugin")
 		jsonError(rw, http.StatusInternalServerError, "could not write response")
 		return
 	}
@@ -87,14 +87,14 @@ func (h Handlers) List(rw http.ResponseWriter, req *http.Request) {
 				return
 			}
 
-			log.Error().Msgf("Error while fetch: %v", err.Error())
+			log.Error().Err(err).Msg("Error while fetch")
 
 			jsonError(rw, http.StatusInternalServerError, "error")
 			return
 		}
 
 		if err := json.NewEncoder(rw).Encode([]*db.Plugin{&plugin}); err != nil {
-			log.Error().Msgf("failed to get plugin: %v", err.Error())
+			log.Error().Err(err).Msg("failed to get plugin")
 			jsonError(rw, http.StatusInternalServerError, "could not write response")
 			return
 		}
@@ -108,14 +108,14 @@ func (h Handlers) List(rw http.ResponseWriter, req *http.Request) {
 		Size:  defaultPerPage,
 	})
 	if err != nil {
-		log.Error().Msgf("Error fetching plugins: %v", err.Error())
+		log.Error().Err(err).Msg("Error fetching plugins")
 		jsonError(rw, http.StatusNotFound, "could not fetch plugins")
 		return
 	}
 
 	if len(plugins) == 0 {
 		if err := json.NewEncoder(rw).Encode(make([]*db.Plugin, 0)); err != nil {
-			log.Error().Msgf("Error sending create response: %v", err.Error())
+			log.Error().Err(err).Msg("Error sending create response")
 			jsonError(rw, http.StatusInternalServerError, "could not write response")
 		}
 		return
@@ -124,7 +124,7 @@ func (h Handlers) List(rw http.ResponseWriter, req *http.Request) {
 	rw.Header().Set(nextPageHeader, next)
 
 	if err := json.NewEncoder(rw).Encode(plugins); err != nil {
-		log.Error().Msgf("Error sending create response: %v", err.Error())
+		log.Error().Err(err).Msg("Error sending create response")
 		jsonError(rw, http.StatusInternalServerError, "could not write response")
 		return
 	}
@@ -136,13 +136,13 @@ func (h Handlers) Create(rw http.ResponseWriter, req *http.Request) {
 
 	body, err := ioutil.ReadAll(req.Body)
 	if err != nil {
-		log.Error().Msgf("Error reading body for creation: %v", err.Error())
+		log.Error().Err(err).Msg("Error reading body for creation")
 		jsonError(rw, http.StatusInternalServerError, err.Error())
 		return
 	}
 
 	if len(body) == 0 {
-		log.Error().Msgf("Error decoding plugin for creation: %v", err.Error())
+		log.Error().Err(err).Msg("Error decoding plugin for creation")
 		jsonError(rw, http.StatusBadRequest, err.Error())
 		return
 	}
@@ -151,21 +151,21 @@ func (h Handlers) Create(rw http.ResponseWriter, req *http.Request) {
 
 	err = json.Unmarshal(body, &pl)
 	if err != nil {
-		log.Error().Msgf("Error decoding plugin for creation: %v", err.Error())
+		log.Error().Err(err).Msg("Error decoding plugin for creation")
 		jsonError(rw, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	created, err := h.db.Create(pl)
 	if err != nil {
-		log.Error().Msgf("Error persisting plugin %s: %v", pl.Name, err.Error())
+		log.Error().Err(err).Msgf("Error persisting plugin %s", pl.Name)
 		jsonError(rw, http.StatusInternalServerError, "could not persist data")
 		return
 	}
 
 	rw.WriteHeader(http.StatusCreated)
 	if err := json.NewEncoder(rw).Encode(created); err != nil {
-		log.Error().Msgf("Error sending create response: %v", err.Error())
+		log.Error().Err(err).Msg("Error sending create response")
 		jsonError(rw, http.StatusInternalServerError, "could not write response")
 		return
 	}
@@ -184,7 +184,7 @@ func (h Handlers) Update(rw http.ResponseWriter, req *http.Request) {
 	input := db.Plugin{}
 	err = json.NewDecoder(req.Body).Decode(&input)
 	if err != nil {
-		log.Error().Msgf("Error reading body for update: %v", err.Error())
+		log.Error().Err(err).Msg("Error reading body for update")
 		jsonError(rw, http.StatusBadRequest, err.Error())
 		return
 	}
@@ -198,7 +198,7 @@ func (h Handlers) Update(rw http.ResponseWriter, req *http.Request) {
 			return
 		}
 
-		log.Error().Msgf("Error updating token: %v", err.Error())
+		log.Error().Err(err).Msg("Error updating token")
 
 		jsonError(rw, http.StatusInternalServerError, "could not update token")
 		return
@@ -206,7 +206,7 @@ func (h Handlers) Update(rw http.ResponseWriter, req *http.Request) {
 
 	rw.WriteHeader(http.StatusOK)
 	if err := json.NewEncoder(rw).Encode(pg); err != nil {
-		log.Error().Msgf("failed to marshal token: %v", err.Error())
+		log.Error().Err(err).Msg("failed to marshal token")
 		jsonError(rw, http.StatusInternalServerError, "could not write response")
 		return
 	}
@@ -222,14 +222,14 @@ func (h Handlers) Delete(rw http.ResponseWriter, req *http.Request) {
 
 	_, err = h.db.Get(id)
 	if err != nil {
-		log.Error().Msgf("failed to get plugin information: %v", err.Error())
+		log.Error().Err(err).Msg("failed to get plugin information")
 		NotFound(rw, req)
 		return
 	}
 
 	err = h.db.Delete(id)
 	if err != nil {
-		log.Error().Msgf("failed to delete the plugin info: %v", err.Error())
+		log.Error().Err(err).Msg("failed to delete the plugin info")
 		jsonError(rw, http.StatusBadRequest, err.Error())
 		return
 	}
@@ -238,7 +238,7 @@ func (h Handlers) Delete(rw http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		var notFoundError faunadb.NotFound
 		if !errors.As(err, &notFoundError) {
-			log.Error().Msgf("failed to delete the plugin hash: %v", err.Error())
+			log.Error().Err(err).Msg("failed to delete the plugin hash")
 			jsonError(rw, http.StatusBadRequest, err.Error())
 			return
 		}
@@ -252,7 +252,8 @@ func NotFound(rw http.ResponseWriter, _ *http.Request) {
 
 // PanicHandler handles panics.
 func PanicHandler(rw http.ResponseWriter, req *http.Request, err interface{}) {
-	log.Panic().Msgf("Panic error executing request %s %s: %v", req.Method, req.URL, err)
+	log.Error().Str("method", req.Method).Interface("url", req.URL).Interface("err", err).
+		Msg("Panic error executing request")
 	jsonError(rw, http.StatusInternalServerError, "panic")
 }
 

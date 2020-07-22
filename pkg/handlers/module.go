@@ -40,7 +40,7 @@ func (h Handlers) Download(rw http.ResponseWriter, req *http.Request) {
 
 	_, err := h.token.Check(tokenValue)
 	if err != nil {
-		log.Error().Msgf("invalid token: %v", err.Error())
+		log.Error().Err(err).Msg("invalid token")
 		jsonError(rw, http.StatusBadRequest, "invalid token")
 		return
 	}
@@ -57,7 +57,7 @@ func (h Handlers) Download(rw http.ResponseWriter, req *http.Request) {
 			return
 		}
 
-		log.Error().Msgf("failed to get plugin (%s@%s): %v", moduleName, version, err.Error())
+		log.Error().Err(err).Msgf("failed to get plugin (%s@%s)", moduleName, version)
 		jsonError(rw, http.StatusInternalServerError, "failed to get plugin")
 		return
 	}
@@ -98,7 +98,7 @@ func (h Handlers) downloadGoProxy(moduleName, version string) http.HandlerFunc {
 	return func(rw http.ResponseWriter, req *http.Request) {
 		sources, err := h.goProxy.DownloadSources(moduleName, version)
 		if err != nil {
-			log.Error().Msgf("failed to download sources: %v", err.Error())
+			log.Error().Err(err).Msg("failed to download sources")
 			jsonError(rw, http.StatusInternalServerError, "failed to get plugin")
 			return
 		}
@@ -108,7 +108,7 @@ func (h Handlers) downloadGoProxy(moduleName, version string) http.HandlerFunc {
 		_, err = h.db.GetHashByName(moduleName, version)
 		var notFoundError faunadb.NotFound
 		if err != nil && !errors.As(err, &notFoundError) {
-			log.Error().Msgf("failed to get plugin hash: %s@%s: %v", moduleName, version, err.Error())
+			log.Error().Err(err).Msgf("failed to get plugin hash: %s@%s", moduleName, version)
 			jsonError(rw, http.StatusInternalServerError, "failed to get plugin")
 			return
 		}
@@ -116,7 +116,7 @@ func (h Handlers) downloadGoProxy(moduleName, version string) http.HandlerFunc {
 		if err == nil {
 			_, err = io.Copy(rw, sources)
 			if err != nil {
-				log.Error().Msgf("failed to write response body (%s@%s): %v", moduleName, version, err.Error())
+				log.Error().Err(err).Msgf("failed to write response body (%s@%s)", moduleName, version)
 				jsonError(rw, http.StatusInternalServerError, "failed to get plugin")
 				return
 			}
@@ -126,7 +126,7 @@ func (h Handlers) downloadGoProxy(moduleName, version string) http.HandlerFunc {
 
 		raw, err := ioutil.ReadAll(sources)
 		if err != nil {
-			log.Error().Msgf("failed to read response body (%s@%s): %v", moduleName, version, err.Error())
+			log.Error().Err(err).Msgf("failed to read response body (%s@%s)", moduleName, version)
 			jsonError(rw, http.StatusInternalServerError, "failed to get plugin")
 			return
 		}
@@ -135,7 +135,7 @@ func (h Handlers) downloadGoProxy(moduleName, version string) http.HandlerFunc {
 
 		_, err = hash.Write(raw)
 		if err != nil {
-			log.Error().Msgf("failed to compute hash (%s@%s): %v", moduleName, version, err.Error())
+			log.Error().Err(err).Msgf("failed to compute hash (%s@%s)", moduleName, version)
 			jsonError(rw, http.StatusInternalServerError, "failed to get plugin")
 			return
 		}
@@ -144,14 +144,14 @@ func (h Handlers) downloadGoProxy(moduleName, version string) http.HandlerFunc {
 
 		_, err = h.db.CreateHash(moduleName, version, sum)
 		if err != nil {
-			log.Error().Msgf("Error persisting plugin hash %s@%s: %v", moduleName, version, err.Error())
+			log.Error().Err(err).Msgf("Error persisting plugin hash %s@%s", moduleName, version)
 			jsonError(rw, http.StatusInternalServerError, "could not persist data")
 			return
 		}
 
 		_, err = rw.Write(raw)
 		if err != nil {
-			log.Error().Msgf("failed to write response body (%s@%s): %v", moduleName, version, err.Error())
+			log.Error().Err(err).Msgf("failed to write response body (%s@%s)", moduleName, version)
 			jsonError(rw, http.StatusInternalServerError, "failed to get plugin")
 			return
 		}
@@ -164,7 +164,7 @@ func (h Handlers) downloadGitHub(moduleName, version string) http.HandlerFunc {
 
 		request, err := h.getArchiveLinkRequest(ctx, moduleName, version)
 		if err != nil {
-			log.Error().Msgf("failed to get archive link (%s@%s): %v", moduleName, version, err.Error())
+			log.Error().Err(err).Msgf("failed to get archive link (%s@%s)", moduleName, version)
 			jsonError(rw, http.StatusInternalServerError, "failed to get plugin")
 			return
 		}
@@ -172,7 +172,7 @@ func (h Handlers) downloadGitHub(moduleName, version string) http.HandlerFunc {
 		_, err = h.db.GetHashByName(moduleName, version)
 		var notFoundError faunadb.NotFound
 		if err != nil && !errors.As(err, &notFoundError) {
-			log.Error().Msgf("failed to get plugin hash: %s@%s: %v", moduleName, version, err.Error())
+			log.Error().Err(err).Msgf("failed to get plugin hash: %s@%s", moduleName, version)
 			jsonError(rw, http.StatusInternalServerError, "failed to get plugin")
 			return
 		}
@@ -180,7 +180,7 @@ func (h Handlers) downloadGitHub(moduleName, version string) http.HandlerFunc {
 		if err == nil {
 			_, err = h.gh.Do(ctx, request, rw)
 			if err != nil {
-				log.Error().Msgf("failed to write response body (%s@%s): %v", moduleName, version, err.Error())
+				log.Error().Err(err).Msgf("failed to write response body (%s@%s)", moduleName, version)
 				jsonError(rw, http.StatusInternalServerError, "failed to get plugin")
 				return
 			}
@@ -192,14 +192,14 @@ func (h Handlers) downloadGitHub(moduleName, version string) http.HandlerFunc {
 
 		_, err = h.gh.Do(ctx, request, sources)
 		if err != nil {
-			log.Error().Msgf("failed to get archive content (%s@%s): %v", moduleName, version, err.Error())
+			log.Error().Err(err).Msgf("failed to get archive content (%s@%s)", moduleName, version)
 			jsonError(rw, http.StatusInternalServerError, "failed to get plugin")
 			return
 		}
 
 		raw, err := ioutil.ReadAll(sources)
 		if err != nil {
-			log.Error().Msgf("failed to read response body (%s@%s): %v", moduleName, version, err.Error())
+			log.Error().Err(err).Msgf("failed to read response body (%s@%s)", moduleName, version)
 			jsonError(rw, http.StatusInternalServerError, "failed to get plugin")
 			return
 		}
@@ -208,7 +208,7 @@ func (h Handlers) downloadGitHub(moduleName, version string) http.HandlerFunc {
 
 		_, err = hash.Write(raw)
 		if err != nil {
-			log.Error().Msgf("failed to compute hash (%s@%s): %v", moduleName, version, err.Error())
+			log.Error().Err(err).Msgf("failed to compute hash (%s@%s)", moduleName, version)
 			jsonError(rw, http.StatusInternalServerError, "failed to get plugin")
 			return
 		}
@@ -217,14 +217,14 @@ func (h Handlers) downloadGitHub(moduleName, version string) http.HandlerFunc {
 
 		_, err = h.db.CreateHash(moduleName, version, sum)
 		if err != nil {
-			log.Error().Msgf("Error persisting plugin hash %s@%s: %v", moduleName, version, err.Error())
+			log.Error().Err(err).Msgf("Error persisting plugin hash %s@%s", moduleName, version)
 			jsonError(rw, http.StatusInternalServerError, "could not persist data")
 			return
 		}
 
 		_, err = rw.Write(raw)
 		if err != nil {
-			log.Error().Msgf("failed to write response body (%s@%s): %v", moduleName, version, err.Error())
+			log.Error().Err(err).Msgf("failed to write response body (%s@%s)", moduleName, version)
 			jsonError(rw, http.StatusInternalServerError, "failed to get plugin")
 			return
 		}
@@ -262,7 +262,7 @@ func (h Handlers) Validate(rw http.ResponseWriter, req *http.Request) {
 
 	_, err := h.token.Check(tokenValue)
 	if err != nil {
-		log.Error().Msgf("invalid token: %v", err.Error())
+		log.Error().Err(err).Msgf("invalid token")
 		jsonError(rw, http.StatusBadRequest, "invalid token")
 		return
 	}
