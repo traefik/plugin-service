@@ -4,12 +4,12 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
 	"strings"
 
 	"github.com/dgrijalva/jwt-go"
 	jwtreq "github.com/dgrijalva/jwt-go/request"
+	"github.com/rs/zerolog/log"
 )
 
 const authorizationHeader = "Authorization"
@@ -45,7 +45,7 @@ func newJWTHandler(cert, audience, iss string, claims map[string]check, next htt
 // ServeHTTP checks the token and call next.
 func (h JWTHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	if err := h.check(req); err != nil {
-		log.Println(err)
+		log.Error().Err(err).Msg("Failed to check JWT")
 		jsonError(rw, http.StatusUnauthorized, "unauthorized")
 		return
 	}
