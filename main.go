@@ -2,16 +2,20 @@ package main
 
 import (
 	"flag"
-	"log"
 	"net/http"
 	"os"
 
+	"github.com/rs/zerolog/log"
+
 	"github.com/containous/plugin-service/pkg/db"
 	"github.com/containous/plugin-service/pkg/functions"
+	"github.com/containous/plugin-service/pkg/logger"
 	"github.com/fauna/faunadb-go/faunadb"
 )
 
 func main() {
+	logger.Setup()
+
 	host := flag.String("host", "0.0.0.0:8080", "listening port and hostname")
 	secret := flag.String("secret", os.Getenv("FAUNADB_SECRET"), "Secret for database access.")
 	endpoint := flag.String("endpoint", os.Getenv("FAUNADB_ENDPOINT"), "Endpoint for database access.")
@@ -29,28 +33,28 @@ func main() {
 	}
 
 	if secret == nil || *secret == "" {
-		log.Fatal("FaunaDB secret is required.")
+		log.Fatal().Msg("FaunaDB secret is required.")
 	}
 
 	var options []faunadb.ClientConfig
 	if endpoint != nil && *endpoint != "" {
 		if err := os.Setenv("FAUNADB_ENDPOINT", *endpoint); err != nil {
-			log.Fatalf("Unable to set FAUNADB_ENDPOINT: %v", err)
+			log.Fatal().Err(err).Msg("Unable to set FAUNADB_ENDPOINT")
 		}
 		options = append(options, faunadb.Endpoint(*endpoint))
 	}
 
 	token, err := initDB(*secret, options)
 	if err != nil {
-		log.Fatalf("Error while bootstraping: %v", err)
+		log.Fatal().Err(err).Msg("Error while bootstraping")
 	}
 
 	if err = os.Setenv("FAUNADB_SECRET", token); err != nil {
-		log.Fatalf("Unable to set FAUNADB_SECRET: %v", err)
+		log.Fatal().Err(err).Msg("Unable to set FAUNADB_SECRET")
 	}
 
 	if err = bootstrap(token, options); err != nil {
-		log.Fatalf("Error while bootstraping: %v", err)
+		log.Fatal().Err(err).Msg("Error while bootstraping")
 	}
 
 	mux := http.NewServeMux()
@@ -60,7 +64,7 @@ func main() {
 
 	err = http.ListenAndServe(*host, mux)
 	if err != nil {
-		log.Fatalf("Error in http server: %v", err)
+		log.Fatal().Err(err).Msg("Error in http server")
 	}
 }
 
