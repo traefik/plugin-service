@@ -6,12 +6,15 @@ import (
 
 	"github.com/containous/plugin-service/pkg/db"
 	"github.com/containous/plugin-service/pkg/handlers"
+	"github.com/containous/plugin-service/pkg/logger"
 	"github.com/fauna/faunadb-go/faunadb"
 	"github.com/julienschmidt/httprouter"
 )
 
 // External creates zeit function.
 func External(rw http.ResponseWriter, req *http.Request) {
+	logger.Setup()
+
 	cert := os.Getenv("PILOT_JWT_CERT")
 
 	dbSecret := os.Getenv("FAUNADB_SECRET")
