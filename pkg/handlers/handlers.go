@@ -34,6 +34,7 @@ func New(db db.PluginDB, goProxy *goproxy.Client, gh *github.Client, tokenClient
 	return Handlers{
 		db:      db,
 		goProxy: goProxy,
+		gh:      gh,
 		token:   tokenClient,
 	}
 }
