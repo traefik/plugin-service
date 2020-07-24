@@ -25,6 +25,7 @@ func Public(rw http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to get PILOT_SERVICES_ACCESS_TOKEN")
 		jsonError(rw, http.StatusInternalServerError, "internal error")
+		return
 	}
 
 	dbSecret := os.Getenv("FAUNADB_SECRET")
@@ -43,6 +44,7 @@ func Public(rw http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to create go proxy client")
 		jsonError(rw, http.StatusInternalServerError, "internal error")
+		return
 	}
 
 	ghToken := os.Getenv("PILOT_GITHUB_TOKEN")
