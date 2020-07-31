@@ -4,7 +4,7 @@
     "silent": true,
     "enabled": true
   },
-  "regions": ["pdx1", "sfo1", "gru1", "cle1", "iad1", "dub1", "sin1"],
+  "regions": ["pdx1", "sfo1", "iad1", "cle1", "dub1", "lhr1"],
   "env": {
     "PILOT_JWT_CERT": "@pilot-jwt-cert",
     "PILOT_SERVICES_ACCESS_TOKEN": "@pilot-plugin-access-token",
