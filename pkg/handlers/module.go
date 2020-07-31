@@ -30,35 +30,35 @@ func (h Handlers) Download(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	moduleName, version := path.Split(strings.TrimPrefix(req.URL.Path, "/download/"))
+	moduleName = cleanModuleName(moduleName)
+
+	logger := log.With().Str("moduleName", moduleName).Str("moduleVersion", version).Logger()
+
 	tokenValue := req.Header.Get(tokenHeader)
 	if tokenValue == "" {
-		log.Error().Msg("missing token")
+		logger.Error().Msg("missing token")
 		jsonError(rw, http.StatusBadRequest, "missing token")
 		return
 	}
 
 	_, err := h.token.Check(tokenValue)
 	if err != nil {
-		log.Error().Err(err).Msg("invalid token")
+		logger.Error().Err(err).Msg("invalid token")
 		jsonError(rw, http.StatusBadRequest, "invalid token")
 		return
 	}
-
-	moduleName, version := path.Split(strings.TrimPrefix(req.URL.Path, "/download/"))
-	moduleName = cleanModuleName(moduleName)
 
 	_, err = h.db.GetByName(moduleName)
 	if err != nil {
 		var notFoundError faunadb.NotFound
 		if errors.As(err, &notFoundError) {
-			log.Error().Str("moduleName", moduleName).Str("moduleVersion", version).
-				Msg("unknown plugin")
+			logger.Error().Msg("unknown plugin")
 			jsonErrorf(rw, http.StatusNotFound, "unknown plugin: %s@%s", moduleName, version)
 			return
 		}
 
-		log.Error().Str("moduleName", moduleName).Str("moduleVersion", version).Err(err).
-			Msg("failed to get plugin")
+		logger.Error().Err(err).Msg("failed to get plugin")
 		jsonErrorf(rw, http.StatusInternalServerError, "failed to get plugin %s@%s", moduleName, version)
 		return
 	}
@@ -69,8 +69,7 @@ func (h Handlers) Download(rw http.ResponseWriter, req *http.Request) {
 		if errH != nil {
 			var notFoundError faunadb.NotFound
 			if !errors.As(errH, &notFoundError) {
-				log.Error().Str("moduleName", moduleName).Str("moduleVersion", version).
-					Msg("failed to get plugin hash")
+				logger.Error().Err(errH).Msg("failed to get plugin hash")
 				jsonErrorf(rw, http.StatusInternalServerError, "failed to get plugin %s@%s", moduleName, version)
 				return
 			}
@@ -79,13 +78,12 @@ func (h Handlers) Download(rw http.ResponseWriter, req *http.Request) {
 			return
 		}
 
-		log.Error().Str("moduleName", moduleName).Str("moduleVersion", version).
-			Msgf("Someone is trying to hack the archive: %v", sum)
+		logger.Error().Msgf("Someone is trying to hack the archive: %v", sum)
 	}
 
 	modFile, err := h.goProxy.GetModFile(moduleName, version)
 	if err != nil {
-		log.Error().Str("moduleName", moduleName).Str("moduleVersion", version).Err(err).Msg("Failed to get module file")
+		logger.Error().Err(err).Msg("Failed to get module file")
 		return
 	}
 
@@ -99,10 +97,11 @@ func (h Handlers) Download(rw http.ResponseWriter, req *http.Request) {
 
 func (h Handlers) downloadGoProxy(moduleName, version string) http.HandlerFunc {
 	return func(rw http.ResponseWriter, req *http.Request) {
+		logger := log.With().Str("moduleName", moduleName).Str("moduleVersion", version).Logger()
+
 		sources, err := h.goProxy.DownloadSources(moduleName, version)
 		if err != nil {
-			log.Error().Str("moduleName", moduleName).Str("moduleVersion", version).Err(err).
-				Msg("failed to download sources")
+			logger.Error().Err(err).Msg("failed to download sources")
 			jsonErrorf(rw, http.StatusInternalServerError, "failed to get plugin %s@%s", moduleName, version)
 			return
 		}
@@ -112,8 +111,7 @@ func (h Handlers) downloadGoProxy(moduleName, version string) http.HandlerFunc {
 		_, err = h.db.GetHashByName(moduleName, version)
 		var notFoundError faunadb.NotFound
 		if err != nil && !errors.As(err, &notFoundError) {
-			log.Error().Str("moduleName", moduleName).Str("moduleVersion", version).Err(err).
-				Msg("failed to get plugin hash")
+			logger.Error().Err(err).Msg("failed to get plugin hash")
 			jsonErrorf(rw, http.StatusInternalServerError, "failed to get plugin %s@%s", moduleName, version)
 			return
 		}
@@ -121,8 +119,7 @@ func (h Handlers) downloadGoProxy(moduleName, version string) http.HandlerFunc {
 		if err == nil {
 			_, err = io.Copy(rw, sources)
 			if err != nil {
-				log.Error().Str("moduleName", moduleName).Str("moduleVersion", version).Err(err).
-					Msg("failed to write response body")
+				logger.Error().Err(err).Msg("failed to write response body")
 				jsonErrorf(rw, http.StatusInternalServerError, "failed to get plugin %s@%s", moduleName, version)
 				return
 			}
@@ -132,8 +129,7 @@ func (h Handlers) downloadGoProxy(moduleName, version string) http.HandlerFunc {
 
 		raw, err := ioutil.ReadAll(sources)
 		if err != nil {
-			log.Error().Str("moduleName", moduleName).Str("moduleVersion", version).Err(err).
-				Msg("failed to read response body")
+			logger.Error().Err(err).Msg("failed to read response body")
 			jsonErrorf(rw, http.StatusInternalServerError, "failed to get plugin %s@%s", moduleName, version)
 			return
 		}
@@ -142,8 +138,7 @@ func (h Handlers) downloadGoProxy(moduleName, version string) http.HandlerFunc {
 
 		_, err = hash.Write(raw)
 		if err != nil {
-			log.Error().Str("moduleName", moduleName).Str("moduleVersion", version).Err(err).
-				Msg("failed to compute hash")
+			logger.Error().Err(err).Msg("failed to compute hash")
 			jsonErrorf(rw, http.StatusInternalServerError, "failed to get plugin %s@%s", moduleName, version)
 			return
 		}
@@ -152,16 +147,14 @@ func (h Handlers) downloadGoProxy(moduleName, version string) http.HandlerFunc {
 
 		_, err = h.db.CreateHash(moduleName, version, sum)
 		if err != nil {
-			log.Error().Str("moduleName", moduleName).Str("moduleVersion", version).Err(err).
-				Msg("Error persisting plugin hash")
+			logger.Error().Err(err).Msg("Error persisting plugin hash")
 			jsonErrorf(rw, http.StatusInternalServerError, "could not persist data: %s@%s", moduleName, version)
 			return
 		}
 
 		_, err = rw.Write(raw)
 		if err != nil {
-			log.Error().Str("moduleName", moduleName).Str("moduleVersion", version).Err(err).
-				Msg("failed to write response body")
+			logger.Error().Err(err).Msg("failed to write response body")
 			jsonErrorf(rw, http.StatusInternalServerError, "failed to get plugin %s@%s", moduleName, version)
 			return
 		}
@@ -265,30 +258,31 @@ func (h Handlers) Validate(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	moduleName, version := path.Split(strings.TrimPrefix(req.URL.Path, "/validate/"))
+	moduleName = cleanModuleName(moduleName)
+
+	logger := log.With().Str("moduleName", moduleName).Str("moduleVersion", version).Logger()
+
 	tokenValue := req.Header.Get(tokenHeader)
 	if tokenValue == "" {
-		log.Error().Msg("missing token")
+		logger.Error().Msg("missing token")
 		jsonError(rw, http.StatusBadRequest, "missing token")
 		return
 	}
 
 	_, err := h.token.Check(tokenValue)
 	if err != nil {
-		log.Error().Err(err).Msg("invalid token")
+		logger.Error().Err(err).Msg("invalid token")
 		jsonError(rw, http.StatusBadRequest, "invalid token")
 		return
 	}
-
-	moduleName, version := path.Split(strings.TrimPrefix(req.URL.Path, "/validate/"))
-	moduleName = strings.TrimSuffix(strings.TrimPrefix(moduleName, "/"), "/")
 
 	headerSum := req.Header.Get(hashHeader)
 	ph, err := h.db.GetHashByName(moduleName, version)
 	if err != nil {
 		var notFoundError faunadb.NotFound
 		if errors.As(err, &notFoundError) {
-			log.Error().Str("moduleName", moduleName).Str("moduleVersion", version).
-				Msg("plugin not found")
+			logger.Error().Msg("plugin not found")
 			jsonErrorf(rw, http.StatusNotFound, "plugin not found %s@%s", moduleName, version)
 			return
 		}

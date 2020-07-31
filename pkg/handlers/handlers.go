@@ -50,25 +50,25 @@ func (h Handlers) Get(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	logger := log.Error().Str("pluginID", id)
+	logger := log.With().Str("pluginID", id).Logger()
 
 	plugin, err := h.db.Get(id)
 	if err != nil {
 		var notFoundError faunadb.NotFound
 		if errors.As(err, &notFoundError) {
-			logger.Msg("plugin not found")
+			logger.Error().Msg("plugin not found")
 			jsonError(rw, http.StatusNotFound, "plugin not found")
 			return
 		}
 
-		logger.Err(err).Msg("Error while fetch")
+		logger.Error().Err(err).Msg("Error while fetch")
 
 		jsonError(rw, http.StatusInternalServerError, "error")
 		return
 	}
 
 	if err := json.NewEncoder(rw).Encode(plugin); err != nil {
-		logger.Err(err).Msg("failed to get plugin")
+		logger.Error().Err(err).Msg("failed to get plugin")
 		jsonError(rw, http.StatusInternalServerError, "could not write response")
 		return
 	}
@@ -80,25 +80,25 @@ func (h Handlers) List(rw http.ResponseWriter, req *http.Request) {
 
 	name := req.URL.Query().Get("name")
 	if name != "" {
-		logger := log.Error().Str("pluginName", name)
+		logger := log.With().Str("pluginName", name).Logger()
 
 		plugin, err := h.db.GetByName(name)
 		if err != nil {
 			var notFoundError faunadb.NotFound
 			if errors.As(err, &notFoundError) {
-				logger.Msg("plugin not found")
+				logger.Error().Msg("plugin not found")
 				jsonError(rw, http.StatusNotFound, "plugin not found")
 				return
 			}
 
-			logger.Err(err).Msg("Error while fetch")
+			logger.Error().Err(err).Msg("Error while fetch")
 
 			jsonError(rw, http.StatusInternalServerError, "error")
 			return
 		}
 
 		if err := json.NewEncoder(rw).Encode([]*db.Plugin{&plugin}); err != nil {
-			logger.Err(err).Msg("failed to get plugin")
+			logger.Error().Err(err).Msg("failed to get plugin")
 			jsonError(rw, http.StatusInternalServerError, "could not write response")
 			return
 		}
@@ -188,12 +188,12 @@ func (h Handlers) Update(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	logger := log.Error().Str("pluginID", id)
+	logger := log.With().Str("pluginID", id).Logger()
 
 	input := db.Plugin{}
 	err = json.NewDecoder(req.Body).Decode(&input)
 	if err != nil {
-		logger.Err(err).Msg("Error reading body for update")
+		logger.Error().Err(err).Msg("Error reading body for update")
 		jsonError(rw, http.StatusBadRequest, err.Error())
 		return
 	}
@@ -202,12 +202,12 @@ func (h Handlers) Update(rw http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		var notFoundError faunadb.NotFound
 		if errors.As(err, &notFoundError) {
-			logger.Msg("plugin not found")
+			logger.Error().Msg("plugin not found")
 			jsonError(rw, http.StatusNotFound, "plugin not found")
 			return
 		}
 
-		logger.Err(err).Msg("Error updating token")
+		logger.Error().Err(err).Msg("Error updating token")
 
 		jsonError(rw, http.StatusInternalServerError, "could not update token")
 		return
@@ -215,7 +215,7 @@ func (h Handlers) Update(rw http.ResponseWriter, req *http.Request) {
 
 	rw.WriteHeader(http.StatusOK)
 	if err := json.NewEncoder(rw).Encode(pg); err != nil {
-		logger.Err(err).Msg("failed to marshal token")
+		logger.Error().Err(err).Msg("failed to marshal token")
 		jsonError(rw, http.StatusInternalServerError, "could not write response")
 		return
 	}
@@ -230,18 +230,18 @@ func (h Handlers) Delete(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	logger := log.Error().Str("pluginID", id)
+	logger := log.With().Str("pluginID", id).Logger()
 
 	_, err = h.db.Get(id)
 	if err != nil {
-		logger.Err(err).Msg("failed to get plugin information")
+		logger.Error().Err(err).Msg("failed to get plugin information")
 		NotFound(rw, req)
 		return
 	}
 
 	err = h.db.Delete(id)
 	if err != nil {
-		logger.Err(err).Msg("failed to delete the plugin info")
+		logger.Error().Err(err).Msg("failed to delete the plugin info")
 		jsonError(rw, http.StatusBadRequest, "failed to delete plugin info")
 		return
 	}
@@ -250,7 +250,7 @@ func (h Handlers) Delete(rw http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		var notFoundError faunadb.NotFound
 		if !errors.As(err, &notFoundError) {
-			logger.Err(err).Msg("failed to delete the plugin hash")
+			logger.Error().Err(err).Msg("failed to delete the plugin hash")
 			jsonError(rw, http.StatusBadRequest, "failed to delete plugin hash")
 			return
 		}
