@@ -11,5 +11,4 @@ vendor/
 .env
 .env.build
 plugin-service
-
 .vercel
