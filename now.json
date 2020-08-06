@@ -12,7 +12,7 @@
     "PILOT_GITHUB_TOKEN": "@pilot-github-token",
     "PILOT_GO_PROXY_PASSWORD": "@pilot-go-proxy-password",
     "PILOT_GO_PROXY_USERNAME": "containous",
-    "PILOT_GO_PROXY_URL": "https://gomod.containous.cloud",
+    "PILOT_GO_PROXY_URL": "https://gomod.traefiklabs.tech",
     "LOG_LEVEL": "info"
   },
   "build": {

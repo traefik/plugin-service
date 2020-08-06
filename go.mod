@@ -1,4 +1,4 @@
-module github.com/containous/plugin-service
+module github.com/traefik/plugin-service
 
 go 1.14
 
