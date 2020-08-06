@@ -21,10 +21,10 @@ global_job_config:
   prologue:
     commands:
       - sem-version node 14.1.0
-      - npm install -g now@18.0.0
+      - npm install -g vercel@latest
       - checkout
-      - mkdir -p $(pwd)/.now
-      - cp /home/semaphore/datas/project.json $(pwd)/.now/project.json
+      - mkdir -p $(pwd)/.vercel
+      - cp /home/semaphore/datas/project.json $(pwd)/.vercel/project.json
 blocks:
   - name: Generate token and restart vercel service
     dependencies: []
@@ -37,6 +37,6 @@ blocks:
             - |
               TOKEN=$(curl -s --request POST --url https://sso.traefik.io/oauth/token --header 'content-type: application/json' --data @/home/semaphore/datas/data.json | jq -r .access_token | tr -d '\n' | base64)
             - echo ${TOKEN}
-            - now secrets rm pilot-plugin-access-token --token ${VERCEL_TOKEN} --scope traefik --yes
-            - now secrets add pilot-plugin-access-token "${TOKEN}" --token ${VERCEL_TOKEN} --scope traefik
-            - now --token ${VERCEL_TOKEN} --scope traefik
+            - vercel secrets rm pilot-plugin-access-token --token ${VERCEL_TOKEN} --scope traefiklabs --yes
+            - vercel secrets add pilot-plugin-access-token "${TOKEN}" --token ${VERCEL_TOKEN} --scope traefiklabs
+            - vercel --token ${VERCEL_TOKEN} --scope traefiklabs
