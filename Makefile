@@ -30,14 +30,14 @@ build: clean
 	CGO_ENABLED=0 go build -v -ldflags '-X "main.version=${VERSION}" -X "main.commit=${SHA}" -X "main.date=${BUILD_DATE}"'
 
 image:
-	docker build -t containous/plugin-service:$(VERSION) .
+	docker build -t gcr.io/traefiklabs/plugin-service:$(VERSION) .
 
 publish:
-	docker push containous/plugin-service:$(VERSION)
+	docker push gcr.io/traefiklabs/plugin-service:$(VERSION)
 
 publish-latest:
-	docker tag containous/plugin-service:$(VERSION) containous/plugin-service:latest
-	docker push containous/plugin-service:latest
+	docker tag gcr.io/traefiklabs/plugin-service:$(VERSION) gcr.io/traefiklabs/plugin-service:latest
+	docker push gcr.io/traefiklabs/plugin-service:latest
 
 check:
 	golangci-lint run
