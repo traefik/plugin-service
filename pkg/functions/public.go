@@ -6,14 +6,14 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/containous/plugin-service/internal/token"
-	"github.com/containous/plugin-service/pkg/db"
-	"github.com/containous/plugin-service/pkg/handlers"
 	"github.com/fauna/faunadb-go/faunadb"
 	"github.com/google/go-github/v32/github"
 	"github.com/gorilla/mux"
 	"github.com/ldez/grignotin/goproxy"
 	"github.com/rs/zerolog/log"
+	"github.com/traefik/plugin-service/internal/token"
+	"github.com/traefik/plugin-service/pkg/db"
+	"github.com/traefik/plugin-service/pkg/handlers"
 	"golang.org/x/oauth2"
 )
 

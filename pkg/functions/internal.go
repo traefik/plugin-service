@@ -4,11 +4,11 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/containous/plugin-service/pkg/db"
-	"github.com/containous/plugin-service/pkg/handlers"
-	"github.com/containous/plugin-service/pkg/logger"
 	"github.com/fauna/faunadb-go/faunadb"
 	"github.com/julienschmidt/httprouter"
+	"github.com/traefik/plugin-service/pkg/db"
+	"github.com/traefik/plugin-service/pkg/handlers"
+	"github.com/traefik/plugin-service/pkg/logger"
 )
 
 // Internal creates zeit function.

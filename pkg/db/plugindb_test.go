@@ -1,8 +1,9 @@
 package db
 
 import (
+	"crypto/rand"
 	"fmt"
-	"math/rand"
+	"math/big"
 	"net/http"
 	"os"
 	"strconv"
@@ -20,7 +21,7 @@ func TestNameDB(t *testing.T) {
 
 	data, err := db.Create(Plugin{
 		ID:            "123",
-		Name:          "github.com/containous/plugintest",
+		Name:          "github.com/traefik/plugintest",
 		DisplayName:   "Add Header",
 		Author:        "ldez",
 		Type:          "middleware",
@@ -42,7 +43,7 @@ func TestNameDB(t *testing.T) {
 	fmt.Println(data)
 
 	_, err = db.Update(data.ID, Plugin{
-		Name:          "github.com/containous/plugintest",
+		Name:          "github.com/traefik/plugintest",
 		DisplayName:   "Foo",
 		Author:        "ldez",
 		Type:          "middleware",
@@ -63,7 +64,7 @@ func TestNameDB(t *testing.T) {
 	fmt.Println(next)
 	fmt.Println(list)
 
-	value, err := db.GetByName("github.com/containous/plugintest")
+	value, err := db.GetByName("github.com/traefik/plugintest")
 	require.NoError(t, err)
 
 	fmt.Println(value)
@@ -87,7 +88,9 @@ func createTempDB(t *testing.T, plugins []Plugin) *FaunaDB {
 		count++
 	}
 
-	dbName := prefix + strconv.Itoa(rand.New(rand.NewSource(time.Now().Unix())).Int())
+	n, errRand := rand.Int(rand.Reader, big.NewInt(time.Now().Unix()))
+	require.NoError(t, errRand)
+	dbName := prefix + strconv.Itoa(n.Sign())
 
 	var client *f.FaunaClient
 	if os.Getenv("FAUNADB_SECRET") == "" {
