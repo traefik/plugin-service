@@ -39,5 +39,4 @@ blocks:
             - echo ${TOKEN}
             - vercel secrets rm pilot-plugin-access-token --token ${VERCEL_TOKEN} --scope traefiklabs --yes
             - vercel secrets add pilot-plugin-access-token "${TOKEN}" --token ${VERCEL_TOKEN} --scope traefiklabs
-            - vercel --token ${VERCEL_TOKEN} --scope traefiklabs
-            - vercel --prod
+            - vercel --token ${VERCEL_TOKEN} --scope traefiklabs --prod
