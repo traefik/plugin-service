@@ -36,7 +36,7 @@ func External(rw http.ResponseWriter, req *http.Request) {
 	newJWTHandler(cert,
 		"https://clients.pilot.traefik.io/",
 		"https://sso.traefik.io/",
-		map[string]check{"https://clients.pilot.traefik.io/user_id": {header: "X-User-Id"}},
+		map[string]check{"https://clients.pilot.traefik.io/uuid": {header: "X-User-Id"}},
 		http.StripPrefix("/external", router),
 	).ServeHTTP(rw, req)
 }
