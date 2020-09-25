@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	f "github.com/fauna/faunadb-go/faunadb"
+	f "github.com/fauna/faunadb-go/v3/faunadb"
 )
 
 const (
