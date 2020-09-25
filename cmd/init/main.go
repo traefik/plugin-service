@@ -4,7 +4,7 @@ import (
 	"flag"
 	"os"
 
-	"github.com/fauna/faunadb-go/faunadb"
+	"github.com/fauna/faunadb-go/v3/faunadb"
 	"github.com/rs/zerolog/log"
 	"github.com/traefik/plugin-service/pkg/db"
 	"github.com/traefik/plugin-service/pkg/logger"
