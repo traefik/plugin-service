@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/fauna/faunadb-go/faunadb"
+	"github.com/fauna/faunadb-go/v3/faunadb"
 	"github.com/google/go-github/v32/github"
 	"github.com/gorilla/mux"
 	"github.com/ldez/grignotin/goproxy"

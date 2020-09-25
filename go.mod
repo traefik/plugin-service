@@ -4,7 +4,7 @@ go 1.14
 
 require (
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
-	github.com/fauna/faunadb-go v1.0.1-0.20200527142816-e44e241c52d4
+	github.com/fauna/faunadb-go/v3 v3.0.0
 	github.com/google/go-github/v32 v32.0.0
 	github.com/google/uuid v1.1.1
 	github.com/gorilla/mux v1.7.4

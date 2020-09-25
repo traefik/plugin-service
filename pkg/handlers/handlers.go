@@ -7,8 +7,9 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"strconv"
 
-	"github.com/fauna/faunadb-go/faunadb"
+	"github.com/fauna/faunadb-go/v3/faunadb"
 	"github.com/google/go-github/v32/github"
 	"github.com/ldez/grignotin/goproxy"
 	"github.com/rs/zerolog/log"
@@ -78,31 +79,13 @@ func (h Handlers) Get(rw http.ResponseWriter, req *http.Request) {
 func (h Handlers) List(rw http.ResponseWriter, req *http.Request) {
 	rw.Header().Set("Content-Type", "application/json")
 
-	name := req.URL.Query().Get("name")
-	if name != "" {
-		logger := log.With().Str("pluginName", name).Logger()
+	if value := req.FormValue("query"); value != "" {
+		h.searchByName(rw, req)
+		return
+	}
 
-		plugin, err := h.db.GetByName(name)
-		if err != nil {
-			var notFoundError faunadb.NotFound
-			if errors.As(err, &notFoundError) {
-				logger.Error().Msg("plugin not found")
-				jsonError(rw, http.StatusNotFound, "plugin not found")
-				return
-			}
-
-			logger.Error().Err(err).Msg("Error while fetch")
-
-			jsonError(rw, http.StatusInternalServerError, "error")
-			return
-		}
-
-		if err := json.NewEncoder(rw).Encode([]*db.Plugin{&plugin}); err != nil {
-			logger.Error().Err(err).Msg("failed to get plugin")
-			jsonError(rw, http.StatusInternalServerError, "could not write response")
-			return
-		}
-
+	if value := req.FormValue("name"); value != "" {
+		h.getByName(rw, req)
 		return
 	}
 
@@ -257,6 +240,69 @@ func (h Handlers) Delete(rw http.ResponseWriter, req *http.Request) {
 	}
 }
 
+func (h Handlers) searchByName(rw http.ResponseWriter, req *http.Request) {
+	rw.Header().Set("Content-Type", "application/json")
+
+	query := unquote(req.FormValue("query"))
+
+	logger := log.With().Str("query", query).Logger()
+
+	start := req.URL.Query().Get("start")
+
+	plugins, next, err := h.db.SearchByName(query, db.Pagination{
+		Start: start,
+		Size:  defaultPerPage,
+	})
+	if err != nil {
+		logger.Err(err).Msg("unable to get plugins by name")
+		jsonError(rw, http.StatusBadRequest, "unable to get plugins")
+		return
+	}
+
+	if len(plugins) == 0 {
+		if err := json.NewEncoder(rw).Encode(make([]*db.Plugin, 0)); err != nil {
+			log.Error().Err(err).Msg("Error sending create response")
+			jsonError(rw, http.StatusInternalServerError, "could not write response")
+		}
+		return
+	}
+
+	rw.Header().Set(nextPageHeader, next)
+
+	if err := json.NewEncoder(rw).Encode(plugins); err != nil {
+		logger.Error().Err(err).Msg("Error sending create response")
+		jsonError(rw, http.StatusInternalServerError, "could not write response")
+		return
+	}
+}
+
+func (h Handlers) getByName(rw http.ResponseWriter, req *http.Request) {
+	name := unquote(req.FormValue("name"))
+
+	logger := log.With().Str("pluginName", name).Logger()
+
+	plugin, err := h.db.GetByName(name)
+	if err != nil {
+		var notFoundError faunadb.NotFound
+		if errors.As(err, &notFoundError) {
+			logger.Error().Msg("plugin not found")
+			jsonError(rw, http.StatusNotFound, "plugin not found")
+			return
+		}
+
+		logger.Error().Err(err).Msg("Error while fetch")
+
+		jsonError(rw, http.StatusInternalServerError, "error")
+		return
+	}
+
+	if err := json.NewEncoder(rw).Encode([]*db.Plugin{&plugin}); err != nil {
+		logger.Error().Err(err).Msg("failed to get plugin")
+		jsonError(rw, http.StatusInternalServerError, "could not write response")
+		return
+	}
+}
+
 // NotFound a not found handler.
 func NotFound(rw http.ResponseWriter, _ *http.Request) {
 	jsonError(rw, http.StatusNotFound, http.StatusText(http.StatusNotFound))
@@ -278,4 +324,13 @@ func getPathParam(uri *url.URL) (string, error) {
 	}
 
 	return parts[1], nil
+}
+
+func unquote(value string) string {
+	unquote, err := strconv.Unquote(value)
+	if err != nil {
+		return value
+	}
+
+	return unquote
 }
