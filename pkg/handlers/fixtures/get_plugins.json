@@ -1,0 +1,48 @@
+[
+  {
+    "author": "traefik",
+    "compatibility": "v2",
+    "createdAt": "2020-01-01T01:00:00Z",
+    "displayName": "Demo Plugin",
+    "id": "276809780784267776",
+    "import": "github.com/traefik/plugindemo",
+    "latestVersion": "v0.2.1",
+    "name": "github.com/traefik/plugindemo",
+    "readme": "README",
+    "snippet": {
+      "toml": "toml",
+      "yaml": "yaml"
+    },
+    "stars": 22,
+    "summary": "[Demo] Add Request Header",
+    "type": "middleware",
+    "versions": [
+      "v0.2.1",
+      "v0.2.0",
+      "v0.1.0"
+    ]
+  },
+  {
+    "author": "traefik",
+    "compatibility": "v2",
+    "createdAt": "2020-01-01T01:00:00Z",
+    "displayName": "Block Path",
+    "id": "2768097807845374",
+    "import": "github.com/traefik/plugin-blockpath",
+    "latestVersion": "v0.3.1",
+    "name": "github.com/traefik/plugin-blockpath",
+    "readme": "README",
+    "snippet": {
+      "toml": "toml",
+      "yaml": "yaml"
+    },
+    "stars": 3,
+    "summary": "Block Path plugin",
+    "type": "middleware",
+    "versions": [
+      "v0.3.1",
+      "v0.2.0",
+      "v0.1.0"
+    ]
+  }
+]
