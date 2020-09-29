@@ -3,7 +3,6 @@ package db
 import (
 	"encoding/base64"
 	"encoding/json"
-	"fmt"
 	"strings"
 
 	f "github.com/fauna/faunadb-go/faunadb"
@@ -138,14 +137,7 @@ func (d *FaunaDB) List(pagination Pagination) ([]Plugin, string, error) {
 	}
 
 	var after f.ArrayV
-	at, err := res.At(f.ObjKey("after")).GetValue()
-	if err == nil {
-		var ok bool
-		after, ok = at.(f.ArrayV)
-		if !ok {
-			return nil, "", fmt.Errorf("can't cast to ArrayV")
-		}
-	}
+	_ = res.At(f.ObjKey("after")).Get(&after)
 
 	next, err := encodeNextPageList(after)
 	if err != nil {
@@ -207,14 +199,7 @@ func (d *FaunaDB) SearchByName(query string, pagination Pagination) ([]Plugin, s
 	}
 
 	var after f.ArrayV
-	at, err := res.At(f.ObjKey("after")).GetValue()
-	if err == nil {
-		var ok bool
-		after, ok = at.(f.ArrayV)
-		if !ok {
-			return nil, "", fmt.Errorf("can't cast to ArrayV")
-		}
-	}
+	_ = res.At(f.ObjKey("after")).Get(&after)
 
 	next, err := encodeNextPageSearch(after)
 	if err != nil {
