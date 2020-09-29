@@ -1,6 +1,12 @@
 package db
 
-import f "github.com/fauna/faunadb-go/faunadb"
+import (
+	"encoding/base64"
+	"encoding/json"
+	"strings"
+
+	f "github.com/fauna/faunadb-go/faunadb"
+)
 
 const (
 	collName           = "plugin"
@@ -14,11 +20,24 @@ type PluginDB interface {
 	Create(Plugin) (Plugin, error)
 	List(Pagination) ([]Plugin, string, error)
 	GetByName(string) (Plugin, error)
+	SearchByName(string, Pagination) ([]Plugin, string, error)
 	Update(string, Plugin) (Plugin, error)
 
 	DeleteHash(id string) error
 	CreateHash(module, version, hash string) (PluginHash, error)
 	GetHashByName(module, version string) (PluginHash, error)
+}
+
+// NextPageList represents a pagination header value.
+type NextPageList struct {
+	Stars  int    `json:"stars"`
+	NextID string `json:"nextId"`
+}
+
+// NextPageSearch represents a pagination header value for the search request.
+type NextPageSearch struct {
+	Name   string `json:"name"`
+	NextID string `json:"nextId"`
 }
 
 // FaunaDB is a faunadb implementation.
@@ -89,7 +108,49 @@ func (d *FaunaDB) Create(plugin Plugin) (Plugin, error) {
 
 // List gets all the plugins.
 func (d *FaunaDB) List(pagination Pagination) ([]Plugin, string, error) {
-	return d.list(f.Documents(f.Collection(d.collName)), pagination)
+	paginateOptions := []f.OptionalParameter{f.Size(pagination.Size)}
+
+	if len(pagination.Start) > 0 {
+		nextPage, err := decodeNextPageList(pagination.Start)
+		if err != nil {
+			return nil, "", err
+		}
+
+		paginateOptions = append(paginateOptions, f.After(f.Arr{
+			nextPage.Stars,
+			f.RefCollection(f.Collection(d.collName), nextPage.NextID),
+			f.RefCollection(f.Collection(d.collName), nextPage.NextID),
+		}))
+	}
+
+	res, err := d.client.Query(
+		f.Map(
+			f.Paginate(
+				f.Match(f.Index(d.collName+"_sort_by_stars")),
+				paginateOptions...,
+			),
+			f.Lambda(f.Arr{"stars", "ref"}, f.Select("data", f.Get(f.Var("ref")))),
+		),
+	)
+	if err != nil {
+		return nil, "", err
+	}
+
+	var after f.ArrayV
+	_ = res.At(f.ObjKey("after")).Get(&after)
+
+	next, err := encodeNextPageList(after)
+	if err != nil {
+		return nil, "", err
+	}
+
+	var plugins []Plugin
+	err = res.At(f.ObjKey("data")).Get(&plugins)
+	if err != nil {
+		return nil, "", err
+	}
+
+	return plugins, next, nil
 }
 
 // GetByName gets a plugin by name.
@@ -106,6 +167,54 @@ func (d *FaunaDB) GetByName(value string) (Plugin, error) {
 	return decodePlugin(res)
 }
 
+// SearchByName returns a list of plugins matching the query.
+func (d *FaunaDB) SearchByName(query string, pagination Pagination) ([]Plugin, string, error) {
+	paginateOptions := []f.OptionalParameter{f.Size(pagination.Size)}
+
+	if len(pagination.Start) > 0 {
+		nextPage, err := decodeNextPageSearch(pagination.Start)
+		if err != nil {
+			return nil, "", err
+		}
+
+		paginateOptions = append(paginateOptions, f.After(f.Arr{
+			nextPage.Name,
+			f.RefCollection(f.Collection(d.collName), nextPage.NextID),
+			f.RefCollection(f.Collection(d.collName), nextPage.NextID),
+		}))
+	}
+
+	res, err := d.client.Query(f.Map(
+		f.Filter(
+			f.Paginate(
+				f.Match(f.Index(d.collName+"_sort_by_name")),
+				paginateOptions...,
+			),
+			f.Lambda(f.Arr{"name", "ref"}, f.ContainsStr(f.LowerCase(f.Var("name")), strings.ToLower(query))),
+		),
+		f.Lambda(f.Arr{"name", "ref"}, f.Select(f.Arr{"data"}, f.Get(f.Var("ref")))),
+	))
+	if err != nil {
+		return nil, "", err
+	}
+
+	var after f.ArrayV
+	_ = res.At(f.ObjKey("after")).Get(&after)
+
+	next, err := encodeNextPageSearch(after)
+	if err != nil {
+		return nil, "", err
+	}
+
+	var plugins []Plugin
+	err = res.At(f.ObjKey("data")).Get(&plugins)
+	if err != nil {
+		return nil, "", err
+	}
+
+	return plugins, next, nil
+}
+
 // Update Updates a plugin in the db.
 func (d *FaunaDB) Update(id string, plugin Plugin) (Plugin, error) {
 	res, err := d.client.Query(
@@ -118,42 +227,6 @@ func (d *FaunaDB) Update(id string, plugin Plugin) (Plugin, error) {
 	}
 
 	return decodePlugin(res)
-}
-
-func (d *FaunaDB) list(expr f.Expr, pagination Pagination) ([]Plugin, string, error) {
-	paginateOptions := []f.OptionalParameter{f.Size(pagination.Size)}
-	if len(pagination.Start) > 0 {
-		paginateOptions = append(paginateOptions, f.After(f.RefCollection(f.Collection(d.collName), pagination.Start)))
-	}
-
-	res, err := d.client.Query(
-		f.Map(
-			f.Paginate(
-				expr,
-				paginateOptions...,
-			),
-			f.Lambda("id", f.Select("data", f.Get(f.Var("id")))),
-		),
-	)
-	if err != nil {
-		return nil, "", err
-	}
-
-	var after []f.RefV
-	at := res.At(f.ObjKey("after"))
-	_ = at.Get(&after)
-	var next string
-	if len(after) == 1 {
-		next = after[0].ID
-	}
-
-	var plugins []Plugin
-	err = res.At(f.ObjKey("data")).Get(&plugins)
-	if err != nil {
-		return nil, "", err
-	}
-
-	return plugins, next, nil
 }
 
 // -- Hash
@@ -296,6 +369,30 @@ func (d *FaunaDB) createIndexes(collName string, collRes f.RefV) error {
 		}
 	}
 
+	idxName = collName + "_sort_by_stars"
+	exists, _ = contains(idxName, refsIdx)
+	if !exists {
+		err := d.createIndex(idxName, collRes, nil, f.Arr{
+			f.Obj{"field": f.Arr{"data", "stars"}, "reverse": true},
+			f.Obj{"field": f.Arr{"ref"}},
+		})
+		if err != nil {
+			return err
+		}
+	}
+
+	idxName = collName + "_sort_by_name"
+	exists, _ = contains(idxName, refsIdx)
+	if !exists {
+		err := d.createIndex(idxName, collRes, nil, f.Arr{
+			f.Obj{"field": f.Arr{"data", "name"}},
+			f.Obj{"field": f.Arr{"ref"}},
+		})
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -325,4 +422,86 @@ func decodePluginHash(obj f.Value) (PluginHash, error) {
 	}
 
 	return *plugin, nil
+}
+
+func encodeNextPageList(after f.ArrayV) (string, error) {
+	if len(after) <= 2 {
+		return "", nil
+	}
+
+	var nextN int
+	err := after[0].Get(&nextN)
+	if err != nil {
+		return "", err
+	}
+
+	var next f.RefV
+	err = after[1].Get(&next)
+	if err != nil {
+		return "", err
+	}
+
+	nextPage := NextPageList{NextID: next.ID, Stars: nextN}
+
+	b, err := json.Marshal(nextPage)
+	if err != nil {
+		return "", err
+	}
+
+	return base64.RawStdEncoding.EncodeToString(b), nil
+}
+
+func decodeNextPageList(data string) (NextPageList, error) {
+	decodeString, err := base64.RawStdEncoding.DecodeString(data)
+	if err != nil {
+		return NextPageList{}, err
+	}
+
+	var nextPage NextPageList
+	err = json.Unmarshal(decodeString, &nextPage)
+	if err != nil {
+		return NextPageList{}, err
+	}
+	return nextPage, nil
+}
+
+func encodeNextPageSearch(after f.ArrayV) (string, error) {
+	if len(after) <= 2 {
+		return "", nil
+	}
+
+	var nextN string
+	err := after[0].Get(&nextN)
+	if err != nil {
+		return "", err
+	}
+
+	var next f.RefV
+	err = after[1].Get(&next)
+	if err != nil {
+		return "", err
+	}
+
+	nextPage := NextPageSearch{NextID: next.ID, Name: nextN}
+
+	b, err := json.Marshal(nextPage)
+	if err != nil {
+		return "", err
+	}
+
+	return base64.RawStdEncoding.EncodeToString(b), nil
+}
+
+func decodeNextPageSearch(data string) (NextPageSearch, error) {
+	decodeString, err := base64.RawStdEncoding.DecodeString(data)
+	if err != nil {
+		return NextPageSearch{}, err
+	}
+
+	var nextPage NextPageSearch
+	err = json.Unmarshal(decodeString, &nextPage)
+	if err != nil {
+		return NextPageSearch{}, err
+	}
+	return nextPage, nil
 }
