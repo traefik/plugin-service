@@ -187,12 +187,12 @@ func (d *FaunaDB) SearchByName(query string, pagination Pagination) ([]Plugin, s
 	res, err := d.client.Query(f.Map(
 		f.Filter(
 			f.Paginate(
-				f.Match(f.Index(d.collName+"_sort_by_name")),
+				f.Match(f.Index(d.collName+"_sort_by_display_name")),
 				paginateOptions...,
 			),
-			f.Lambda(f.Arr{"name", "ref"}, f.ContainsStr(f.LowerCase(f.Var("name")), strings.ToLower(query))),
+			f.Lambda(f.Arr{"displayName", "ref"}, f.ContainsStr(f.LowerCase(f.Var("displayName")), strings.ToLower(query))),
 		),
-		f.Lambda(f.Arr{"name", "ref"}, f.Select(f.Arr{"data"}, f.Get(f.Var("ref")))),
+		f.Lambda(f.Arr{"displayName", "ref"}, f.Select(f.Arr{"data"}, f.Get(f.Var("ref")))),
 	))
 	if err != nil {
 		return nil, "", err
@@ -381,11 +381,11 @@ func (d *FaunaDB) createIndexes(collName string, collRes f.RefV) error {
 		}
 	}
 
-	idxName = collName + "_sort_by_name"
+	idxName = collName + "_sort_by_display_name"
 	exists, _ = contains(idxName, refsIdx)
 	if !exists {
 		err := d.createIndex(idxName, collRes, nil, f.Arr{
-			f.Obj{"field": f.Arr{"data", "name"}},
+			f.Obj{"field": f.Arr{"data", "displayName"}},
 			f.Obj{"field": f.Arr{"ref"}},
 		})
 		if err != nil {
