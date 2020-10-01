@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	f "github.com/fauna/faunadb-go/faunadb"
+	f "github.com/fauna/faunadb-go/v3/faunadb"
 	"github.com/stretchr/testify/require"
 )
 
