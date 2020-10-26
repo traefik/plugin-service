@@ -36,6 +36,9 @@
     "goerr113",
     "noctx",
     "nlreturn",
+    "wrapcheck",
+    "exhaustivestruct",
+    "tparallel",
   ]
 
 [issues]
