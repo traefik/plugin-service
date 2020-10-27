@@ -12,6 +12,8 @@ type Plugin struct {
 	Import        string                 `json:"import,omitempty" fauna:"import"`
 	Compatibility string                 `json:"compatibility,omitempty" fauna:"compatibility"`
 	Summary       string                 `json:"summary,omitempty" fauna:"summary"`
+	IconURL       string                 `json:"iconUrl,omitempty" fauna:"iconUrl"`
+	BannerURL     string                 `json:"bannerUrl,omitempty" fauna:"bannerUrl"`
 	Readme        string                 `json:"readme,omitempty" fauna:"readme"`
 	LatestVersion string                 `json:"latestVersion,omitempty" fauna:"latestVersion"`
 	Versions      []string               `json:"versions,omitempty" fauna:"versions"`
