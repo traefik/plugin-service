@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -49,7 +50,7 @@ func TestHandlers_List(t *testing.T) {
 	}
 
 	testDB := mockDB{
-		listFn: func(start db.Pagination) ([]db.Plugin, string, error) {
+		listFn: func(ctx context.Context, start db.Pagination) ([]db.Plugin, string, error) {
 			return data, "next", nil
 		},
 	}
@@ -88,7 +89,7 @@ func TestHandlers_List_GetByName(t *testing.T) {
 	}
 
 	testDB := mockDB{
-		getByNameFn: func(query string) (db.Plugin, error) {
+		getByNameFn: func(ctx context.Context, query string) (db.Plugin, error) {
 			return data, nil
 		},
 	}
@@ -126,7 +127,7 @@ func TestHandlers_List_SearchByName(t *testing.T) {
 	}
 
 	testDB := mockDB{
-		getByNameFn: func(query string) (db.Plugin, error) {
+		getByNameFn: func(ctx context.Context, query string) (db.Plugin, error) {
 			return data, nil
 		},
 	}
