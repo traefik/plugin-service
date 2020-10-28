@@ -65,3 +65,13 @@
   [[issues.exclude-rules]]
     path = "pkg/handlers/module.go"
     text = "Function 'downloadGitHub' is too long (.*)"
+  [[issues.exclude-rules]]
+    path = "pkg/functions/public.go"
+    text = "Function 'Public' is too long (.*)"
+  [[issues.exclude-rules]]
+    path = "main.go"
+    text = "Function 'serveCommand' is too long (.*)"
+  
+  [[issues.exclude-rules]]
+    path = "cmd/serve/serve.go"
+    text = "cyclomatic complexity [0-9]* of func `setupEnvVars` is high (.*)"
