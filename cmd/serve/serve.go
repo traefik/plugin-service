@@ -30,7 +30,6 @@ func Run(context *cli.Context) error {
 	}
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("/", functions.External)
 	mux.HandleFunc("/public/", functions.Public)
 	mux.HandleFunc("/internal/", functions.Internal)
 	mux.HandleFunc("/external/", functions.External)
