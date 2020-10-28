@@ -3,7 +3,6 @@ package handlers
 import (
 	"context"
 
-	f "github.com/fauna/faunadb-go/v3/faunadb"
 	"github.com/traefik/plugin-service/pkg/db"
 )
 
@@ -59,18 +58,4 @@ func (m mockDB) CreateHash(ctx context.Context, module, version, hash string) (d
 
 func (m mockDB) GetHashByName(ctx context.Context, module, version string) (db.PluginHash, error) {
 	return m.getHashByNameFn(ctx, module, version)
-}
-
-type faunaNotFoundError struct{}
-
-func (f faunaNotFoundError) Error() string {
-	return "not found error"
-}
-
-func (f faunaNotFoundError) Status() int {
-	return 404
-}
-
-func (f faunaNotFoundError) Errors() []f.QueryError {
-	return nil
 }
