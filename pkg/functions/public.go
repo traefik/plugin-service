@@ -2,10 +2,9 @@ package functions
 
 import (
 	"context"
-	"encoding/base64"
 	"net/http"
-	"os"
 
+	"github.com/caarlos0/env/v6"
 	"github.com/fauna/faunadb-go/v3/faunadb"
 	"github.com/google/go-github/v32/github"
 	"github.com/gorilla/mux"
@@ -14,53 +13,71 @@ import (
 	"github.com/traefik/plugin-service/internal/token"
 	"github.com/traefik/plugin-service/pkg/db"
 	"github.com/traefik/plugin-service/pkg/handlers"
+	"github.com/traefik/plugin-service/pkg/logger"
+	"github.com/traefik/plugin-service/pkg/tracer"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"golang.org/x/oauth2"
 )
 
 // Public creates zeit function.
 func Public(rw http.ResponseWriter, req *http.Request) {
-	tokenBaseURL := os.Getenv("PILOT_TOKEN_URL")
+	logger.Setup()
 
-	serviceAccessToken, err := base64.StdEncoding.DecodeString(os.Getenv("PILOT_SERVICES_ACCESS_TOKEN"))
+	cfg := config{}
+
+	err := env.Parse(&cfg)
 	if err != nil {
-		log.Error().Err(err).Msg("Failed to get PILOT_SERVICES_ACCESS_TOKEN")
-		jsonError(rw, http.StatusInternalServerError, "internal error")
+		log.Error().Err(err).Msg("Unable to parse env vars")
+		jsonError(rw, http.StatusInternalServerError, "internal server error")
 		return
 	}
 
-	dbSecret := os.Getenv("FAUNADB_SECRET")
-	dbEndpoint := os.Getenv("FAUNADB_ENDPOINT")
+	exporter, err := tracer.NewJaegerExporter(req, cfg.Tracing.Endpoint, cfg.Tracing.Username, cfg.Tracing.Password)
+	if err != nil {
+		log.Error().Err(err).Msg("Unable to configure new exporter.")
+		jsonError(rw, http.StatusInternalServerError, "internal server error")
+		return
+	}
+	defer exporter.Flush()
+
+	bsp := tracer.Setup(exporter, cfg.Tracing.Probability)
+	defer bsp.Shutdown()
 
 	var options []faunadb.ClientConfig
-	if dbEndpoint != "" {
-		options = append(options, faunadb.Endpoint(dbEndpoint))
+	if cfg.FaunaDB.Endpoint != "" {
+		options = append(options, faunadb.Endpoint(cfg.FaunaDB.Endpoint))
 	}
 
-	proxyURL := os.Getenv("PILOT_GO_PROXY_URL")
-	proxyUsername := os.Getenv("PILOT_GO_PROXY_USERNAME")
-	proxyPassword := os.Getenv("PILOT_GO_PROXY_PASSWORD")
+	options = append(options, faunadb.Observer(observer))
 
-	gpClient, err := newGoProxyClient(proxyURL, proxyUsername, proxyPassword)
+	gpClient, err := newGoProxyClient(cfg.Pilot.GoProxyURL, cfg.Pilot.GoProxyUsername, cfg.Pilot.GoProxyPassword)
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to create go proxy client")
 		jsonError(rw, http.StatusInternalServerError, "internal error")
 		return
 	}
 
-	ghToken := os.Getenv("PILOT_GITHUB_TOKEN")
-
 	var ghClient *github.Client
-	if ghToken != "" {
-		ghClient = newGitHubClient(context.Background(), ghToken)
+	if cfg.Pilot.GitHubToken != "" {
+		ghClient = newGitHubClient(context.Background(), cfg.Pilot.GitHubToken)
 	}
 
-	handler := handlers.New(db.NewFaunaDB(faunadb.NewFaunaClient(dbSecret, options...)), gpClient, ghClient, token.New(tokenBaseURL, string(serviceAccessToken)))
+	handler := handlers.New(
+		db.NewFaunaDB(faunadb.NewFaunaClient(cfg.FaunaDB.Secret, options...), db.FaunaTracing{
+			Endpoint: cfg.Tracing.Endpoint,
+			Username: cfg.Tracing.Username,
+			Password: cfg.Tracing.Password,
+		}),
+		gpClient,
+		ghClient,
+		token.New(cfg.Pilot.TokenURL, string(cfg.Pilot.ServicesAccessToken)),
+	)
 
 	r := mux.NewRouter()
-	r.HandleFunc("/", handler.List)
-	r.HandleFunc("/download/{all:.+}", handler.Download)
-	r.HandleFunc("/validate/{all:.+}", handler.Validate)
-	r.HandleFunc("/{uuid}", handler.Get)
+	r.Handle("/", otelhttp.NewHandler(http.HandlerFunc(handler.List), "public_list"))
+	r.Handle("/download/{all:.+}", otelhttp.NewHandler(http.HandlerFunc(handler.Download), "public_download"))
+	r.Handle("/validate/{all:.+}", otelhttp.NewHandler(http.HandlerFunc(handler.Validate), "public_validate"))
+	r.Handle("/{uuid}", otelhttp.NewHandler(http.HandlerFunc(handler.Get), "public_get"))
 
 	r.NotFoundHandler = http.HandlerFunc(handlers.NotFound)
 
