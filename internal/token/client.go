@@ -9,6 +9,8 @@ import (
 	"net/url"
 	"path"
 	"time"
+
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 // Client for the token service.
@@ -22,7 +24,7 @@ type Client struct {
 func New(baseURL, accessToken string) *Client {
 	return &Client{
 		baseURL:     baseURL,
-		httpClient:  &http.Client{Timeout: 10 * time.Second},
+		httpClient:  &http.Client{Timeout: 10 * time.Second, Transport: otelhttp.NewTransport(http.DefaultTransport)},
 		accessToken: accessToken,
 	}
 }
