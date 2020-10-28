@@ -35,6 +35,8 @@ func (h Handlers) Download(rw http.ResponseWriter, req *http.Request) {
 
 	logger := log.With().Str("moduleName", moduleName).Str("moduleVersion", version).Logger()
 
+	ctx := context.Background()
+
 	tokenValue := req.Header.Get(tokenHeader)
 	if tokenValue == "" {
 		logger.Error().Msg("missing token")
@@ -49,7 +51,7 @@ func (h Handlers) Download(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	_, err = h.db.GetByName(moduleName)
+	_, err = h.db.GetByName(ctx, moduleName)
 	if err != nil {
 		var notFoundError faunadb.NotFound
 		if errors.As(err, &notFoundError) {
@@ -65,7 +67,7 @@ func (h Handlers) Download(rw http.ResponseWriter, req *http.Request) {
 
 	sum := req.Header.Get(hashHeader)
 	if sum != "" {
-		ph, errH := h.db.GetHashByName(moduleName, version)
+		ph, errH := h.db.GetHashByName(ctx, moduleName, version)
 		if errH != nil {
 			var notFoundError faunadb.NotFound
 			if !errors.As(errH, &notFoundError) {
@@ -99,6 +101,8 @@ func (h Handlers) downloadGoProxy(moduleName, version string) http.HandlerFunc {
 	return func(rw http.ResponseWriter, req *http.Request) {
 		logger := log.With().Str("moduleName", moduleName).Str("moduleVersion", version).Logger()
 
+		ctx := context.Background()
+
 		sources, err := h.goProxy.DownloadSources(moduleName, version)
 		if err != nil {
 			logger.Error().Err(err).Msg("failed to download sources")
@@ -108,7 +112,7 @@ func (h Handlers) downloadGoProxy(moduleName, version string) http.HandlerFunc {
 
 		defer func() { _ = sources.Close() }()
 
-		_, err = h.db.GetHashByName(moduleName, version)
+		_, err = h.db.GetHashByName(ctx, moduleName, version)
 		var notFoundError faunadb.NotFound
 		if err != nil && !errors.As(err, &notFoundError) {
 			logger.Error().Err(err).Msg("failed to get plugin hash")
@@ -145,7 +149,7 @@ func (h Handlers) downloadGoProxy(moduleName, version string) http.HandlerFunc {
 
 		sum := fmt.Sprintf("%x", hash.Sum(nil))
 
-		_, err = h.db.CreateHash(moduleName, version, sum)
+		_, err = h.db.CreateHash(ctx, moduleName, version, sum)
 		if err != nil {
 			logger.Error().Err(err).Msg("Error persisting plugin hash")
 			jsonErrorf(rw, http.StatusInternalServerError, "could not persist data: %s@%s", moduleName, version)
@@ -174,7 +178,7 @@ func (h Handlers) downloadGitHub(moduleName, version string) http.HandlerFunc {
 			return
 		}
 
-		_, err = h.db.GetHashByName(moduleName, version)
+		_, err = h.db.GetHashByName(ctx, moduleName, version)
 		var notFoundError faunadb.NotFound
 		if err != nil && !errors.As(err, &notFoundError) {
 			logger.Err(err).Msg("failed to get plugin hash")
@@ -220,7 +224,7 @@ func (h Handlers) downloadGitHub(moduleName, version string) http.HandlerFunc {
 
 		sum := fmt.Sprintf("%x", hash.Sum(nil))
 
-		_, err = h.db.CreateHash(moduleName, version, sum)
+		_, err = h.db.CreateHash(ctx, moduleName, version, sum)
 		if err != nil {
 			logger.Err(err).Msg("Error persisting plugin hash")
 			jsonErrorf(rw, http.StatusInternalServerError, "failed to get plugin %s@%s", moduleName, version)
@@ -278,7 +282,7 @@ func (h Handlers) Validate(rw http.ResponseWriter, req *http.Request) {
 	}
 
 	headerSum := req.Header.Get(hashHeader)
-	ph, err := h.db.GetHashByName(moduleName, version)
+	ph, err := h.db.GetHashByName(context.Background(), moduleName, version)
 	if err != nil {
 		var notFoundError faunadb.NotFound
 		if errors.As(err, &notFoundError) {
