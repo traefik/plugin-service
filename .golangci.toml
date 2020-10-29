@@ -73,5 +73,9 @@
     text = "Function 'serveCommand' is too long (.*)"
   
   [[issues.exclude-rules]]
+    path = "pkg/handlers/module.go"
+    text = "Function 'Download' has too many statements (.*)"
+
+  [[issues.exclude-rules]]
     path = "cmd/serve/serve.go"
     text = "cyclomatic complexity [0-9]* of func `setupEnvVars` is high (.*)"
