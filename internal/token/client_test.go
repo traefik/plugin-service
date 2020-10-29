@@ -1,6 +1,7 @@
 package token
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -36,7 +37,7 @@ func TestClientGet(t *testing.T) {
 
 	client := New(tokenSrv.URL, "")
 
-	checked, err := client.Get(token.ID)
+	checked, err := client.Get(context.Background(), token.ID)
 	require.NoError(t, err)
 
 	assert.Equal(t, token, checked)
@@ -55,7 +56,7 @@ func TestClientCheck(t *testing.T) {
 
 	client := New(tokenSrv.URL, "")
 
-	checked, err := client.Check(token.Value)
+	checked, err := client.Check(context.Background(), token.Value)
 	require.NoError(t, err)
 
 	assert.Equal(t, token, checked)
@@ -89,7 +90,7 @@ func TestClientCheck_errors(t *testing.T) {
 		t.Run(test.desc, func(t *testing.T) {
 			client := New(tokenSrv.URL, "")
 
-			checked, err := client.Check(test.token)
+			checked, err := client.Check(context.Background(), test.token)
 			assert.Error(t, err)
 
 			require.Nil(t, checked)
