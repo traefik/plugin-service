@@ -15,8 +15,8 @@
     "PILOT_GO_PROXY_URL": "https://gomod.traefiklabs.tech",
     "LOG_LEVEL": "info",
     "TRACING_USERNAME": "jaeger",
-    "TRACING_PASSWORD": "@pilot-plugin-tracing-password",
-    "TRACING_PROBABILITY": "0.1"
+    "TRACING_PASSWORD": "@pilot-tracing-password",
+    "TRACING_PROBABILITY": "@pilot-plugin-service-tracing-probability"
   },
   "build": {
     "env": {
