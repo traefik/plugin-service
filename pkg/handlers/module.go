@@ -15,6 +15,7 @@ import (
 	"github.com/fauna/faunadb-go/v3/faunadb"
 	"github.com/google/go-github/v32/github"
 	"github.com/rs/zerolog/log"
+	"go.opentelemetry.io/otel/api/trace"
 	"go.opentelemetry.io/otel/label"
 )
 
@@ -113,7 +114,8 @@ func (h Handlers) Download(rw http.ResponseWriter, req *http.Request) {
 
 func (h Handlers) downloadGoProxy(ctx context.Context, moduleName, version string) http.HandlerFunc {
 	return func(rw http.ResponseWriter, req *http.Request) {
-		ctx, span := h.tracer.Start(ctx, "handler_downloadGoProxy")
+		var span trace.Span
+		ctx, span = h.tracer.Start(ctx, "handler_downloadGoProxy")
 		defer span.End()
 
 		logger := log.With().Str("moduleName", moduleName).Str("moduleVersion", version).Logger()
@@ -189,7 +191,8 @@ func (h Handlers) downloadGoProxy(ctx context.Context, moduleName, version strin
 
 func (h Handlers) downloadGitHub(ctx context.Context, moduleName, version string) http.HandlerFunc {
 	return func(rw http.ResponseWriter, req *http.Request) {
-		ctx, span := h.tracer.Start(ctx, "handler_downloadGitHub")
+		var span trace.Span
+		ctx, span = h.tracer.Start(ctx, "handler_downloadGitHub")
 		defer span.End()
 
 		logger := log.Error().Str("moduleName", moduleName).Str("moduleVersion", version)
