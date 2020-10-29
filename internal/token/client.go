@@ -1,6 +1,7 @@
 package token
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -9,6 +10,8 @@ import (
 	"net/url"
 	"path"
 	"time"
+
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 // Client for the token service.
@@ -22,13 +25,13 @@ type Client struct {
 func New(baseURL, accessToken string) *Client {
 	return &Client{
 		baseURL:     baseURL,
-		httpClient:  &http.Client{Timeout: 10 * time.Second},
+		httpClient:  &http.Client{Timeout: 10 * time.Second, Transport: otelhttp.NewTransport(http.DefaultTransport)},
 		accessToken: accessToken,
 	}
 }
 
 // Check checks the token by calling the token service.
-func (c Client) Check(token string) (*Token, error) {
+func (c Client) Check(ctx context.Context, token string) (*Token, error) {
 	if token == "" {
 		return nil, errors.New("empty token")
 	}
@@ -42,7 +45,7 @@ func (c Client) Check(token string) (*Token, error) {
 	query.Set("value", token)
 	endpoint.RawQuery = query.Encode()
 
-	req, err := http.NewRequest(http.MethodGet, endpoint.String(), nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint.String(), nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
@@ -77,7 +80,7 @@ func (c Client) Check(token string) (*Token, error) {
 }
 
 // Get get the token by calling the token service.
-func (c Client) Get(token string) (*Token, error) {
+func (c Client) Get(ctx context.Context, token string) (*Token, error) {
 	if token == "" {
 		return nil, errors.New("empty token")
 	}
@@ -92,7 +95,7 @@ func (c Client) Get(token string) (*Token, error) {
 		return nil, fmt.Errorf("failed to parse endpoint URL: %w", err)
 	}
 
-	req, err := http.NewRequest(http.MethodGet, endpoint.String(), nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint.String(), nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}

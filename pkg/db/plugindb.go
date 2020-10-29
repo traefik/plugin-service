@@ -1,11 +1,16 @@
 package db
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"strings"
 
 	f "github.com/fauna/faunadb-go/v3/faunadb"
+	"go.opentelemetry.io/otel/api/global"
+	"go.opentelemetry.io/otel/api/trace"
+	"go.opentelemetry.io/otel/label"
 )
 
 const (
@@ -15,17 +20,17 @@ const (
 
 // PluginDB is a db interface for Plugin.
 type PluginDB interface {
-	Get(id string) (Plugin, error)
-	Delete(id string) error
-	Create(Plugin) (Plugin, error)
-	List(Pagination) ([]Plugin, string, error)
-	GetByName(string) (Plugin, error)
-	SearchByName(string, Pagination) ([]Plugin, string, error)
-	Update(string, Plugin) (Plugin, error)
+	Get(ctx context.Context, id string) (Plugin, error)
+	Delete(ctx context.Context, id string) error
+	Create(context.Context, Plugin) (Plugin, error)
+	List(context.Context, Pagination) ([]Plugin, string, error)
+	GetByName(context.Context, string) (Plugin, error)
+	SearchByName(context.Context, string, Pagination) ([]Plugin, string, error)
+	Update(context.Context, string, Plugin) (Plugin, error)
 
-	DeleteHash(id string) error
-	CreateHash(module, version, hash string) (PluginHash, error)
-	GetHashByName(module, version string) (PluginHash, error)
+	DeleteHash(ctx context.Context, id string) error
+	CreateHash(ctx context.Context, module, version, hash string) (PluginHash, error)
+	GetHashByName(ctx context.Context, module, version string) (PluginHash, error)
 }
 
 // NextPageList represents a pagination header value.
@@ -44,6 +49,7 @@ type NextPageSearch struct {
 type FaunaDB struct {
 	client   *f.FaunaClient
 	collName string
+	tracer   trace.Tracer
 }
 
 // Pagination is a configuration struct for pagination.
@@ -57,41 +63,54 @@ func NewFaunaDB(client *f.FaunaClient) *FaunaDB {
 	return &FaunaDB{
 		client:   client,
 		collName: collName,
+		tracer:   global.Tracer("Database"),
 	}
 }
 
 // Get gets a plugin from an id.
-func (d *FaunaDB) Get(id string) (Plugin, error) {
-	res, err := d.client.Query(f.Get(f.RefCollection(f.Collection(d.collName), id)))
+func (d *FaunaDB) Get(ctx context.Context, id string) (Plugin, error) {
+	client, span := d.startSpan(ctx, "db_get")
+	defer span.End()
+
+	res, err := client.Query(f.Get(f.RefCollection(f.Collection(d.collName), id)))
 	if err != nil {
-		return Plugin{}, err
+		span.RecordError(ctx, err)
+		return Plugin{}, fmt.Errorf("fauna error: %w", err)
 	}
 
 	return decodePlugin(res)
 }
 
 // Delete deletes a plugin.
-func (d *FaunaDB) Delete(id string) error {
-	_, err := d.client.Query(
+func (d *FaunaDB) Delete(ctx context.Context, id string) error {
+	client, span := d.startSpan(ctx, "db_delete")
+	defer span.End()
+
+	_, err := client.Query(
 		f.Delete(
 			f.RefCollection(f.Collection(d.collName), id),
 		),
 	)
 	if err != nil {
-		return err
+		span.RecordError(ctx, err)
+		return fmt.Errorf("fauna error: %w", err)
 	}
 
 	return nil
 }
 
 // Create creates a plugin in the db.
-func (d *FaunaDB) Create(plugin Plugin) (Plugin, error) {
-	id, err := d.client.Query(f.NewId())
+func (d *FaunaDB) Create(ctx context.Context, plugin Plugin) (Plugin, error) {
+	client, span := d.startSpan(ctx, "db_create")
+	defer span.End()
+
+	id, err := client.Query(f.NewId())
 	if err != nil {
-		return Plugin{}, err
+		span.RecordError(ctx, err)
+		return Plugin{}, fmt.Errorf("fauna error: %w", err)
 	}
 
-	res, err := d.client.Query(f.Create(
+	res, err := client.Query(f.Create(
 		f.RefCollection(f.Collection(d.collName), id),
 		f.Obj{
 			"data": f.Merge(plugin, f.Obj{
@@ -100,20 +119,25 @@ func (d *FaunaDB) Create(plugin Plugin) (Plugin, error) {
 			}),
 		}))
 	if err != nil {
-		return Plugin{}, err
+		span.RecordError(ctx, err)
+		return Plugin{}, fmt.Errorf("fauna error: %w", err)
 	}
 
 	return decodePlugin(res)
 }
 
 // List gets all the plugins.
-func (d *FaunaDB) List(pagination Pagination) ([]Plugin, string, error) {
+func (d *FaunaDB) List(ctx context.Context, pagination Pagination) ([]Plugin, string, error) {
+	client, span := d.startSpan(ctx, "db_list")
+	defer span.End()
+
 	paginateOptions := []f.OptionalParameter{f.Size(pagination.Size)}
 
 	if len(pagination.Start) > 0 {
 		nextPage, err := decodeNextPageList(pagination.Start)
 		if err != nil {
-			return nil, "", err
+			span.RecordError(ctx, err)
+			return nil, "", fmt.Errorf("fauna error: %w", err)
 		}
 
 		paginateOptions = append(paginateOptions, f.After(f.Arr{
@@ -123,7 +147,7 @@ func (d *FaunaDB) List(pagination Pagination) ([]Plugin, string, error) {
 		}))
 	}
 
-	res, err := d.client.Query(
+	res, err := client.Query(
 		f.Map(
 			f.Paginate(
 				f.Match(f.Index(d.collName+"_sort_by_stars")),
@@ -133,7 +157,8 @@ func (d *FaunaDB) List(pagination Pagination) ([]Plugin, string, error) {
 		),
 	)
 	if err != nil {
-		return nil, "", err
+		span.RecordError(ctx, err)
+		return nil, "", fmt.Errorf("fauna error: %w", err)
 	}
 
 	var after f.ArrayV
@@ -141,40 +166,50 @@ func (d *FaunaDB) List(pagination Pagination) ([]Plugin, string, error) {
 
 	next, err := encodeNextPageList(after)
 	if err != nil {
-		return nil, "", err
+		span.RecordError(ctx, err)
+		return nil, "", fmt.Errorf("fauna error: %w", err)
 	}
 
 	var plugins []Plugin
 	err = res.At(f.ObjKey("data")).Get(&plugins)
 	if err != nil {
-		return nil, "", err
+		span.RecordError(ctx, err)
+		return nil, "", fmt.Errorf("fauna error: %w", err)
 	}
 
 	return plugins, next, nil
 }
 
 // GetByName gets a plugin by name.
-func (d *FaunaDB) GetByName(value string) (Plugin, error) {
-	res, err := d.client.Query(
+func (d *FaunaDB) GetByName(ctx context.Context, value string) (Plugin, error) {
+	client, span := d.startSpan(ctx, "db_getByName")
+	defer span.End()
+
+	res, err := client.Query(
 		f.Get(
 			f.MatchTerm(f.Index(d.collName+"_by_value"), value),
 		),
 	)
 	if err != nil {
-		return Plugin{}, err
+		span.RecordError(ctx, err)
+		return Plugin{}, fmt.Errorf("fauna error: %w", err)
 	}
 
 	return decodePlugin(res)
 }
 
 // SearchByName returns a list of plugins matching the query.
-func (d *FaunaDB) SearchByName(query string, pagination Pagination) ([]Plugin, string, error) {
+func (d *FaunaDB) SearchByName(ctx context.Context, query string, pagination Pagination) ([]Plugin, string, error) {
+	client, span := d.startSpan(ctx, "db_searchByName")
+	defer span.End()
+
 	paginateOptions := []f.OptionalParameter{f.Size(pagination.Size)}
 
 	if len(pagination.Start) > 0 {
 		nextPage, err := decodeNextPageSearch(pagination.Start)
 		if err != nil {
-			return nil, "", err
+			span.RecordError(ctx, err)
+			return nil, "", fmt.Errorf("fauna error: %w", err)
 		}
 
 		paginateOptions = append(paginateOptions, f.After(f.Arr{
@@ -184,7 +219,7 @@ func (d *FaunaDB) SearchByName(query string, pagination Pagination) ([]Plugin, s
 		}))
 	}
 
-	res, err := d.client.Query(f.Map(
+	res, err := client.Query(f.Map(
 		f.Filter(
 			f.Paginate(
 				f.Match(f.Index(d.collName+"_sort_by_display_name")),
@@ -195,7 +230,8 @@ func (d *FaunaDB) SearchByName(query string, pagination Pagination) ([]Plugin, s
 		f.Lambda(f.Arr{"displayName", "ref"}, f.Select(f.Arr{"data"}, f.Get(f.Var("ref")))),
 	))
 	if err != nil {
-		return nil, "", err
+		span.RecordError(ctx, err)
+		return nil, "", fmt.Errorf("fauna error: %w", err)
 	}
 
 	var after f.ArrayV
@@ -203,27 +239,33 @@ func (d *FaunaDB) SearchByName(query string, pagination Pagination) ([]Plugin, s
 
 	next, err := encodeNextPageSearch(after)
 	if err != nil {
-		return nil, "", err
+		span.RecordError(ctx, err)
+		return nil, "", fmt.Errorf("fauna error: %w", err)
 	}
 
 	var plugins []Plugin
 	err = res.At(f.ObjKey("data")).Get(&plugins)
 	if err != nil {
-		return nil, "", err
+		span.RecordError(ctx, err)
+		return nil, "", fmt.Errorf("fauna error: %w", err)
 	}
 
 	return plugins, next, nil
 }
 
 // Update Updates a plugin in the db.
-func (d *FaunaDB) Update(id string, plugin Plugin) (Plugin, error) {
-	res, err := d.client.Query(
+func (d *FaunaDB) Update(ctx context.Context, id string, plugin Plugin) (Plugin, error) {
+	client, span := d.startSpan(ctx, "db_update")
+	defer span.End()
+
+	res, err := client.Query(
 		f.Replace(
 			f.Select("ref", f.Get(f.RefCollection(f.Collection(d.collName), id))),
 			f.Obj{"data": plugin},
 		))
 	if err != nil {
-		return Plugin{}, err
+		span.RecordError(ctx, err)
+		return Plugin{}, fmt.Errorf("fauna error: %w", err)
 	}
 
 	return decodePlugin(res)
@@ -232,13 +274,17 @@ func (d *FaunaDB) Update(id string, plugin Plugin) (Plugin, error) {
 // -- Hash
 
 // CreateHash stores a plugin hash.
-func (d *FaunaDB) CreateHash(module, version, hash string) (PluginHash, error) {
-	id, err := d.client.Query(f.NewId())
+func (d *FaunaDB) CreateHash(ctx context.Context, module, version, hash string) (PluginHash, error) {
+	client, span := d.startSpan(ctx, "db_createHash")
+	defer span.End()
+
+	id, err := client.Query(f.NewId())
 	if err != nil {
-		return PluginHash{}, err
+		span.RecordError(ctx, err)
+		return PluginHash{}, fmt.Errorf("fauna error: %w", err)
 	}
 
-	res, err := d.client.Query(f.Create(
+	res, err := client.Query(f.Create(
 		f.RefCollection(f.Collection(d.collName+collNameHashSuffix), id),
 		f.Obj{
 			"data": f.Merge(PluginHash{Name: module + "@" + version, Hash: hash}, f.Obj{
@@ -247,38 +293,81 @@ func (d *FaunaDB) CreateHash(module, version, hash string) (PluginHash, error) {
 			}),
 		}))
 	if err != nil {
-		return PluginHash{}, err
+		span.RecordError(ctx, err)
+		return PluginHash{}, fmt.Errorf("fauna error: %w", err)
 	}
 
 	return decodePluginHash(res)
 }
 
 // GetHashByName gets a plugin hash by plugin name.
-func (d *FaunaDB) GetHashByName(module, version string) (PluginHash, error) {
-	res, err := d.client.Query(
+func (d *FaunaDB) GetHashByName(ctx context.Context, module, version string) (PluginHash, error) {
+	client, span := d.startSpan(ctx, "db_getHashByName")
+	defer span.End()
+
+	res, err := client.Query(
 		f.Get(
 			f.MatchTerm(f.Index(d.collName+collNameHashSuffix+"_by_value"), module+"@"+version),
 		),
 	)
 	if err != nil {
-		return PluginHash{}, err
+		span.RecordError(ctx, err)
+		return PluginHash{}, fmt.Errorf("fauna error: %w", err)
 	}
 
 	return decodePluginHash(res)
 }
 
 // DeleteHash deletes a plugin hash.
-func (d *FaunaDB) DeleteHash(id string) error {
-	_, err := d.client.Query(
+func (d *FaunaDB) DeleteHash(ctx context.Context, id string) error {
+	client, span := d.startSpan(ctx, "db_deleteHash")
+	defer span.End()
+
+	_, err := client.Query(
 		f.Delete(
 			f.RefCollection(f.Collection(d.collName+collNameHashSuffix), id),
 		),
 	)
 	if err != nil {
-		return err
+		span.RecordError(ctx, err)
+		return fmt.Errorf("fauna error: %w", err)
 	}
 
 	return nil
+}
+
+// Observe sends trace for Fauna requests.
+func Observe(ctx context.Context, tracer trace.Tracer) f.ObserverCallback {
+	return func(result *f.QueryResult) {
+		_, span := tracer.Start(ctx, "fauna_"+strings.SplitN(result.Query.String(), "(", 2)[0], trace.WithTimestamp(result.StartTime))
+		defer span.End(trace.WithTimestamp(result.EndTime))
+
+		attributes := []label.KeyValue{
+			{Key: label.Key("fauna.request"), Value: label.StringValue(result.Query.String())},
+		}
+
+		for key, value := range result.Headers {
+			attributeName := strings.ReplaceAll(key, "X-", "fauna.")
+			attributeName = strings.ReplaceAll(attributeName, "-", ".")
+
+			if len(value) > 0 {
+				attributes = append(attributes, label.KeyValue{
+					Key:   label.Key(attributeName),
+					Value: label.StringValue(value[0]),
+				})
+			}
+		}
+		span.SetAttributes(attributes...)
+	}
+}
+
+// startSpan starts a new span for tracing and start a Fauna client with a new Observer function.
+func (d *FaunaDB) startSpan(ctx context.Context, name string) (f.FaunaClient, trace.Span) {
+	ctx, span := d.tracer.Start(ctx, name)
+
+	client := d.client.NewWithObserver(Observe(ctx, d.tracer))
+
+	return *client, span
 }
 
 // Bootstrap create collection and indexes if not present.
@@ -346,7 +435,11 @@ func (d *FaunaDB) createIndex(indexName string, collRes f.RefV, terms, values f.
 			"values": values,
 		}),
 	)
-	return err
+	if err != nil {
+		return fmt.Errorf("fauna error: %w", err)
+	}
+
+	return nil
 }
 
 func (d *FaunaDB) createIndexes(collName string, collRes f.RefV) error {
