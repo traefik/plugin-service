@@ -69,7 +69,7 @@ func NewFaunaDB(client *f.FaunaClient) *FaunaDB {
 
 // Get gets a plugin from an id.
 func (d *FaunaDB) Get(ctx context.Context, id string) (Plugin, error) {
-	client, span := d.startSpan(ctx, "db_get")
+	ctx, client, span := d.startSpan(ctx, "db_get")
 	defer span.End()
 
 	res, err := client.Query(f.Get(f.RefCollection(f.Collection(d.collName), id)))
@@ -83,7 +83,7 @@ func (d *FaunaDB) Get(ctx context.Context, id string) (Plugin, error) {
 
 // Delete deletes a plugin.
 func (d *FaunaDB) Delete(ctx context.Context, id string) error {
-	client, span := d.startSpan(ctx, "db_delete")
+	ctx, client, span := d.startSpan(ctx, "db_delete")
 	defer span.End()
 
 	_, err := client.Query(
@@ -101,7 +101,7 @@ func (d *FaunaDB) Delete(ctx context.Context, id string) error {
 
 // Create creates a plugin in the db.
 func (d *FaunaDB) Create(ctx context.Context, plugin Plugin) (Plugin, error) {
-	client, span := d.startSpan(ctx, "db_create")
+	ctx, client, span := d.startSpan(ctx, "db_create")
 	defer span.End()
 
 	id, err := client.Query(f.NewId())
@@ -128,7 +128,7 @@ func (d *FaunaDB) Create(ctx context.Context, plugin Plugin) (Plugin, error) {
 
 // List gets all the plugins.
 func (d *FaunaDB) List(ctx context.Context, pagination Pagination) ([]Plugin, string, error) {
-	client, span := d.startSpan(ctx, "db_list")
+	ctx, client, span := d.startSpan(ctx, "db_list")
 	defer span.End()
 
 	paginateOptions := []f.OptionalParameter{f.Size(pagination.Size)}
@@ -182,7 +182,7 @@ func (d *FaunaDB) List(ctx context.Context, pagination Pagination) ([]Plugin, st
 
 // GetByName gets a plugin by name.
 func (d *FaunaDB) GetByName(ctx context.Context, value string) (Plugin, error) {
-	client, span := d.startSpan(ctx, "db_getByName")
+	ctx, client, span := d.startSpan(ctx, "db_getByName")
 	defer span.End()
 
 	res, err := client.Query(
@@ -200,7 +200,7 @@ func (d *FaunaDB) GetByName(ctx context.Context, value string) (Plugin, error) {
 
 // SearchByName returns a list of plugins matching the query.
 func (d *FaunaDB) SearchByName(ctx context.Context, query string, pagination Pagination) ([]Plugin, string, error) {
-	client, span := d.startSpan(ctx, "db_searchByName")
+	ctx, client, span := d.startSpan(ctx, "db_searchByName")
 	defer span.End()
 
 	paginateOptions := []f.OptionalParameter{f.Size(pagination.Size)}
@@ -255,7 +255,7 @@ func (d *FaunaDB) SearchByName(ctx context.Context, query string, pagination Pag
 
 // Update Updates a plugin in the db.
 func (d *FaunaDB) Update(ctx context.Context, id string, plugin Plugin) (Plugin, error) {
-	client, span := d.startSpan(ctx, "db_update")
+	ctx, client, span := d.startSpan(ctx, "db_update")
 	defer span.End()
 
 	res, err := client.Query(
@@ -275,7 +275,7 @@ func (d *FaunaDB) Update(ctx context.Context, id string, plugin Plugin) (Plugin,
 
 // CreateHash stores a plugin hash.
 func (d *FaunaDB) CreateHash(ctx context.Context, module, version, hash string) (PluginHash, error) {
-	client, span := d.startSpan(ctx, "db_createHash")
+	ctx, client, span := d.startSpan(ctx, "db_createHash")
 	defer span.End()
 
 	id, err := client.Query(f.NewId())
@@ -302,7 +302,7 @@ func (d *FaunaDB) CreateHash(ctx context.Context, module, version, hash string) 
 
 // GetHashByName gets a plugin hash by plugin name.
 func (d *FaunaDB) GetHashByName(ctx context.Context, module, version string) (PluginHash, error) {
-	client, span := d.startSpan(ctx, "db_getHashByName")
+	ctx, client, span := d.startSpan(ctx, "db_getHashByName")
 	defer span.End()
 
 	res, err := client.Query(
@@ -320,7 +320,7 @@ func (d *FaunaDB) GetHashByName(ctx context.Context, module, version string) (Pl
 
 // DeleteHash deletes a plugin hash.
 func (d *FaunaDB) DeleteHash(ctx context.Context, id string) error {
-	client, span := d.startSpan(ctx, "db_deleteHash")
+	ctx, client, span := d.startSpan(ctx, "db_deleteHash")
 	defer span.End()
 
 	_, err := client.Query(
@@ -362,12 +362,12 @@ func Observe(ctx context.Context, tracer trace.Tracer) f.ObserverCallback {
 }
 
 // startSpan starts a new span for tracing and start a Fauna client with a new Observer function.
-func (d *FaunaDB) startSpan(ctx context.Context, name string) (f.FaunaClient, trace.Span) {
+func (d *FaunaDB) startSpan(ctx context.Context, name string) (context.Context, f.FaunaClient, trace.Span) {
 	ctx, span := d.tracer.Start(ctx, name)
 
 	client := d.client.NewWithObserver(Observe(ctx, d.tracer))
 
-	return *client, span
+	return ctx, *client, span
 }
 
 // Bootstrap create collection and indexes if not present.
