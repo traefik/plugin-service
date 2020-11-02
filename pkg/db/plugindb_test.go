@@ -1,6 +1,7 @@
 package db
 
 import (
+	"context"
 	"crypto/rand"
 	"fmt"
 	"math/big"
@@ -19,7 +20,7 @@ const prefix = "plugin-test-"
 func TestNameDB(t *testing.T) {
 	db := createTempDB(t, nil)
 
-	data, err := db.Create(Plugin{
+	data, err := db.Create(context.Background(), Plugin{
 		ID:            "123",
 		Name:          "github.com/traefik/plugintest",
 		DisplayName:   "Add Header",
@@ -43,7 +44,7 @@ func TestNameDB(t *testing.T) {
 
 	fmt.Println(data)
 
-	_, err = db.Update(data.ID, Plugin{
+	_, err = db.Update(context.Background(), data.ID, Plugin{
 		Name:          "github.com/traefik/plugintest",
 		DisplayName:   "Foo",
 		Author:        "ldez",
@@ -60,13 +61,13 @@ func TestNameDB(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	list, next, err := db.List(Pagination{Size: 100})
+	list, next, err := db.List(context.Background(), Pagination{Size: 100})
 	require.NoError(t, err)
 
 	fmt.Println(next)
 	fmt.Println(list)
 
-	value, err := db.GetByName("github.com/traefik/plugintest")
+	value, err := db.GetByName(context.Background(), "github.com/traefik/plugintest")
 	require.NoError(t, err)
 
 	fmt.Println(value)
@@ -138,7 +139,7 @@ func createTempDB(t *testing.T, plugins []Plugin) *FaunaDB {
 
 func populate(t *testing.T, db *FaunaDB, plugins []Plugin) {
 	for _, plugin := range plugins {
-		_, err := db.Create(plugin)
+		_, err := db.Create(context.Background(), plugin)
 		require.NoError(t, err)
 	}
 }
