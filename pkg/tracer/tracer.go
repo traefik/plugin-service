@@ -18,8 +18,10 @@ const serviceName = "plugin"
 func Setup(exporter export.SpanExporter, probability float64) *sdktrace.BatchSpanProcessor {
 	bsp := sdktrace.NewBatchSpanProcessor(exporter)
 
+	sampler := sdktrace.TraceIDRatioBased(probability)
+
 	tp := sdktrace.NewTracerProvider(
-		sdktrace.WithConfig(sdktrace.Config{DefaultSampler: sdktrace.TraceIDRatioBased(probability)}),
+		sdktrace.WithConfig(sdktrace.Config{DefaultSampler: sdktrace.ParentBased(sampler)}),
 		sdktrace.WithSpanProcessor(bsp),
 	)
 
