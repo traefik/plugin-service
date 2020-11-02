@@ -43,59 +43,29 @@ func bootstrap(token string, options []faunadb.ClientConfig) error {
 }
 
 func setupEnvVars(token string, context *cli.Context) error {
-	endpoint := context.String("endpoint")
-	if endpoint != "" {
-		if err := os.Setenv("FAUNADB_ENDPOINT", endpoint); err != nil {
-			return err
-		}
-	}
-
 	if err := os.Setenv("FAUNADB_SECRET", token); err != nil {
 		return err
 	}
 
-	if err := os.Setenv("PILOT_TOKEN_URL", context.String("token-url")); err != nil {
-		return err
+	vars := map[string]string{
+		"FAUNADB_ENDPOINT":            "endpoint",
+		"PILOT_TOKEN_URL":             "token-url",
+		"PILOT_JWT_CERT":              "jwt-cert",
+		"PILOT_SERVICES_ACCESS_TOKEN": "services-access-token",
+		"PILOT_GO_PROXY_URL":          "go-proxy-url",
+		"PILOT_GO_PROXY_USERNAME":     "go-proxy-username",
+		"PILOT_GO_PROXY_PASSWORD":     "go-proxy-password",
+		"PILOT_GITHUB_TOKEN":          "github-token",
+		"TRACING_ENDPOINT":            "tracing-endpoint",
+		"TRACING_USERNAME":            "tracing-username",
+		"TRACING_PASSWORD":            "tracing-password",
+		"TRACING_PROBABILITY":         "tracing-probability",
 	}
 
-	if err := os.Setenv("PILOT_JWT_CERT", context.String("jwt-cert")); err != nil {
-		return err
-	}
-
-	if err := os.Setenv("PILOT_SERVICES_ACCESS_TOKEN", context.String("services-access-token")); err != nil {
-		return err
-	}
-
-	if err := os.Setenv("PILOT_GO_PROXY_URL", context.String("go-proxy-url")); err != nil {
-		return err
-	}
-
-	if err := os.Setenv("PILOT_GO_PROXY_USERNAME", context.String("go-proxy-username")); err != nil {
-		return err
-	}
-
-	if err := os.Setenv("PILOT_GO_PROXY_PASSWORD", context.String("go-proxy-password")); err != nil {
-		return err
-	}
-
-	if err := os.Setenv("PILOT_GITHUB_TOKEN", context.String("github-token")); err != nil {
-		return err
-	}
-
-	if err := os.Setenv("TRACING_ENDPOINT", context.String("tracing-endpoint")); err != nil {
-		return err
-	}
-
-	if err := os.Setenv("TRACING_USERNAME", context.String("tracing-username")); err != nil {
-		return err
-	}
-
-	if err := os.Setenv("TRACING_PASSWORD", context.String("tracing-password")); err != nil {
-		return err
-	}
-
-	if err := os.Setenv("TRACING_PROBABILITY", context.String("tracing-probability")); err != nil {
-		return err
+	for name, flag := range vars {
+		if err := os.Setenv(name, context.String(flag)); err != nil {
+			return err
+		}
 	}
 
 	return nil

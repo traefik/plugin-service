@@ -31,7 +31,7 @@ func Setup(exporter export.SpanExporter, probability float64) *sdktrace.BatchSpa
 
 // NewJaegerExporter creates a new Jaeger exporter.
 func NewJaegerExporter(req *http.Request, endpoint, username, password string) (*jaeger.Exporter, error) {
-	exporter, err := jaeger.NewRawExporter(
+	return jaeger.NewRawExporter(
 		jaeger.WithCollectorEndpoint(endpoint+"/api/traces",
 			jaeger.WithUsername(username),
 			jaeger.WithPassword(password),
@@ -44,9 +44,4 @@ func NewJaegerExporter(req *http.Request, endpoint, username, password string) (
 				label.String("deployment", req.Header.Get("x-vercel-deployment-url")),
 			},
 		}))
-	if err != nil {
-		return nil, err
-	}
-
-	return exporter, nil
 }
