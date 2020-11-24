@@ -39,4 +39,4 @@ blocks:
             - echo ${TOKEN}
             - vercel secrets rm pilot-plugin-access-token --token ${VERCEL_TOKEN} --scope traefiklabs --yes
             - vercel secrets add pilot-plugin-access-token "${TOKEN}" --token ${VERCEL_TOKEN} --scope traefiklabs
-            - vercel --token ${VERCEL_TOKEN} --scope traefiklabs --prod
+            - curl -X POST https://api.vercel.com/v1/integrations/deploy/QmecAvk36agyecB2mdL3SfLqyEtzmfN4ATpJmJaNCkhA6S/1sHJwCBBcN
