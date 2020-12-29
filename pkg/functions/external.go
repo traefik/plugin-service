@@ -14,7 +14,7 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
-// External creates zeit function.
+// External creates external function.
 func External(rw http.ResponseWriter, req *http.Request) {
 	logger.Setup()
 
