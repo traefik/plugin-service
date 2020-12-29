@@ -42,8 +42,6 @@ func NewJaegerExporter(req *http.Request, endpoint, username, password string) (
 			ServiceName: serviceName,
 			Tags: []label.KeyValue{
 				label.String("exporter", "jaeger"),
-				label.String("region", req.Header.Get("x-vercel-id")),
-				label.String("deployment", req.Header.Get("x-vercel-deployment-url")),
 			},
 		}))
 }
