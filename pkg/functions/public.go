@@ -19,7 +19,7 @@ import (
 	"golang.org/x/oauth2"
 )
 
-// Public creates zeit function.
+// Public creates public function.
 func Public(rw http.ResponseWriter, req *http.Request) {
 	logger.Setup()
 
