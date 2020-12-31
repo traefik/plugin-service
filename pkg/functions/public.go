@@ -32,7 +32,7 @@ func Public(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	exporter, err := tracer.NewJaegerExporter(req, cfg.Tracing.Endpoint, cfg.Tracing.Username, cfg.Tracing.Password)
+	exporter, err := tracer.NewJaegerExporter(cfg.Tracing.Endpoint, cfg.Tracing.Username, cfg.Tracing.Password)
 	if err != nil {
 		log.Error().Err(err).Msg("Unable to configure new exporter.")
 		jsonError(rw, http.StatusInternalServerError, "internal server error")
@@ -41,7 +41,7 @@ func Public(rw http.ResponseWriter, req *http.Request) {
 	defer exporter.Flush()
 
 	bsp := tracer.Setup(exporter, cfg.Tracing.Probability)
-	defer bsp.Shutdown()
+	defer func() { _ = bsp.Shutdown(req.Context()) }()
 
 	var options []faunadb.ClientConfig
 	if cfg.FaunaDB.Endpoint != "" {

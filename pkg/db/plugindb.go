@@ -8,9 +8,9 @@ import (
 	"strings"
 
 	f "github.com/fauna/faunadb-go/v3/faunadb"
-	"go.opentelemetry.io/otel/api/global"
-	"go.opentelemetry.io/otel/api/trace"
+	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/label"
+	"go.opentelemetry.io/otel/trace"
 )
 
 const (
@@ -63,18 +63,18 @@ func NewFaunaDB(client *f.FaunaClient) *FaunaDB {
 	return &FaunaDB{
 		client:   client,
 		collName: collName,
-		tracer:   global.Tracer("Database"),
+		tracer:   otel.Tracer("Database"),
 	}
 }
 
 // Get gets a plugin from an id.
 func (d *FaunaDB) Get(ctx context.Context, id string) (Plugin, error) {
-	ctx, client, span := d.startSpan(ctx, "db_get")
+	client, span := d.startSpan(ctx, "db_get")
 	defer span.End()
 
 	res, err := client.Query(f.Get(f.RefCollection(f.Collection(d.collName), id)))
 	if err != nil {
-		span.RecordError(ctx, err)
+		span.RecordError(err)
 		return Plugin{}, fmt.Errorf("fauna error: %w", err)
 	}
 
@@ -83,7 +83,7 @@ func (d *FaunaDB) Get(ctx context.Context, id string) (Plugin, error) {
 
 // Delete deletes a plugin.
 func (d *FaunaDB) Delete(ctx context.Context, id string) error {
-	ctx, client, span := d.startSpan(ctx, "db_delete")
+	client, span := d.startSpan(ctx, "db_delete")
 	defer span.End()
 
 	_, err := client.Query(
@@ -92,7 +92,7 @@ func (d *FaunaDB) Delete(ctx context.Context, id string) error {
 		),
 	)
 	if err != nil {
-		span.RecordError(ctx, err)
+		span.RecordError(err)
 		return fmt.Errorf("fauna error: %w", err)
 	}
 
@@ -101,12 +101,12 @@ func (d *FaunaDB) Delete(ctx context.Context, id string) error {
 
 // Create creates a plugin in the db.
 func (d *FaunaDB) Create(ctx context.Context, plugin Plugin) (Plugin, error) {
-	ctx, client, span := d.startSpan(ctx, "db_create")
+	client, span := d.startSpan(ctx, "db_create")
 	defer span.End()
 
 	id, err := client.Query(f.NewId())
 	if err != nil {
-		span.RecordError(ctx, err)
+		span.RecordError(err)
 		return Plugin{}, fmt.Errorf("fauna error: %w", err)
 	}
 
@@ -119,7 +119,7 @@ func (d *FaunaDB) Create(ctx context.Context, plugin Plugin) (Plugin, error) {
 			}),
 		}))
 	if err != nil {
-		span.RecordError(ctx, err)
+		span.RecordError(err)
 		return Plugin{}, fmt.Errorf("fauna error: %w", err)
 	}
 
@@ -128,7 +128,7 @@ func (d *FaunaDB) Create(ctx context.Context, plugin Plugin) (Plugin, error) {
 
 // List gets all the plugins.
 func (d *FaunaDB) List(ctx context.Context, pagination Pagination) ([]Plugin, string, error) {
-	ctx, client, span := d.startSpan(ctx, "db_list")
+	client, span := d.startSpan(ctx, "db_list")
 	defer span.End()
 
 	paginateOptions := []f.OptionalParameter{f.Size(pagination.Size)}
@@ -136,7 +136,7 @@ func (d *FaunaDB) List(ctx context.Context, pagination Pagination) ([]Plugin, st
 	if len(pagination.Start) > 0 {
 		nextPage, err := decodeNextPageList(pagination.Start)
 		if err != nil {
-			span.RecordError(ctx, err)
+			span.RecordError(err)
 			return nil, "", fmt.Errorf("fauna error: %w", err)
 		}
 
@@ -157,7 +157,7 @@ func (d *FaunaDB) List(ctx context.Context, pagination Pagination) ([]Plugin, st
 		),
 	)
 	if err != nil {
-		span.RecordError(ctx, err)
+		span.RecordError(err)
 		return nil, "", fmt.Errorf("fauna error: %w", err)
 	}
 
@@ -166,14 +166,14 @@ func (d *FaunaDB) List(ctx context.Context, pagination Pagination) ([]Plugin, st
 
 	next, err := encodeNextPageList(after)
 	if err != nil {
-		span.RecordError(ctx, err)
+		span.RecordError(err)
 		return nil, "", fmt.Errorf("fauna error: %w", err)
 	}
 
 	var plugins []Plugin
 	err = res.At(f.ObjKey("data")).Get(&plugins)
 	if err != nil {
-		span.RecordError(ctx, err)
+		span.RecordError(err)
 		return nil, "", fmt.Errorf("fauna error: %w", err)
 	}
 
@@ -182,7 +182,7 @@ func (d *FaunaDB) List(ctx context.Context, pagination Pagination) ([]Plugin, st
 
 // GetByName gets a plugin by name.
 func (d *FaunaDB) GetByName(ctx context.Context, value string) (Plugin, error) {
-	ctx, client, span := d.startSpan(ctx, "db_getByName")
+	client, span := d.startSpan(ctx, "db_getByName")
 	defer span.End()
 
 	res, err := client.Query(
@@ -191,7 +191,7 @@ func (d *FaunaDB) GetByName(ctx context.Context, value string) (Plugin, error) {
 		),
 	)
 	if err != nil {
-		span.RecordError(ctx, err)
+		span.RecordError(err)
 		return Plugin{}, fmt.Errorf("fauna error: %w", err)
 	}
 
@@ -200,7 +200,7 @@ func (d *FaunaDB) GetByName(ctx context.Context, value string) (Plugin, error) {
 
 // SearchByName returns a list of plugins matching the query.
 func (d *FaunaDB) SearchByName(ctx context.Context, query string, pagination Pagination) ([]Plugin, string, error) {
-	ctx, client, span := d.startSpan(ctx, "db_searchByName")
+	client, span := d.startSpan(ctx, "db_searchByName")
 	defer span.End()
 
 	paginateOptions := []f.OptionalParameter{f.Size(pagination.Size)}
@@ -208,7 +208,7 @@ func (d *FaunaDB) SearchByName(ctx context.Context, query string, pagination Pag
 	if len(pagination.Start) > 0 {
 		nextPage, err := decodeNextPageSearch(pagination.Start)
 		if err != nil {
-			span.RecordError(ctx, err)
+			span.RecordError(err)
 			return nil, "", fmt.Errorf("fauna error: %w", err)
 		}
 
@@ -230,7 +230,7 @@ func (d *FaunaDB) SearchByName(ctx context.Context, query string, pagination Pag
 		f.Lambda(f.Arr{"displayName", "ref"}, f.Select(f.Arr{"data"}, f.Get(f.Var("ref")))),
 	))
 	if err != nil {
-		span.RecordError(ctx, err)
+		span.RecordError(err)
 		return nil, "", fmt.Errorf("fauna error: %w", err)
 	}
 
@@ -239,14 +239,14 @@ func (d *FaunaDB) SearchByName(ctx context.Context, query string, pagination Pag
 
 	next, err := encodeNextPageSearch(after)
 	if err != nil {
-		span.RecordError(ctx, err)
+		span.RecordError(err)
 		return nil, "", fmt.Errorf("fauna error: %w", err)
 	}
 
 	var plugins []Plugin
 	err = res.At(f.ObjKey("data")).Get(&plugins)
 	if err != nil {
-		span.RecordError(ctx, err)
+		span.RecordError(err)
 		return nil, "", fmt.Errorf("fauna error: %w", err)
 	}
 
@@ -255,7 +255,7 @@ func (d *FaunaDB) SearchByName(ctx context.Context, query string, pagination Pag
 
 // Update Updates a plugin in the db.
 func (d *FaunaDB) Update(ctx context.Context, id string, plugin Plugin) (Plugin, error) {
-	ctx, client, span := d.startSpan(ctx, "db_update")
+	client, span := d.startSpan(ctx, "db_update")
 	defer span.End()
 
 	res, err := client.Query(
@@ -264,7 +264,7 @@ func (d *FaunaDB) Update(ctx context.Context, id string, plugin Plugin) (Plugin,
 			f.Obj{"data": plugin},
 		))
 	if err != nil {
-		span.RecordError(ctx, err)
+		span.RecordError(err)
 		return Plugin{}, fmt.Errorf("fauna error: %w", err)
 	}
 
@@ -275,12 +275,12 @@ func (d *FaunaDB) Update(ctx context.Context, id string, plugin Plugin) (Plugin,
 
 // CreateHash stores a plugin hash.
 func (d *FaunaDB) CreateHash(ctx context.Context, module, version, hash string) (PluginHash, error) {
-	ctx, client, span := d.startSpan(ctx, "db_createHash")
+	client, span := d.startSpan(ctx, "db_createHash")
 	defer span.End()
 
 	id, err := client.Query(f.NewId())
 	if err != nil {
-		span.RecordError(ctx, err)
+		span.RecordError(err)
 		return PluginHash{}, fmt.Errorf("fauna error: %w", err)
 	}
 
@@ -293,7 +293,7 @@ func (d *FaunaDB) CreateHash(ctx context.Context, module, version, hash string) 
 			}),
 		}))
 	if err != nil {
-		span.RecordError(ctx, err)
+		span.RecordError(err)
 		return PluginHash{}, fmt.Errorf("fauna error: %w", err)
 	}
 
@@ -302,7 +302,7 @@ func (d *FaunaDB) CreateHash(ctx context.Context, module, version, hash string) 
 
 // GetHashByName gets a plugin hash by plugin name.
 func (d *FaunaDB) GetHashByName(ctx context.Context, module, version string) (PluginHash, error) {
-	ctx, client, span := d.startSpan(ctx, "db_getHashByName")
+	client, span := d.startSpan(ctx, "db_getHashByName")
 	defer span.End()
 
 	res, err := client.Query(
@@ -311,7 +311,7 @@ func (d *FaunaDB) GetHashByName(ctx context.Context, module, version string) (Pl
 		),
 	)
 	if err != nil {
-		span.RecordError(ctx, err)
+		span.RecordError(err)
 		return PluginHash{}, fmt.Errorf("fauna error: %w", err)
 	}
 
@@ -320,7 +320,7 @@ func (d *FaunaDB) GetHashByName(ctx context.Context, module, version string) (Pl
 
 // DeleteHash deletes a plugin hash.
 func (d *FaunaDB) DeleteHash(ctx context.Context, id string) error {
-	ctx, client, span := d.startSpan(ctx, "db_deleteHash")
+	client, span := d.startSpan(ctx, "db_deleteHash")
 	defer span.End()
 
 	_, err := client.Query(
@@ -329,7 +329,7 @@ func (d *FaunaDB) DeleteHash(ctx context.Context, id string) error {
 		),
 	)
 	if err != nil {
-		span.RecordError(ctx, err)
+		span.RecordError(err)
 		return fmt.Errorf("fauna error: %w", err)
 	}
 
@@ -362,12 +362,12 @@ func Observe(ctx context.Context, tracer trace.Tracer) f.ObserverCallback {
 }
 
 // startSpan starts a new span for tracing and start a Fauna client with a new Observer function.
-func (d *FaunaDB) startSpan(ctx context.Context, name string) (context.Context, f.FaunaClient, trace.Span) {
+func (d *FaunaDB) startSpan(ctx context.Context, name string) (f.FaunaClient, trace.Span) {
 	ctx, span := d.tracer.Start(ctx, name)
 
 	client := d.client.NewWithObserver(Observe(ctx, d.tracer))
 
-	return ctx, *client, span
+	return *client, span
 }
 
 // Bootstrap create collection and indexes if not present.
