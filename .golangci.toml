@@ -39,6 +39,7 @@
     "wrapcheck",
     "exhaustivestruct",
     "tparallel",
+    "paralleltest",
   ]
 
 [issues]
