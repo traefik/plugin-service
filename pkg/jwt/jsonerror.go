@@ -1,4 +1,4 @@
-package functions
+package jwt
 
 import (
 	"encoding/json"
@@ -12,17 +12,18 @@ type apiError struct {
 	Message string `json:"error"`
 }
 
-func jsonError(rw http.ResponseWriter, code int, error string) {
+func jsonError(rw http.ResponseWriter, code int, errMsg string) {
+	rw.Header().Set("Content-Type", "application/json")
 	rw.Header().Set("X-Content-Type-Options", "nosniff")
 	rw.WriteHeader(code)
 
 	msg := apiError{
-		Message: error,
+		Message: errMsg,
 	}
 
 	content, err := json.Marshal(msg)
 	if err != nil {
-		log.Error().Err(err).Msgf("failed to process error %q", error)
+		log.Error().Err(err).Str("func_error", errMsg).Msg("failed to process error")
 
 		_, _ = fmt.Fprintln(rw, `{"error": "internal error"}`)
 		return

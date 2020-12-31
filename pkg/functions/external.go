@@ -9,6 +9,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/traefik/plugin-service/pkg/db"
 	"github.com/traefik/plugin-service/pkg/handlers"
+	"github.com/traefik/plugin-service/pkg/jwt"
 	"github.com/traefik/plugin-service/pkg/logger"
 	"github.com/traefik/plugin-service/pkg/tracer"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
@@ -23,14 +24,14 @@ func External(rw http.ResponseWriter, req *http.Request) {
 	err := env.Parse(&cfg)
 	if err != nil {
 		log.Error().Err(err).Msg("Unable to parse env vars")
-		jsonError(rw, http.StatusInternalServerError, "internal server error")
+		handlers.JSONInternalServerError(rw)
 		return
 	}
 
 	exporter, err := tracer.NewJaegerExporter(cfg.Tracing.Endpoint, cfg.Tracing.Username, cfg.Tracing.Password)
 	if err != nil {
 		log.Error().Err(err).Msg("Unable to configure new exporter.")
-		jsonError(rw, http.StatusInternalServerError, "internal server error")
+		handlers.JSONInternalServerError(rw)
 		return
 	}
 	defer exporter.Flush()
@@ -58,10 +59,13 @@ func External(rw http.ResponseWriter, req *http.Request) {
 
 	router.PanicHandler = handlers.PanicHandler
 
-	newJWTHandler(cfg.Pilot.JWTCert,
-		"https://clients.pilot.traefik.io/",
-		"https://sso.traefik.io/",
-		map[string]check{"https://clients.pilot.traefik.io/uuid": {header: "X-User-Id"}},
+	jwt.NewHandler(cfg.Pilot.JWTCert,
+		jwt.ClientsAudience,
+		jwt.Issuer,
+		map[string]jwt.Check{
+			jwt.UserIDClaim:         {},
+			jwt.OrganizationIDClaim: {},
+		},
 		http.StripPrefix("/external", router),
 	).ServeHTTP(rw, req)
 }
