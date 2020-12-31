@@ -54,7 +54,7 @@ func (h Handlers) Get(rw http.ResponseWriter, req *http.Request) {
 	id, err := getPathParam(req.URL)
 	if err != nil {
 		span.RecordError(err)
-		jsonError(rw, http.StatusBadRequest, "missing plugin id")
+		JSONError(rw, http.StatusBadRequest, "missing plugin id")
 		return
 	}
 
@@ -64,20 +64,20 @@ func (h Handlers) Get(rw http.ResponseWriter, req *http.Request) {
 
 		var notFoundError faunadb.NotFound
 		if errors.As(err, &notFoundError) {
-			jsonError(rw, http.StatusNotFound, "plugin not found")
+			JSONError(rw, http.StatusNotFound, "plugin not found")
 			return
 		}
 
 		log.Error().Str("pluginID", id).Err(err).Msg("Error while fetch")
 
-		jsonError(rw, http.StatusInternalServerError, "error")
+		JSONError(rw, http.StatusInternalServerError, "error")
 		return
 	}
 
 	if err := json.NewEncoder(rw).Encode(plugin); err != nil {
 		span.RecordError(err)
 		log.Error().Str("pluginID", id).Err(err).Msg("failed to get plugin")
-		jsonError(rw, http.StatusInternalServerError, "could not write response")
+		JSONError(rw, http.StatusInternalServerError, "could not write response")
 		return
 	}
 }
@@ -107,7 +107,7 @@ func (h Handlers) List(rw http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		span.RecordError(err)
 		log.Error().Err(err).Msg("Error fetching plugins")
-		jsonError(rw, http.StatusNotFound, "could not fetch plugins")
+		JSONError(rw, http.StatusNotFound, "could not fetch plugins")
 		return
 	}
 
@@ -115,7 +115,7 @@ func (h Handlers) List(rw http.ResponseWriter, req *http.Request) {
 		if err := json.NewEncoder(rw).Encode(make([]*db.Plugin, 0)); err != nil {
 			span.RecordError(err)
 			log.Error().Err(err).Msg("Error sending create response")
-			jsonError(rw, http.StatusInternalServerError, "could not write response")
+			JSONError(rw, http.StatusInternalServerError, "could not write response")
 		}
 		return
 	}
@@ -125,7 +125,7 @@ func (h Handlers) List(rw http.ResponseWriter, req *http.Request) {
 	if err := json.NewEncoder(rw).Encode(plugins); err != nil {
 		span.RecordError(err)
 		log.Error().Err(err).Msg("Error sending create response")
-		jsonError(rw, http.StatusInternalServerError, "could not write response")
+		JSONError(rw, http.StatusInternalServerError, "could not write response")
 		return
 	}
 }
@@ -141,14 +141,14 @@ func (h Handlers) Create(rw http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		span.RecordError(err)
 		log.Error().Err(err).Msg("Error reading body for creation")
-		jsonError(rw, http.StatusInternalServerError, err.Error())
+		JSONError(rw, http.StatusInternalServerError, err.Error())
 		return
 	}
 
 	if len(body) == 0 {
 		span.RecordError(err)
 		log.Error().Err(err).Msg("Error decoding plugin for creation")
-		jsonError(rw, http.StatusBadRequest, err.Error())
+		JSONError(rw, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -158,7 +158,7 @@ func (h Handlers) Create(rw http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		span.RecordError(err)
 		log.Error().Err(err).Msg("Error decoding plugin for creation")
-		jsonError(rw, http.StatusBadRequest, err.Error())
+		JSONError(rw, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -166,7 +166,7 @@ func (h Handlers) Create(rw http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		span.RecordError(err)
 		log.Error().Str("moduleName", pl.Name).Err(err).Msg("Error persisting plugin")
-		jsonError(rw, http.StatusInternalServerError, "could not persist data")
+		JSONError(rw, http.StatusInternalServerError, "could not persist data")
 		return
 	}
 
@@ -174,7 +174,7 @@ func (h Handlers) Create(rw http.ResponseWriter, req *http.Request) {
 	if err := json.NewEncoder(rw).Encode(created); err != nil {
 		span.RecordError(err)
 		log.Error().Str("moduleName", pl.Name).Err(err).Msg("Error sending create response")
-		jsonError(rw, http.StatusInternalServerError, "could not write response")
+		JSONError(rw, http.StatusInternalServerError, "could not write response")
 		return
 	}
 }
@@ -189,7 +189,7 @@ func (h Handlers) Update(rw http.ResponseWriter, req *http.Request) {
 	id, err := getPathParam(req.URL)
 	if err != nil {
 		span.RecordError(err)
-		jsonError(rw, http.StatusBadRequest, "missing plugin id")
+		JSONError(rw, http.StatusBadRequest, "missing plugin id")
 		return
 	}
 
@@ -198,7 +198,7 @@ func (h Handlers) Update(rw http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		span.RecordError(err)
 		log.Error().Err(err).Msg("Error reading body for update")
-		jsonError(rw, http.StatusBadRequest, err.Error())
+		JSONError(rw, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -209,13 +209,13 @@ func (h Handlers) Update(rw http.ResponseWriter, req *http.Request) {
 		var notFoundError faunadb.NotFound
 		if errors.As(err, &notFoundError) {
 			span.RecordError(err)
-			jsonError(rw, http.StatusNotFound, "plugin not found")
+			JSONError(rw, http.StatusNotFound, "plugin not found")
 			return
 		}
 
 		log.Error().Str("pluginID", id).Err(err).Msg("Error updating plugin")
 
-		jsonError(rw, http.StatusInternalServerError, "could not update plugin")
+		JSONError(rw, http.StatusInternalServerError, "could not update plugin")
 		return
 	}
 
@@ -223,7 +223,7 @@ func (h Handlers) Update(rw http.ResponseWriter, req *http.Request) {
 	if err := json.NewEncoder(rw).Encode(pg); err != nil {
 		span.RecordError(err)
 		log.Error().Str("pluginID", id).Err(err).Msg("failed to marshal plugin")
-		jsonError(rw, http.StatusInternalServerError, "could not write response")
+		JSONError(rw, http.StatusInternalServerError, "could not write response")
 		return
 	}
 }
@@ -237,7 +237,7 @@ func (h Handlers) Delete(rw http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		span.RecordError(err)
 		log.Error().Err(err).Msg("missing plugin id")
-		jsonError(rw, http.StatusBadRequest, "missing plugin id")
+		JSONError(rw, http.StatusBadRequest, "missing plugin id")
 		return
 	}
 
@@ -253,7 +253,7 @@ func (h Handlers) Delete(rw http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		span.RecordError(err)
 		log.Error().Str("pluginID", id).Err(err).Msg("failed to delete the plugin info")
-		jsonError(rw, http.StatusBadRequest, "failed to delete plugin info")
+		JSONError(rw, http.StatusBadRequest, "failed to delete plugin info")
 		return
 	}
 
@@ -264,7 +264,7 @@ func (h Handlers) Delete(rw http.ResponseWriter, req *http.Request) {
 		var notFoundError faunadb.NotFound
 		if !errors.As(err, &notFoundError) {
 			log.Error().Str("pluginID", id).Err(err).Msg("failed to delete the plugin hash")
-			jsonError(rw, http.StatusBadRequest, "failed to delete plugin hash")
+			JSONError(rw, http.StatusBadRequest, "failed to delete plugin hash")
 			return
 		}
 	}
@@ -287,7 +287,7 @@ func (h Handlers) searchByName(rw http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		span.RecordError(err)
 		log.Error().Str("query", query).Err(err).Msg("unable to get plugins by name")
-		jsonError(rw, http.StatusBadRequest, "unable to get plugins")
+		JSONError(rw, http.StatusBadRequest, "unable to get plugins")
 		return
 	}
 
@@ -295,7 +295,7 @@ func (h Handlers) searchByName(rw http.ResponseWriter, req *http.Request) {
 		if err := json.NewEncoder(rw).Encode(make([]*db.Plugin, 0)); err != nil {
 			span.RecordError(err)
 			log.Error().Str("query", query).Err(err).Msg("Error sending create response")
-			jsonError(rw, http.StatusInternalServerError, "could not write response")
+			JSONError(rw, http.StatusInternalServerError, "could not write response")
 		}
 		return
 	}
@@ -305,7 +305,7 @@ func (h Handlers) searchByName(rw http.ResponseWriter, req *http.Request) {
 	if err := json.NewEncoder(rw).Encode(plugins); err != nil {
 		span.RecordError(err)
 		log.Error().Str("query", query).Err(err).Msg("Error sending create response")
-		jsonError(rw, http.StatusInternalServerError, "could not write response")
+		JSONError(rw, http.StatusInternalServerError, "could not write response")
 		return
 	}
 }
@@ -323,34 +323,27 @@ func (h Handlers) getByName(rw http.ResponseWriter, req *http.Request) {
 		var notFoundError faunadb.NotFound
 		if errors.As(err, &notFoundError) {
 			log.Error().Str("pluginName", name).Msg("plugin not found")
-			jsonError(rw, http.StatusNotFound, "plugin not found")
+			JSONError(rw, http.StatusNotFound, "plugin not found")
 			return
 		}
 
 		log.Error().Str("pluginName", name).Err(err).Msg("Error while fetch")
 
-		jsonError(rw, http.StatusInternalServerError, "error")
+		JSONError(rw, http.StatusInternalServerError, "error")
 		return
 	}
 
 	if err := json.NewEncoder(rw).Encode([]*db.Plugin{&plugin}); err != nil {
 		span.RecordError(err)
 		log.Error().Str("pluginName", name).Err(err).Msg("failed to get plugin")
-		jsonError(rw, http.StatusInternalServerError, "could not write response")
+		JSONError(rw, http.StatusInternalServerError, "could not write response")
 		return
 	}
 }
 
 // NotFound a not found handler.
 func NotFound(rw http.ResponseWriter, _ *http.Request) {
-	jsonError(rw, http.StatusNotFound, http.StatusText(http.StatusNotFound))
-}
-
-// PanicHandler handles panics.
-func PanicHandler(rw http.ResponseWriter, req *http.Request, err interface{}) {
-	log.Error().Str("method", req.Method).Interface("url", req.URL).Interface("err", err).
-		Msg("Panic error executing request")
-	jsonError(rw, http.StatusInternalServerError, "panic")
+	JSONError(rw, http.StatusNotFound, http.StatusText(http.StatusNotFound))
 }
 
 func getPathParam(uri *url.URL) (string, error) {
