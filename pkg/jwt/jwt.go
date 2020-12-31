@@ -1,4 +1,4 @@
-package functions
+package jwt
 
 import (
 	"encoding/base64"
@@ -12,27 +12,38 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+// Issuer SSO issuer.
+const Issuer = "https://sso.traefik.io/"
+
+// Audiences.
+const (
+	ServicesAudience = "https://services.pilot.traefik.io/"
+	ClientsAudience  = "https://clients.pilot.traefik.io/"
+)
+
 const authorizationHeader = "Authorization"
 
-type check struct {
-	header string
-	value  string
+// Check a check definition.
+type Check struct {
+	Header string
+	Value  string
 }
 
-// JWTHandler holds JWT.
-type JWTHandler struct {
+// Handler holds JWT.
+type Handler struct {
 	certValue string
 	audience  string
 	iss       string
-	claims    map[string]check
+	claims    map[string]Check
 
 	extractor jwtreq.Extractor
 
 	next http.Handler
 }
 
-func newJWTHandler(cert, audience, iss string, claims map[string]check, next http.Handler) JWTHandler {
-	return JWTHandler{
+// NewHandler creates a JWT handler.
+func NewHandler(cert, audience, iss string, claims map[string]Check, next http.Handler) Handler {
+	return Handler{
 		certValue: cert,
 		audience:  audience,
 		iss:       iss,
@@ -43,22 +54,23 @@ func newJWTHandler(cert, audience, iss string, claims map[string]check, next htt
 }
 
 // ServeHTTP checks the token and call next.
-func (h JWTHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
-	if err := h.check(req); err != nil {
-		log.Error().Err(err).Msg("Failed to check JWT")
+func (h Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+	claims, err := h.check(req)
+	if err != nil {
+		log.Error().Err(err).Msg("Impossible to check the JWT Token")
 		jsonError(rw, http.StatusUnauthorized, "unauthorized")
 		return
 	}
 
-	h.next.ServeHTTP(rw, req)
+	h.next.ServeHTTP(rw, req.WithContext(SetClaims(req.Context(), claims)))
 }
 
-func (h JWTHandler) check(req *http.Request) error {
+func (h Handler) check(req *http.Request) (jwt.MapClaims, error) {
 	parser := &jwt.Parser{UseJSONNumber: true}
 
 	tok, err := jwtreq.ParseFromRequest(req, h.extractor, h.keyFunc, jwtreq.WithParser(parser))
 	if err != nil {
-		return fmt.Errorf("unable to parse JWT: %w", err)
+		return nil, fmt.Errorf("unable to parse JWT: %w", err)
 	}
 
 	mapClaims := tok.Claims.(jwt.MapClaims)
@@ -66,45 +78,50 @@ func (h JWTHandler) check(req *http.Request) error {
 	// Verify 'aud' claim
 	checkAud := mapClaims.VerifyAudience(h.audience, false)
 	if !checkAud {
-		return errors.New("invalid audience")
+		return nil, errors.New("invalid audience")
 	}
 
 	// Verify 'iss' claim
 	checkIss := mapClaims.VerifyIssuer(h.iss, true)
 	if !checkIss {
-		return errors.New("invalid issuer")
+		return nil, errors.New("invalid issuer")
 	}
 
 	// Verify 'exp, iat, nbf'
 	valid := mapClaims.Valid()
 	if valid != nil {
-		return fmt.Errorf("invalid token: %w", valid)
+		return nil, fmt.Errorf("invalid token: %w", valid)
 	}
 
 	// Verify custom claims
 	err = h.customValidation(req, mapClaims)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	req.Header.Del(authorizationHeader)
 
-	return nil
+	return mapClaims, nil
 }
 
-func (h JWTHandler) customValidation(req *http.Request, mapClaims jwt.MapClaims) error {
+func (h Handler) customValidation(req *http.Request, mapClaims jwt.MapClaims) error {
 	for k, check := range h.claims {
 		claimVal, ok := mapClaims[k]
 		if !ok {
 			return errors.New("claims: invalid JWT")
 		}
 
-		if check.value != "" && check.value != claimVal {
+		if check.Value != "" && check.Value != claimVal {
 			return errors.New("claims: invalid JWT")
 		}
 
-		if check.header != "" {
-			req.Header.Set(check.header, claimVal.(string))
+		if check.Header != "" {
+			value, ok := claimVal.(string)
+			if !ok {
+				return errors.New("claims: invalid JWT")
+			}
+
+			req.Header.Set(check.Header, value)
 		}
 	}
 
@@ -112,7 +129,7 @@ func (h JWTHandler) customValidation(req *http.Request, mapClaims jwt.MapClaims)
 }
 
 // keyFunc returns the correct key to validate the given JWT's signature.
-func (h JWTHandler) keyFunc(_ *jwt.Token) (key interface{}, err error) {
+func (h Handler) keyFunc(_ *jwt.Token) (key interface{}, err error) {
 	cert, err := base64.StdEncoding.DecodeString(h.certValue)
 	if err != nil {
 		return nil, err

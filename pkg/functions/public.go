@@ -28,14 +28,14 @@ func Public(rw http.ResponseWriter, req *http.Request) {
 	err := env.Parse(&cfg)
 	if err != nil {
 		log.Error().Err(err).Msg("Unable to parse env vars")
-		jsonError(rw, http.StatusInternalServerError, "internal server error")
+		handlers.JSONInternalServerError(rw)
 		return
 	}
 
 	exporter, err := tracer.NewJaegerExporter(cfg.Tracing.Endpoint, cfg.Tracing.Username, cfg.Tracing.Password)
 	if err != nil {
 		log.Error().Err(err).Msg("Unable to configure new exporter.")
-		jsonError(rw, http.StatusInternalServerError, "internal server error")
+		handlers.JSONInternalServerError(rw)
 		return
 	}
 	defer exporter.Flush()
@@ -53,7 +53,7 @@ func Public(rw http.ResponseWriter, req *http.Request) {
 	gpClient, err := newGoProxyClient(cfg.Pilot.GoProxyURL, cfg.Pilot.GoProxyUsername, cfg.Pilot.GoProxyPassword)
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to create go proxy client")
-		jsonError(rw, http.StatusInternalServerError, "internal error")
+		handlers.JSONInternalServerError(rw)
 		return
 	}
 

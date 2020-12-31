@@ -1,4 +1,4 @@
-package functions
+package jwt
 
 import (
 	"net/http"
@@ -11,11 +11,11 @@ import (
 )
 
 func Test_customValidation(t *testing.T) {
-	handler := JWTHandler{
-		claims: map[string]check{
+	handler := Handler{
+		claims: map[string]Check{
 			"test": {
-				header: "foo",
-				value:  "value",
+				Header: "foo",
+				Value:  "value",
 			},
 		},
 	}
@@ -35,16 +35,16 @@ func Test_customValidation(t *testing.T) {
 func Test_customValidation_errors(t *testing.T) {
 	testCases := []struct {
 		desc      string
-		claims    map[string]check
+		claims    map[string]Check
 		mapClaims jwt.MapClaims
 		expected  string
 	}{
 		{
 			desc: "missing claim",
-			claims: map[string]check{
+			claims: map[string]Check{
 				"missing": {
-					header: "foo",
-					value:  "value",
+					Header: "foo",
+					Value:  "value",
 				},
 			},
 			mapClaims: jwt.MapClaims{
@@ -54,10 +54,10 @@ func Test_customValidation_errors(t *testing.T) {
 		},
 		{
 			desc: "invalid claim value",
-			claims: map[string]check{
+			claims: map[string]Check{
 				"test": {
-					header: "foo",
-					value:  "nope",
+					Header: "foo",
+					Value:  "nope",
 				},
 			},
 			mapClaims: jwt.MapClaims{
@@ -70,7 +70,7 @@ func Test_customValidation_errors(t *testing.T) {
 	for _, test := range testCases {
 		test := test
 		t.Run(test.desc, func(t *testing.T) {
-			handler := JWTHandler{claims: test.claims}
+			handler := Handler{claims: test.claims}
 
 			req := httptest.NewRequest(http.MethodGet, "/foo", nil)
 
