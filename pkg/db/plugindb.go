@@ -2,15 +2,12 @@ package db
 
 import (
 	"context"
-	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"strings"
 
 	f "github.com/fauna/faunadb-go/v3/faunadb"
 	"go.opentelemetry.io/otel/api/global"
 	"go.opentelemetry.io/otel/api/trace"
-	"go.opentelemetry.io/otel/label"
 )
 
 const (
@@ -33,29 +30,11 @@ type PluginDB interface {
 	GetHashByName(ctx context.Context, module, version string) (PluginHash, error)
 }
 
-// NextPageList represents a pagination header value.
-type NextPageList struct {
-	Stars  int    `json:"stars"`
-	NextID string `json:"nextId"`
-}
-
-// NextPageSearch represents a pagination header value for the search request.
-type NextPageSearch struct {
-	Name   string `json:"name"`
-	NextID string `json:"nextId"`
-}
-
 // FaunaDB is a faunadb implementation.
 type FaunaDB struct {
 	client   *f.FaunaClient
 	collName string
 	tracer   trace.Tracer
-}
-
-// Pagination is a configuration struct for pagination.
-type Pagination struct {
-	Start string
-	Size  int
 }
 
 // NewFaunaDB creates an FaunaDB.
@@ -336,169 +315,6 @@ func (d *FaunaDB) DeleteHash(ctx context.Context, id string) error {
 	return nil
 }
 
-// Observe sends trace for Fauna requests.
-func Observe(ctx context.Context, tracer trace.Tracer) f.ObserverCallback {
-	return func(result *f.QueryResult) {
-		_, span := tracer.Start(ctx, "fauna_"+strings.SplitN(result.Query.String(), "(", 2)[0], trace.WithTimestamp(result.StartTime))
-		defer span.End(trace.WithTimestamp(result.EndTime))
-
-		attributes := []label.KeyValue{
-			{Key: label.Key("fauna.request"), Value: label.StringValue(result.Query.String())},
-		}
-
-		for key, value := range result.Headers {
-			attributeName := strings.ReplaceAll(key, "X-", "fauna.")
-			attributeName = strings.ReplaceAll(attributeName, "-", ".")
-
-			if len(value) > 0 {
-				attributes = append(attributes, label.KeyValue{
-					Key:   label.Key(attributeName),
-					Value: label.StringValue(value[0]),
-				})
-			}
-		}
-		span.SetAttributes(attributes...)
-	}
-}
-
-// startSpan starts a new span for tracing and start a Fauna client with a new Observer function.
-func (d *FaunaDB) startSpan(ctx context.Context, name string) (context.Context, f.FaunaClient, trace.Span) {
-	ctx, span := d.tracer.Start(ctx, name)
-
-	client := d.client.NewWithObserver(Observe(ctx, d.tracer))
-
-	return ctx, *client, span
-}
-
-// Bootstrap create collection and indexes if not present.
-func (d *FaunaDB) Bootstrap() error {
-	ref, err := d.createCollection(d.collName + collNameHashSuffix)
-	if err != nil {
-		return err
-	}
-
-	err = d.createIndexes(d.collName+collNameHashSuffix, ref)
-	if err != nil {
-		return err
-	}
-
-	ref, err = d.createCollection(d.collName)
-	if err != nil {
-		return err
-	}
-	return d.createIndexes(d.collName, ref)
-}
-
-func (d *FaunaDB) createCollection(collName string) (f.RefV, error) {
-	result, err := d.client.Query(f.Paginate(f.Collections()))
-	if err != nil {
-		return f.RefV{}, err
-	}
-
-	var refs []f.RefV
-	err = result.At(f.ObjKey("data")).Get(&refs)
-	if err != nil {
-		return f.RefV{}, err
-	}
-
-	exists, collRes := contains(collName, refs)
-
-	if !exists {
-		var err error
-		collRes, err = d.queryForRef(f.CreateCollection(f.Obj{"name": collName}))
-		if err != nil {
-			return f.RefV{}, err
-		}
-	}
-
-	return collRes, nil
-}
-
-func (d *FaunaDB) queryForRef(expr f.Expr) (f.RefV, error) {
-	var ref f.RefV
-	value, err := d.client.Query(expr)
-	if err != nil {
-		return ref, err
-	}
-
-	err = value.At(f.ObjKey("ref")).Get(&ref)
-	return ref, err
-}
-
-func (d *FaunaDB) createIndex(indexName string, collRes f.RefV, terms, values f.Arr) error {
-	_, err := d.client.Query(
-		f.CreateIndex(f.Obj{
-			"name":   indexName,
-			"active": true,
-			"source": collRes,
-			"terms":  terms,
-			"values": values,
-		}),
-	)
-	if err != nil {
-		return fmt.Errorf("fauna error: %w", err)
-	}
-
-	return nil
-}
-
-func (d *FaunaDB) createIndexes(collName string, collRes f.RefV) error {
-	resultIdx, _ := d.client.Query(f.Paginate(f.Indexes()))
-
-	var refsIdx []f.RefV
-	errIdx := resultIdx.At(f.ObjKey("data")).Get(&refsIdx)
-	if errIdx != nil {
-		return errIdx
-	}
-
-	idxName := collName + "_by_value"
-	exists, _ := contains(idxName, refsIdx)
-	if !exists {
-		err := d.createIndex(idxName, collRes, f.Arr{f.Obj{
-			"field": f.Arr{"data", "name"},
-		}}, nil)
-		if err != nil {
-			return err
-		}
-	}
-
-	idxName = collName + "_sort_by_stars"
-	exists, _ = contains(idxName, refsIdx)
-	if !exists {
-		err := d.createIndex(idxName, collRes, nil, f.Arr{
-			f.Obj{"field": f.Arr{"data", "stars"}, "reverse": true},
-			f.Obj{"field": f.Arr{"ref"}},
-		})
-		if err != nil {
-			return err
-		}
-	}
-
-	idxName = collName + "_sort_by_display_name"
-	exists, _ = contains(idxName, refsIdx)
-	if !exists {
-		err := d.createIndex(idxName, collRes, nil, f.Arr{
-			f.Obj{"field": f.Arr{"data", "displayName"}},
-			f.Obj{"field": f.Arr{"ref"}},
-		})
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func contains(s string, idx []f.RefV) (bool, f.RefV) {
-	for _, ref := range idx {
-		if ref.ID == s {
-			return true, ref
-		}
-	}
-
-	return false, f.RefV{}
-}
-
 func decodePlugin(obj f.Value) (Plugin, error) {
 	var plugin *Plugin
 	if err := obj.At(f.ObjKey("data")).Get(&plugin); err != nil {
@@ -515,86 +331,4 @@ func decodePluginHash(obj f.Value) (PluginHash, error) {
 	}
 
 	return *plugin, nil
-}
-
-func encodeNextPageList(after f.ArrayV) (string, error) {
-	if len(after) <= 2 {
-		return "", nil
-	}
-
-	var nextN int
-	err := after[0].Get(&nextN)
-	if err != nil {
-		return "", err
-	}
-
-	var next f.RefV
-	err = after[1].Get(&next)
-	if err != nil {
-		return "", err
-	}
-
-	nextPage := NextPageList{NextID: next.ID, Stars: nextN}
-
-	b, err := json.Marshal(nextPage)
-	if err != nil {
-		return "", err
-	}
-
-	return base64.RawStdEncoding.EncodeToString(b), nil
-}
-
-func decodeNextPageList(data string) (NextPageList, error) {
-	decodeString, err := base64.RawStdEncoding.DecodeString(data)
-	if err != nil {
-		return NextPageList{}, err
-	}
-
-	var nextPage NextPageList
-	err = json.Unmarshal(decodeString, &nextPage)
-	if err != nil {
-		return NextPageList{}, err
-	}
-	return nextPage, nil
-}
-
-func encodeNextPageSearch(after f.ArrayV) (string, error) {
-	if len(after) <= 2 {
-		return "", nil
-	}
-
-	var nextN string
-	err := after[0].Get(&nextN)
-	if err != nil {
-		return "", err
-	}
-
-	var next f.RefV
-	err = after[1].Get(&next)
-	if err != nil {
-		return "", err
-	}
-
-	nextPage := NextPageSearch{NextID: next.ID, Name: nextN}
-
-	b, err := json.Marshal(nextPage)
-	if err != nil {
-		return "", err
-	}
-
-	return base64.RawStdEncoding.EncodeToString(b), nil
-}
-
-func decodeNextPageSearch(data string) (NextPageSearch, error) {
-	decodeString, err := base64.RawStdEncoding.DecodeString(data)
-	if err != nil {
-		return NextPageSearch{}, err
-	}
-
-	var nextPage NextPageSearch
-	err = json.Unmarshal(decodeString, &nextPage)
-	if err != nil {
-		return NextPageSearch{}, err
-	}
-	return nextPage, nil
 }
