@@ -8,6 +8,7 @@ import (
 	"github.com/traefik/plugin-service/cmd/internal"
 	"github.com/traefik/plugin-service/pkg/db"
 	"github.com/traefik/plugin-service/pkg/functions"
+	"github.com/traefik/plugin-service/pkg/healthcheck"
 	"github.com/urfave/cli/v2"
 )
 
@@ -29,10 +30,14 @@ func Run(context *cli.Context) error {
 		return err
 	}
 
+	healthChecker := healthcheck.New()
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("/public/", functions.Public)
 	mux.HandleFunc("/internal/", functions.Internal)
 	mux.HandleFunc("/external/", functions.External)
+	mux.HandleFunc("/live", healthChecker.Live)
+	mux.HandleFunc("/ready", healthChecker.Ready)
 
 	return http.ListenAndServe(context.String("host"), mux)
 }
