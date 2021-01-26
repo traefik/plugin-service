@@ -9,6 +9,7 @@ require (
 	github.com/google/go-github/v32 v32.1.0
 	github.com/google/uuid v1.1.2
 	github.com/gorilla/mux v1.8.0
+	github.com/hashicorp/go-retryablehttp v0.6.8
 	github.com/julienschmidt/httprouter v1.3.0
 	github.com/ldez/grignotin v0.4.1
 	github.com/rs/zerolog v1.20.0
