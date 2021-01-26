@@ -126,7 +126,6 @@ func (d *FaunaDB) List(ctx context.Context, pagination Pagination) ([]Plugin, st
 			f.RefCollection(f.Collection(d.collName), nextPage.NextID),
 		}))
 	}
-	
 
 	res, err := client.Query(
 		f.Let().
