@@ -5,6 +5,7 @@ import (
 
 	"github.com/caarlos0/env/v6"
 	"github.com/fauna/faunadb-go/v3/faunadb"
+	"github.com/hashicorp/go-retryablehttp"
 	"github.com/julienschmidt/httprouter"
 	"github.com/rs/zerolog/log"
 	"github.com/traefik/plugin-service/pkg/db"
@@ -44,7 +45,13 @@ func Internal(rw http.ResponseWriter, req *http.Request) {
 		options = append(options, faunadb.Endpoint(cfg.FaunaDB.Endpoint))
 	}
 
-	options = append(options, faunadb.Observer(observer))
+	retryClient := retryablehttp.NewClient()
+	retryClient.Logger = &log.Logger
+	retryClient.RetryMax = faunaRetryMax
+	retryClient.RetryWaitMin = faunaRetryWaitMin
+	retryClient.RetryWaitMax = faunaRetryWaitMax
+
+	options = append(options, faunadb.HTTP(retryClient.StandardClient()), faunadb.Observer(observer))
 
 	handler := handlers.New(
 		db.NewFaunaDB(faunadb.NewFaunaClient(cfg.FaunaDB.Secret, options...)),
