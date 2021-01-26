@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 
 	f "github.com/fauna/faunadb-go/v3/faunadb"
@@ -20,7 +21,7 @@ type PluginDB interface {
 	Get(ctx context.Context, id string) (Plugin, error)
 	Delete(ctx context.Context, id string) error
 	Create(context.Context, Plugin) (Plugin, error)
-	List(context.Context, Pagination) ([]Plugin, string, error)
+	List(context.Context, Pagination) ([]Plugin, string, string, error)
 	GetByName(context.Context, string) (Plugin, error)
 	SearchByName(context.Context, string, Pagination) ([]Plugin, string, error)
 	Update(context.Context, string, Plugin) (Plugin, error)
@@ -106,7 +107,7 @@ func (d *FaunaDB) Create(ctx context.Context, plugin Plugin) (Plugin, error) {
 }
 
 // List gets all the plugins.
-func (d *FaunaDB) List(ctx context.Context, pagination Pagination) ([]Plugin, string, error) {
+func (d *FaunaDB) List(ctx context.Context, pagination Pagination) ([]Plugin, string, string, error) {
 	client, span := d.startSpan(ctx, "db_list")
 	defer span.End()
 
@@ -116,7 +117,7 @@ func (d *FaunaDB) List(ctx context.Context, pagination Pagination) ([]Plugin, st
 		nextPage, err := decodeNextPageList(pagination.Start)
 		if err != nil {
 			span.RecordError(err)
-			return nil, "", fmt.Errorf("fauna error: %w", err)
+			return nil, "", "", fmt.Errorf("fauna error: %w", err)
 		}
 
 		paginateOptions = append(paginateOptions, f.After(f.Arr{
@@ -125,38 +126,52 @@ func (d *FaunaDB) List(ctx context.Context, pagination Pagination) ([]Plugin, st
 			f.RefCollection(f.Collection(d.collName), nextPage.NextID),
 		}))
 	}
+	
 
 	res, err := client.Query(
-		f.Map(
-			f.Paginate(
-				f.Match(f.Index(d.collName+"_sort_by_stars")),
-				paginateOptions...,
-			),
-			f.Lambda(f.Arr{"stars", "ref"}, f.Select("data", f.Get(f.Var("ref")))),
-		),
+		f.Let().
+			Bind("count", f.Count(f.Match(f.Index(d.collName+"_sort_by_stars")))).
+			Bind("page", f.Map(
+				f.Paginate(
+					f.Match(f.Index(d.collName+"_sort_by_stars")),
+					paginateOptions...,
+				),
+				f.Lambda(f.Arr{"stars", "ref"}, f.Select("data", f.Get(f.Var("ref")))),
+			)).
+			In(f.Obj{
+				"page":  f.Var("page"),
+				"count": f.Var("count"),
+			}),
 	)
 	if err != nil {
 		span.RecordError(err)
-		return nil, "", fmt.Errorf("fauna error: %w", err)
+		return nil, "", "", fmt.Errorf("fauna error: %w", err)
 	}
 
 	var after f.ArrayV
-	_ = res.At(f.ObjKey("after")).Get(&after)
+	_ = res.At(f.ObjKey("page", "after")).Get(&after)
 
 	next, err := encodeNextPageList(after)
 	if err != nil {
 		span.RecordError(err)
-		return nil, "", fmt.Errorf("fauna error: %w", err)
+		return nil, "", "", fmt.Errorf("fauna error: %w", err)
 	}
 
 	var plugins []Plugin
-	err = res.At(f.ObjKey("data")).Get(&plugins)
+	err = res.At(f.ObjKey("page", "data")).Get(&plugins)
 	if err != nil {
 		span.RecordError(err)
-		return nil, "", fmt.Errorf("fauna error: %w", err)
+		return nil, "", "", fmt.Errorf("fauna error: %w", err)
 	}
 
-	return plugins, next, nil
+	var count int
+	err = res.At(f.ObjKey("count")).Get(&count)
+	if err != nil {
+		span.RecordError(err)
+		return nil, "", "", err
+	}
+
+	return plugins, strconv.Itoa(count), next, nil
 }
 
 // GetByName gets a plugin by name.
