@@ -50,8 +50,8 @@ func TestHandlers_List(t *testing.T) {
 	}
 
 	testDB := mockDB{
-		listFn: func(ctx context.Context, start db.Pagination) ([]db.Plugin, string, error) {
-			return data, "next", nil
+		listFn: func(ctx context.Context, start db.Pagination) ([]db.Plugin, string, string, error) {
+			return data, "2", "next", nil
 		},
 	}
 
@@ -63,6 +63,7 @@ func TestHandlers_List(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, rw.Code)
 	assert.Equal(t, "next", rw.Header().Get(nextPageHeader))
+	assert.Equal(t, "2", rw.Header().Get(totalCountHeader))
 
 	file, err := ioutil.ReadFile("./fixtures/get_plugins.json")
 	require.NoError(t, err)
