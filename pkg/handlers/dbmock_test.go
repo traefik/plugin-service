@@ -10,7 +10,7 @@ type mockDB struct {
 	getFn          func(ctx context.Context, id string) (db.Plugin, error)
 	deleteFn       func(ctx context.Context, id string) error
 	createFn       func(context.Context, db.Plugin) (db.Plugin, error)
-	listFn         func(context.Context, db.Pagination) ([]db.Plugin, string, error)
+	listFn         func(context.Context, db.Pagination) ([]db.Plugin, string, string, error)
 	getByNameFn    func(context.Context, string) (db.Plugin, error)
 	searchByNameFn func(context.Context, string, db.Pagination) ([]db.Plugin, string, error)
 	updateFn       func(context.Context, string, db.Plugin) (db.Plugin, error)
@@ -32,7 +32,7 @@ func (m mockDB) Create(ctx context.Context, plugin db.Plugin) (db.Plugin, error)
 	return m.createFn(ctx, plugin)
 }
 
-func (m mockDB) List(ctx context.Context, pagination db.Pagination) ([]db.Plugin, string, error) {
+func (m mockDB) List(ctx context.Context, pagination db.Pagination) ([]db.Plugin, string, string, error) {
 	return m.listFn(ctx, pagination)
 }
 

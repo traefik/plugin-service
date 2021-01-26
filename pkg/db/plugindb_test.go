@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	f "github.com/fauna/faunadb-go/v3/faunadb"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -52,8 +53,9 @@ func TestNameDB(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	_, _, err = db.List(context.Background(), Pagination{Size: 100})
+	_, count, _, err := db.List(context.Background(), Pagination{Size: 100})
 	require.NoError(t, err)
+	assert.Equal(t, count, "1")
 
 	_, err = db.GetByName(context.Background(), "github.com/traefik/plugintest")
 	require.NoError(t, err)
