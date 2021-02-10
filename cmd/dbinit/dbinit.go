@@ -2,13 +2,31 @@ package dbinit
 
 import (
 	"github.com/fauna/faunadb-go/v3/faunadb"
+	"github.com/traefik/plugin-service/cmd/internal"
 	"github.com/traefik/plugin-service/pkg/db"
 	"github.com/urfave/cli/v2"
 )
 
-// Run initialize the production database.
-func Run(ctx *cli.Context) error {
-	database := db.NewFaunaDB(faunadb.NewFaunaClient(ctx.String("faunadb-secret")))
+// Command creates the command for initializing the production database.
+func Command() *cli.Command {
+	cmd := &cli.Command{
+		Name:        "dbinit",
+		Usage:       "Init database",
+		Description: "Init production database",
+		Action: func(cliCtx *cli.Context) error {
+			cfg := internal.BuildFaunaConfig(cliCtx)
+
+			return run(cfg)
+		},
+	}
+
+	cmd.Flags = append(cmd.Flags, internal.FaunaFlags()...)
+
+	return cmd
+}
+
+func run(cfg db.Config) error {
+	database := db.NewFaunaDB(faunadb.NewFaunaClient(cfg.Secret))
 
 	return database.Bootstrap()
 }
