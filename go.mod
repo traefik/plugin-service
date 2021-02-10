@@ -3,7 +3,6 @@ module github.com/traefik/plugin-service
 go 1.15
 
 require (
-	github.com/caarlos0/env/v6 v6.4.0
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/fauna/faunadb-go/v3 v3.0.0
 	github.com/google/go-github/v32 v32.1.0

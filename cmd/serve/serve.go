@@ -1,77 +1,148 @@
 package serve
 
 import (
+	"context"
+	"fmt"
 	"net/http"
-	"os"
 
-	"github.com/fauna/faunadb-go/v3/faunadb"
+	"github.com/google/go-github/v32/github"
+	"github.com/gorilla/mux"
+	"github.com/julienschmidt/httprouter"
+	"github.com/ldez/grignotin/goproxy"
 	"github.com/traefik/plugin-service/cmd/internal"
-	"github.com/traefik/plugin-service/pkg/db"
-	"github.com/traefik/plugin-service/pkg/functions"
+	"github.com/traefik/plugin-service/internal/token"
+	"github.com/traefik/plugin-service/pkg/handlers"
 	"github.com/traefik/plugin-service/pkg/healthcheck"
-	"github.com/urfave/cli/v2"
+	"github.com/traefik/plugin-service/pkg/jwt"
+	"github.com/traefik/plugin-service/pkg/tracer"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"golang.org/x/oauth2"
 )
 
-// Run executes user service.
-func Run(context *cli.Context) error {
-	endpoint := context.String("faunadb-endpoint")
-
-	var options []faunadb.ClientConfig
-	token, options, err := internal.GetDBClientParameters(endpoint, context.String("faunadb-secret"))
+func run(ctx context.Context, cfg Config) error {
+	dbClient, err := internal.CreateFaunaClient(cfg.FaunaDB)
 	if err != nil {
 		return err
 	}
 
-	if err = setupEnvVars(token, context); err != nil {
-		return err
+	if err = dbClient.Bootstrap(); err != nil {
+		return fmt.Errorf("unable to bootstrap database: %w", err)
 	}
 
-	if err = bootstrap(token, options); err != nil {
-		return err
+	exporter, err := tracer.NewJaegerExporter(cfg.Tracing.Endpoint, cfg.Tracing.Username, cfg.Tracing.Password)
+	if err != nil {
+		return fmt.Errorf("unable to configure exporter: %w", err)
 	}
+
+	defer exporter.Flush()
+
+	bsp := tracer.Setup(exporter, cfg.Tracing.Probability)
+	defer func() { _ = bsp.Shutdown(ctx) }()
+
+	gpClient, err := newGoProxyClient(cfg.GoProxy)
+	if err != nil {
+		return fmt.Errorf("unable to create go proxy client: %w", err)
+	}
+
+	var ghClient *github.Client
+	if cfg.Pilot.GitHubToken != "" {
+		ghClient = newGitHubClient(context.Background(), cfg.Pilot.GitHubToken)
+	}
+
+	handler := handlers.New(
+		dbClient,
+		gpClient,
+		ghClient,
+		token.New(cfg.Pilot.TokenURL, cfg.Pilot.ServicesAccessToken),
+	)
 
 	healthChecker := healthcheck.New()
 
-	mux := http.NewServeMux()
-	mux.HandleFunc("/public/", functions.Public)
-	mux.HandleFunc("/internal/", functions.Internal)
-	mux.HandleFunc("/external/", functions.External)
-	mux.HandleFunc("/live", healthChecker.Live)
-	mux.HandleFunc("/ready", healthChecker.Ready)
+	r := http.NewServeMux()
 
-	return http.ListenAndServe(context.String("host"), mux)
+	r.Handle("/public/", buildPublicRouter(handler))
+	r.Handle("/internal/", buildInternalRouter(handler, cfg.Pilot))
+	r.Handle("/external/", buildExternalRouter(handler, cfg.Pilot))
+	r.HandleFunc("/live", healthChecker.Live)
+	r.HandleFunc("/ready", healthChecker.Ready)
+
+	return http.ListenAndServe(cfg.Pilot.Host, r)
 }
 
-func bootstrap(token string, options []faunadb.ClientConfig) error {
-	database := db.NewFaunaDB(faunadb.NewFaunaClient(token, options...))
-	return database.Bootstrap()
+func buildPublicRouter(handler handlers.Handlers) http.Handler {
+	r := mux.NewRouter()
+
+	r.Handle("/", otelhttp.NewHandler(http.HandlerFunc(handler.List), "public_list"))
+	r.Handle("/download/{all:.+}", otelhttp.NewHandler(http.HandlerFunc(handler.Download), "public_download"))
+	r.Handle("/validate/{all:.+}", otelhttp.NewHandler(http.HandlerFunc(handler.Validate), "public_validate"))
+	r.Handle("/{uuid}", otelhttp.NewHandler(http.HandlerFunc(handler.Get), "public_get"))
+
+	r.NotFoundHandler = http.HandlerFunc(handlers.NotFound)
+
+	return http.StripPrefix("/public", r)
 }
 
-func setupEnvVars(token string, context *cli.Context) error {
-	if err := os.Setenv("FAUNADB_SECRET", token); err != nil {
-		return err
-	}
+func buildInternalRouter(handler handlers.Handlers, cfg Pilot) http.Handler {
+	r := httprouter.New()
 
-	vars := map[string]string{
-		"FAUNADB_ENDPOINT":            "endpoint",
-		"PILOT_TOKEN_URL":             "token-url",
-		"PILOT_JWT_CERT":              "jwt-cert",
-		"PILOT_SERVICES_ACCESS_TOKEN": "services-access-token",
-		"PILOT_GO_PROXY_URL":          "go-proxy-url",
-		"PILOT_GO_PROXY_USERNAME":     "go-proxy-username",
-		"PILOT_GO_PROXY_PASSWORD":     "go-proxy-password",
-		"PILOT_GITHUB_TOKEN":          "github-token",
-		"TRACING_ENDPOINT":            "tracing-endpoint",
-		"TRACING_USERNAME":            "tracing-username",
-		"TRACING_PASSWORD":            "tracing-password",
-		"TRACING_PROBABILITY":         "tracing-probability",
-	}
+	r.Handler(http.MethodGet, "/", otelhttp.NewHandler(http.HandlerFunc(handler.List), "internal_list"))
+	r.Handler(http.MethodPost, "/", otelhttp.NewHandler(http.HandlerFunc(handler.Create), "internal_create"))
+	r.Handler(http.MethodPut, "/:uuid", otelhttp.NewHandler(http.HandlerFunc(handler.Update), "internal_update"))
+	r.Handler(http.MethodDelete, "/:uuid", otelhttp.NewHandler(http.HandlerFunc(handler.Delete), "internal_delete"))
 
-	for name, flag := range vars {
-		if err := os.Setenv(name, context.String(flag)); err != nil {
-			return err
+	r.NotFound = http.HandlerFunc(handlers.NotFound)
+	r.PanicHandler = handlers.PanicHandler
+
+	return jwt.NewHandler(cfg.JWTCert,
+		jwt.ServicesAudience,
+		jwt.Issuer,
+		map[string]jwt.Check{"sub": {Value: "Ie2dYtbQ5N5hRz4cNHZNKJ3WHrp62Mr7@clients"}},
+		http.StripPrefix("/internal", r),
+	)
+}
+
+func buildExternalRouter(handler handlers.Handlers, cfg Pilot) http.Handler {
+	r := httprouter.New()
+
+	r.Handler(http.MethodGet, "/", otelhttp.NewHandler(http.HandlerFunc(handler.List), "external_list"))
+	r.Handler(http.MethodGet, "/:uuid", otelhttp.NewHandler(http.HandlerFunc(handler.Get), "external_get"))
+
+	r.NotFound = http.HandlerFunc(handlers.NotFound)
+	r.PanicHandler = handlers.PanicHandler
+
+	return jwt.NewHandler(cfg.JWTCert,
+		jwt.ClientsAudience,
+		jwt.Issuer,
+		map[string]jwt.Check{
+			jwt.UserIDClaim:         {},
+			jwt.OrganizationIDClaim: {},
+		},
+		http.StripPrefix("/external", r),
+	)
+}
+
+func newGoProxyClient(cfg GoProxy) (*goproxy.Client, error) {
+	gpClient := goproxy.NewClient(cfg.URL)
+
+	if cfg.URL != "" && cfg.Username != "" && cfg.Password != "" {
+		tr, err := goproxy.NewBasicAuthTransport(cfg.Username, cfg.Password)
+		if err != nil {
+			return nil, err
 		}
+
+		gpClient.HTTPClient = tr.Client()
 	}
 
-	return nil
+	return gpClient, nil
+}
+
+func newGitHubClient(ctx context.Context, token string) *github.Client {
+	if len(token) == 0 {
+		return github.NewClient(nil)
+	}
+
+	ts := oauth2.StaticTokenSource(
+		&oauth2.Token{AccessToken: token},
+	)
+	return github.NewClient(oauth2.NewClient(ctx, ts))
 }
