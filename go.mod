@@ -1,6 +1,6 @@
 module github.com/traefik/plugin-service
 
-go 1.15
+go 1.16
 
 require (
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
@@ -12,11 +12,12 @@ require (
 	github.com/julienschmidt/httprouter v1.3.0
 	github.com/ldez/grignotin v0.4.1
 	github.com/rs/zerolog v1.20.0
-	github.com/stretchr/testify v1.6.1
+	github.com/stretchr/testify v1.7.0
 	github.com/urfave/cli/v2 v2.3.0
-	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.15.1
-	go.opentelemetry.io/otel v0.15.0
-	go.opentelemetry.io/otel/exporters/trace/jaeger v0.15.0
-	go.opentelemetry.io/otel/sdk v0.15.0
-	golang.org/x/oauth2 v0.0.0-20200902213428-5d25da1a8d43
+	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.17.0
+	go.opentelemetry.io/otel v0.17.0
+	go.opentelemetry.io/otel/exporters/trace/jaeger v0.17.0
+	go.opentelemetry.io/otel/sdk v0.17.0
+	go.opentelemetry.io/otel/trace v0.17.0
+	golang.org/x/oauth2 v0.0.0-20201208152858-08078c50e5b5
 )
