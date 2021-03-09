@@ -20,8 +20,9 @@ import (
 )
 
 const (
-	nextPageHeader = "X-Next-Page"
-	defaultPerPage = 100
+	totalCountHeader = "X-Total-Count"
+	nextPageHeader   = "X-Next-Page"
+	defaultPerPage   = 100
 )
 
 // Handlers a set of handlers.
@@ -100,7 +101,7 @@ func (h Handlers) List(rw http.ResponseWriter, req *http.Request) {
 	}
 
 	start := req.URL.Query().Get("start")
-	plugins, next, err := h.db.List(ctx, db.Pagination{
+	plugins, count, next, err := h.db.List(ctx, db.Pagination{
 		Start: start,
 		Size:  defaultPerPage,
 	})
@@ -121,6 +122,7 @@ func (h Handlers) List(rw http.ResponseWriter, req *http.Request) {
 	}
 
 	rw.Header().Set(nextPageHeader, next)
+	rw.Header().Set(totalCountHeader, count)
 
 	if err := json.NewEncoder(rw).Encode(plugins); err != nil {
 		span.RecordError(err)

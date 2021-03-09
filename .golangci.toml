@@ -21,7 +21,7 @@
     locale = "US"
 
   [linters-settings.funlen]
-    lines = 60 # default 60
+    lines = 65 # default 65
     statements = 50 # default 40
 
 [linters]
