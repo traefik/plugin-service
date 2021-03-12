@@ -1,10 +1,12 @@
 package serve
 
-import "github.com/traefik/plugin-service/pkg/db"
+import (
+	"github.com/traefik/plugin-service/pkg/db/faunadb"
+)
 
 // Config holds the serve configuration.
 type Config struct {
-	FaunaDB db.Config
+	FaunaDB faunadb.Config
 	Pilot   Pilot
 	Tracing Tracing
 	GoProxy GoProxy

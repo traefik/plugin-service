@@ -1,6 +1,8 @@
 package healthcheck
 
 import (
+	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -12,26 +14,26 @@ func TestClient_Live(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/live", nil)
 	rw := httptest.NewRecorder()
 
-	New().Live(rw, req)
+	client := Client{}
+	client.Live(rw, req)
 
 	assert.Equal(t, http.StatusOK, rw.Code)
 }
 
 func TestClient_Ready(t *testing.T) {
 	testCases := []struct {
-		desc            string
-		faunaStatusCode int
-		expected        int
+		desc       string
+		err        bool
+		wantStatus int
 	}{
 		{
-			desc:            "OK",
-			faunaStatusCode: http.StatusOK,
-			expected:        http.StatusOK,
+			desc:       "OK",
+			wantStatus: http.StatusOK,
 		},
 		{
-			desc:            "KO",
-			faunaStatusCode: http.StatusServiceUnavailable,
-			expected:        http.StatusServiceUnavailable,
+			desc:       "KO",
+			err:        true,
+			wantStatus: http.StatusServiceUnavailable,
 		},
 	}
 
@@ -40,21 +42,26 @@ func TestClient_Ready(t *testing.T) {
 		t.Run(test.desc, func(t *testing.T) {
 			t.Parallel()
 
-			faunaSrv := httptest.NewServer(
-				http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-					w.WriteHeader(test.faunaStatusCode)
-				}))
-			t.Cleanup(faunaSrv.Close)
-
-			healthChecker := New()
-			healthChecker.faunaPing = faunaSrv.URL
+			client := Client{DB: pingerMock(func(ctx context.Context) error {
+				if test.err {
+					return errors.New("ho ho ho")
+				}
+				return nil
+			})}
 
 			req := httptest.NewRequest(http.MethodGet, "/ready", nil)
 			rw := httptest.NewRecorder()
 
-			healthChecker.Ready(rw, req)
+			client.Ready(rw, req)
 
-			assert.Equal(t, test.expected, rw.Code)
+			assert.Equal(t, test.wantStatus, rw.Code)
 		})
 	}
+}
+
+type pingerMock func(ctx context.Context) error
+
+// Ping calls the mock.
+func (m pingerMock) Ping(ctx context.Context) error {
+	return m(ctx)
 }

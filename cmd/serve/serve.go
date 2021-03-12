@@ -56,7 +56,7 @@ func run(ctx context.Context, cfg Config) error {
 		token.New(cfg.Pilot.TokenURL, cfg.Pilot.ServicesAccessToken),
 	)
 
-	healthChecker := healthcheck.New()
+	healthChecker := healthcheck.Client{DB: dbClient}
 
 	r := http.NewServeMux()
 

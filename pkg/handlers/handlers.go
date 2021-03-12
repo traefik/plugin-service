@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"io/ioutil"
@@ -24,9 +25,24 @@ const (
 	defaultPerPage = 100
 )
 
+// PluginStorer is capable of storing plugins.
+type PluginStorer interface {
+	Get(ctx context.Context, id string) (db.Plugin, error)
+	Delete(ctx context.Context, id string) error
+	Create(context.Context, db.Plugin) (db.Plugin, error)
+	List(context.Context, db.Pagination) ([]db.Plugin, string, error)
+	GetByName(context.Context, string) (db.Plugin, error)
+	SearchByName(context.Context, string, db.Pagination) ([]db.Plugin, string, error)
+	Update(context.Context, string, db.Plugin) (db.Plugin, error)
+
+	DeleteHash(ctx context.Context, id string) error
+	CreateHash(ctx context.Context, module, version, hash string) (db.PluginHash, error)
+	GetHashByName(ctx context.Context, module, version string) (db.PluginHash, error)
+}
+
 // Handlers a set of handlers.
 type Handlers struct {
-	db      db.PluginDB
+	store   PluginStorer
 	goProxy *goproxy.Client
 	gh      *github.Client
 	token   *token.Client
@@ -34,9 +50,9 @@ type Handlers struct {
 }
 
 // New creates all HTTP handlers.
-func New(db db.PluginDB, goProxy *goproxy.Client, gh *github.Client, tokenClient *token.Client) Handlers {
+func New(store PluginStorer, goProxy *goproxy.Client, gh *github.Client, tokenClient *token.Client) Handlers {
 	return Handlers{
-		db:      db,
+		store:   store,
 		goProxy: goProxy,
 		gh:      gh,
 		token:   tokenClient,
@@ -58,7 +74,7 @@ func (h Handlers) Get(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	plugin, err := h.db.Get(ctx, id)
+	plugin, err := h.store.Get(ctx, id)
 	if err != nil {
 		span.RecordError(err)
 
@@ -100,7 +116,7 @@ func (h Handlers) List(rw http.ResponseWriter, req *http.Request) {
 	}
 
 	start := req.URL.Query().Get("start")
-	plugins, next, err := h.db.List(ctx, db.Pagination{
+	plugins, next, err := h.store.List(ctx, db.Pagination{
 		Start: start,
 		Size:  defaultPerPage,
 	})
@@ -162,7 +178,7 @@ func (h Handlers) Create(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	created, err := h.db.Create(ctx, pl)
+	created, err := h.store.Create(ctx, pl)
 	if err != nil {
 		span.RecordError(err)
 		log.Error().Str("moduleName", pl.Name).Err(err).Msg("Error persisting plugin")
@@ -202,7 +218,7 @@ func (h Handlers) Update(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	pg, err := h.db.Update(ctx, id, input)
+	pg, err := h.store.Update(ctx, id, input)
 	if err != nil {
 		span.RecordError(err)
 
@@ -241,7 +257,7 @@ func (h Handlers) Delete(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	_, err = h.db.Get(ctx, id)
+	_, err = h.store.Get(ctx, id)
 	if err != nil {
 		span.RecordError(err)
 		log.Error().Str("pluginID", id).Err(err).Msg("failed to get plugin information")
@@ -249,7 +265,7 @@ func (h Handlers) Delete(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	err = h.db.Delete(ctx, id)
+	err = h.store.Delete(ctx, id)
 	if err != nil {
 		span.RecordError(err)
 		log.Error().Str("pluginID", id).Err(err).Msg("failed to delete the plugin info")
@@ -257,7 +273,7 @@ func (h Handlers) Delete(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	err = h.db.DeleteHash(ctx, id)
+	err = h.store.DeleteHash(ctx, id)
 	if err != nil {
 		span.RecordError(err)
 
@@ -280,7 +296,7 @@ func (h Handlers) searchByName(rw http.ResponseWriter, req *http.Request) {
 
 	start := req.URL.Query().Get("start")
 
-	plugins, next, err := h.db.SearchByName(ctx, query, db.Pagination{
+	plugins, next, err := h.store.SearchByName(ctx, query, db.Pagination{
 		Start: start,
 		Size:  defaultPerPage,
 	})
@@ -316,7 +332,7 @@ func (h Handlers) getByName(rw http.ResponseWriter, req *http.Request) {
 
 	name := unquote(req.FormValue("name"))
 
-	plugin, err := h.db.GetByName(ctx, name)
+	plugin, err := h.store.GetByName(ctx, name)
 	if err != nil {
 		span.RecordError(err)
 

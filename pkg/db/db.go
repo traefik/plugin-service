@@ -27,3 +27,9 @@ type PluginHash struct {
 	Name string `json:"name,omitempty" fauna:"name"`
 	Hash string `json:"hash,omitempty" fauna:"hash"`
 }
+
+// Pagination holds information for requesting page.
+type Pagination struct {
+	Start string
+	Size  int
+}

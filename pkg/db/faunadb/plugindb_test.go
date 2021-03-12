@@ -1,4 +1,4 @@
-package db
+package faunadb
 
 import (
 	"context"
@@ -6,14 +6,15 @@ import (
 
 	f "github.com/fauna/faunadb-go/v3/faunadb"
 	"github.com/stretchr/testify/require"
+	"github.com/traefik/plugin-service/pkg/db"
 )
 
 const prefix = "plugin-test-"
 
 func TestNameDB(t *testing.T) {
-	db := createTempDB(t, nil)
+	store := createTempDB(t, nil)
 
-	data, err := db.Create(context.Background(), Plugin{
+	data, err := store.Create(context.Background(), db.Plugin{
 		ID:            "123",
 		Name:          "github.com/traefik/plugintest",
 		DisplayName:   "Add Header",
@@ -35,7 +36,7 @@ func TestNameDB(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	_, err = db.Update(context.Background(), data.ID, Plugin{
+	_, err = store.Update(context.Background(), data.ID, db.Plugin{
 		Name:          "github.com/traefik/plugintest",
 		DisplayName:   "Foo",
 		Author:        "ldez",
@@ -52,14 +53,14 @@ func TestNameDB(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	_, _, err = db.List(context.Background(), Pagination{Size: 100})
+	_, _, err = store.List(context.Background(), db.Pagination{Size: 100})
 	require.NoError(t, err)
 
-	_, err = db.GetByName(context.Background(), "github.com/traefik/plugintest")
+	_, err = store.GetByName(context.Background(), "github.com/traefik/plugintest")
 	require.NoError(t, err)
 }
 
-func populate(t *testing.T, db *FaunaDB, plugins []Plugin) {
+func populate(t *testing.T, db *FaunaDB, plugins []db.Plugin) {
 	t.Helper()
 
 	for _, plugin := range plugins {

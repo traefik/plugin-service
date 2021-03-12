@@ -57,7 +57,7 @@ func (h Handlers) Download(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	_, err = h.db.GetByName(ctx, moduleName)
+	_, err = h.store.GetByName(ctx, moduleName)
 	if err != nil {
 		span.RecordError(err)
 		var notFoundError faunadb.NotFound
@@ -74,7 +74,7 @@ func (h Handlers) Download(rw http.ResponseWriter, req *http.Request) {
 
 	sum := req.Header.Get(hashHeader)
 	if sum != "" {
-		ph, errH := h.db.GetHashByName(ctx, moduleName, version)
+		ph, errH := h.store.GetHashByName(ctx, moduleName, version)
 		if errH != nil {
 			span.RecordError(errH)
 			var notFoundError faunadb.NotFound
@@ -130,7 +130,7 @@ func (h Handlers) downloadGoProxy(ctx context.Context, moduleName, version strin
 
 		defer func() { _ = sources.Close() }()
 
-		_, err = h.db.GetHashByName(ctx, moduleName, version)
+		_, err = h.store.GetHashByName(ctx, moduleName, version)
 		var notFoundError faunadb.NotFound
 		if err != nil && !errors.As(err, &notFoundError) {
 			span.RecordError(err)
@@ -171,7 +171,7 @@ func (h Handlers) downloadGoProxy(ctx context.Context, moduleName, version strin
 
 		sum := fmt.Sprintf("%x", hash.Sum(nil))
 
-		_, err = h.db.CreateHash(ctx, moduleName, version, sum)
+		_, err = h.store.CreateHash(ctx, moduleName, version, sum)
 		if err != nil {
 			span.RecordError(err)
 			logger.Error().Err(err).Msg("Error persisting plugin hash")
@@ -205,7 +205,7 @@ func (h Handlers) downloadGitHub(ctx context.Context, moduleName, version string
 			return
 		}
 
-		_, err = h.db.GetHashByName(ctx, moduleName, version)
+		_, err = h.store.GetHashByName(ctx, moduleName, version)
 		var notFoundError faunadb.NotFound
 		if err != nil && !errors.As(err, &notFoundError) {
 			span.RecordError(err)
@@ -256,7 +256,7 @@ func (h Handlers) downloadGitHub(ctx context.Context, moduleName, version string
 
 		sum := fmt.Sprintf("%x", hash.Sum(nil))
 
-		_, err = h.db.CreateHash(ctx, moduleName, version, sum)
+		_, err = h.store.CreateHash(ctx, moduleName, version, sum)
 		if err != nil {
 			span.RecordError(err)
 			logger.Err(err).Msg("Error persisting plugin hash")
@@ -326,7 +326,7 @@ func (h Handlers) Validate(rw http.ResponseWriter, req *http.Request) {
 	}
 
 	headerSum := req.Header.Get(hashHeader)
-	ph, err := h.db.GetHashByName(ctx, moduleName, version)
+	ph, err := h.store.GetHashByName(ctx, moduleName, version)
 	if err != nil {
 		var notFoundError faunadb.NotFound
 		if errors.As(err, &notFoundError) {

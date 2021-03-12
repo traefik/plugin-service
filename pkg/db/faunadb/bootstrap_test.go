@@ -1,4 +1,4 @@
-package db
+package faunadb
 
 import (
 	"crypto/rand"
@@ -11,9 +11,10 @@ import (
 
 	f "github.com/fauna/faunadb-go/v3/faunadb"
 	"github.com/stretchr/testify/require"
+	"github.com/traefik/plugin-service/pkg/db"
 )
 
-func createTempDB(t *testing.T, plugins []Plugin) *FaunaDB {
+func createTempDB(t *testing.T, plugins []db.Plugin) *FaunaDB {
 	t.Helper()
 
 	var count int

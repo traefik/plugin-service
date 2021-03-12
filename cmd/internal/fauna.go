@@ -7,7 +7,7 @@ import (
 	f "github.com/fauna/faunadb-go/v3/faunadb"
 	"github.com/hashicorp/go-retryablehttp"
 	"github.com/rs/zerolog/log"
-	"github.com/traefik/plugin-service/pkg/db"
+	"github.com/traefik/plugin-service/pkg/db/faunadb"
 	"github.com/urfave/cli/v2"
 )
 
@@ -35,9 +35,9 @@ func FaunaFlags() []cli.Flag {
 	}
 }
 
-// BuildFaunaConfig created db.Config from CLI flags for FaunaDB.
-func BuildFaunaConfig(cliCtx *cli.Context) db.Config {
-	return db.Config{
+// BuildFaunaConfig created faunadb.Config from CLI flags for FaunaDB.
+func BuildFaunaConfig(cliCtx *cli.Context) faunadb.Config {
+	return faunadb.Config{
 		Database: "plugin",
 		Endpoint: cliCtx.String("faunadb-endpoint"),
 		Secret:   cliCtx.String("faunadb-secret"),
@@ -45,7 +45,7 @@ func BuildFaunaConfig(cliCtx *cli.Context) db.Config {
 }
 
 // CreateFaunaClient creates a FaunaDB client.
-func CreateFaunaClient(cfg db.Config) (*db.FaunaDB, error) {
+func CreateFaunaClient(cfg faunadb.Config) (*faunadb.FaunaDB, error) {
 	token, opts, err := getDBClientParameters(cfg.Endpoint, cfg.Secret, cfg.Database)
 	if err != nil {
 		return nil, err
@@ -59,7 +59,7 @@ func CreateFaunaClient(cfg db.Config) (*db.FaunaDB, error) {
 
 	opts = append(opts, f.HTTP(retryClient.StandardClient()), f.Observer(observer))
 
-	return db.NewFaunaDB(f.NewFaunaClient(token, opts...)), nil
+	return faunadb.NewFaunaDB(f.NewFaunaClient(token, opts...)), nil
 }
 
 // getDBClientParameters returns the secret and the options depending on the environment.
