@@ -108,6 +108,27 @@ func TestMongoDB_Get(t *testing.T) {
 	assert.ErrorAs(t, err, &db.ErrNotFound{})
 }
 
+func TestMongoDB_Delete(t *testing.T) {
+	ctx := context.Background()
+	store, fixtures := createDatabase(t, []fixture{
+		{
+			key: "plugin-1",
+			plugin: pluginDocument{
+				Plugin: db.Plugin{ID: "123"},
+			},
+		},
+	})
+
+	// Make sure we can delete an existing plugin.
+	err := store.Delete(ctx, fixtures["plugin-1"].ID)
+	require.NoError(t, err)
+
+	// Make sure we receive a NotFound error when the plugin doesn't exist.
+	err = store.Delete(ctx, "456")
+	require.Error(t, err)
+	assert.ErrorAs(t, err, &db.ErrNotFound{})
+}
+
 type fixture struct {
 	key    string
 	plugin pluginDocument
