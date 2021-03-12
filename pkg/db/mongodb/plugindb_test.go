@@ -174,6 +174,48 @@ func TestMongoDB_List(t *testing.T) {
 	assert.Zero(t, next)
 }
 
+func TestMongoDB_GetByName(t *testing.T) {
+	ctx := context.Background()
+	store, fixtures := createDatabase(t, []fixture{
+		{
+			key: "my-super-plugin",
+			plugin: pluginDocument{
+				Plugin: db.Plugin{
+					ID:            "123",
+					Name:          "my-super-plugin",
+					DisplayName:   "display-name",
+					Author:        "author",
+					Type:          "type",
+					Import:        "import",
+					Compatibility: "compatibility",
+					Summary:       "summary",
+					IconURL:       "iconURL",
+					BannerURL:     "bannerURL",
+					Readme:        "readme",
+					LatestVersion: "latestVersion",
+					Versions:      []string{"v1.0.0"},
+					Stars:         10,
+					Snippet: map[string]interface{}{
+						"something": "there",
+					},
+					CreatedAt: time.Now().Add(-2 * time.Hour),
+				},
+			},
+		},
+	})
+
+	// Make sure we can get an existing plugin.
+	got, err := store.GetByName(ctx, "my-super-plugin")
+	require.NoError(t, err)
+
+	assert.Equal(t, fixtures["my-super-plugin"].Plugin, toUTCPlugin(got))
+
+	// Make sure we receive a NotFound error when the plugin doesn't exist.
+	_, err = store.GetByName(ctx, "something-else")
+	require.Error(t, err)
+	assert.ErrorAs(t, err, &db.ErrNotFound{})
+}
+
 type fixture struct {
 	key    string
 	plugin pluginDocument

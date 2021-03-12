@@ -52,9 +52,9 @@ func (m *MongoDB) Get(ctx context.Context, id string) (db.Plugin, error) {
 	opts := &options.FindOneOptions{}
 	opts.SetProjection(bson.D{{Key: "hashes", Value: 0}})
 
-	var doc pluginDocument
+	var plugin db.Plugin
 
-	if err := m.client.Collection(m.collName).FindOne(ctx, criteria, opts).Decode(&doc); err != nil {
+	if err := m.client.Collection(m.collName).FindOne(ctx, criteria, opts).Decode(&plugin); err != nil {
 		span.RecordError(err)
 
 		if errors.Is(err, mongo.ErrNoDocuments) {
@@ -64,7 +64,7 @@ func (m *MongoDB) Get(ctx context.Context, id string) (db.Plugin, error) {
 		return db.Plugin{}, err
 	}
 
-	return doc.Plugin, nil
+	return plugin, nil
 }
 
 // Delete deletes the plugin corresponding to the given ID.
@@ -170,8 +170,30 @@ func (m *MongoDB) List(ctx context.Context, page db.Pagination) ([]db.Plugin, st
 }
 
 // GetByName gets the plugin with the given name.
-func (m *MongoDB) GetByName(ctx context.Context, s string) (db.Plugin, error) {
-	panic("implement me")
+func (m *MongoDB) GetByName(ctx context.Context, name string) (db.Plugin, error) {
+	ctx, span := m.tracer.Start(ctx, "db_get_by_name")
+	defer span.End()
+
+	criteria := bson.D{
+		{Key: "name", Value: name},
+	}
+
+	opts := &options.FindOneOptions{}
+	opts.SetProjection(bson.D{{Key: "hashes", Value: 0}})
+
+	var plugin db.Plugin
+
+	if err := m.client.Collection(m.collName).FindOne(ctx, criteria, opts).Decode(&plugin); err != nil {
+		span.RecordError(err)
+
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return db.Plugin{}, db.ErrNotFound{Err: err}
+		}
+
+		return db.Plugin{}, err
+	}
+
+	return plugin, nil
 }
 
 // SearchByName searches for plugins matching with the given name.
