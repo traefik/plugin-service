@@ -3,12 +3,14 @@ package mongodb
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/traefik/plugin-service/pkg/db"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -35,7 +37,7 @@ type pluginDocument struct {
 	db.Plugin `bson:",inline"`
 
 	MongoID primitive.ObjectID `bson:"_id,omitempty"`
-	Hashes  []db.PluginHash
+	Hashes  []db.PluginHash    `bson:"hashes"`
 }
 
 // Get returns the plugin corresponding to the given ID.
@@ -47,9 +49,12 @@ func (m *MongoDB) Get(ctx context.Context, id string) (db.Plugin, error) {
 		{Key: "id", Value: id},
 	}
 
+	opts := &options.FindOneOptions{}
+	opts.SetProjection(bson.D{{Key: "hashes", Value: 0}})
+
 	var doc pluginDocument
 
-	if err := m.client.Collection(m.collName).FindOne(ctx, criteria).Decode(&doc); err != nil {
+	if err := m.client.Collection(m.collName).FindOne(ctx, criteria, opts).Decode(&doc); err != nil {
 		span.RecordError(err)
 
 		if errors.Is(err, mongo.ErrNoDocuments) {
@@ -110,8 +115,58 @@ func (m *MongoDB) Create(ctx context.Context, plugin db.Plugin) (db.Plugin, erro
 }
 
 // List lists plugins.
-func (m *MongoDB) List(ctx context.Context, pagination db.Pagination) ([]db.Plugin, string, error) {
-	panic("implement me")
+func (m *MongoDB) List(ctx context.Context, page db.Pagination) ([]db.Plugin, string, error) {
+	ctx, span := m.tracer.Start(ctx, "db_create")
+	defer span.End()
+
+	criteria := bson.D{}
+
+	if len(page.Start) > 0 {
+		// page.Start represents a FaunaDB ID and we can't use the $gt operator on a string, it must be done
+		// on an ObjectID. So, we first need to retrieve the corresponding MongoID.
+		var firstPlugin pluginDocument
+
+		pageCriteria := bson.D{{Key: "id", Value: page.Start}}
+
+		if err := m.client.Collection(m.collName).FindOne(ctx, pageCriteria).Decode(&firstPlugin); err != nil {
+			if errors.Is(err, mongo.ErrNoDocuments) {
+				return nil, "", nil
+			}
+
+			return nil, "", fmt.Errorf("unable to retrieve first plugin: %w", err)
+		}
+
+		criteria = append(criteria, bson.E{
+			Key: "_id",
+			Value: bson.D{
+				{Key: "$gte", Value: firstPlugin.MongoID},
+			},
+		})
+	}
+
+	opts := &options.FindOptions{}
+	opts.SetLimit(int64(page.Size + 1))
+	opts.SetProjection(bson.D{{Key: "hashes", Value: 0}})
+	opts.SetSort(bson.D{{Key: "stars", Value: -1}})
+
+	cursor, err := m.client.Collection(m.collName).Find(ctx, criteria, opts)
+	if err != nil {
+		return nil, "", fmt.Errorf("unable to find plugins: %w", err)
+	}
+
+	var plugins []db.Plugin
+	if err = cursor.All(ctx, &plugins); err != nil {
+		return nil, "", fmt.Errorf("unable to unmarshal plugins: %w", err)
+	}
+
+	var nextPage string
+
+	if len(plugins) > page.Size {
+		nextPage = plugins[page.Size].ID
+		plugins = plugins[:page.Size]
+	}
+
+	return plugins, nextPage, nil
 }
 
 // GetByName gets the plugin with the given name.
