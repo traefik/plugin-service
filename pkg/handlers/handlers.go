@@ -78,8 +78,7 @@ func (h Handlers) Get(rw http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		span.RecordError(err)
 
-		var notFoundError faunadb.NotFound
-		if errors.As(err, &notFoundError) {
+		if errors.As(err, &db.ErrNotFound{}) {
 			JSONError(rw, http.StatusNotFound, "plugin not found")
 			return
 		}

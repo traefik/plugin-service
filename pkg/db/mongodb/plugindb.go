@@ -2,16 +2,18 @@ package mongodb
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/traefik/plugin-service/pkg/db"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/trace"
 )
 
-const collName = "token"
+const collName = "plugin"
 
 // MongoDB is a mongoDB client.
 type MongoDB struct {
@@ -38,7 +40,26 @@ type pluginDocument struct {
 
 // Get returns the plugin corresponding to the given ID.
 func (m *MongoDB) Get(ctx context.Context, id string) (db.Plugin, error) {
-	panic("implement me")
+	ctx, span := m.tracer.Start(ctx, "db_get")
+	defer span.End()
+
+	criteria := bson.D{
+		{Key: "id", Value: id},
+	}
+
+	var doc pluginDocument
+
+	if err := m.client.Collection(m.collName).FindOne(ctx, criteria).Decode(&doc); err != nil {
+		span.RecordError(err)
+
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return db.Plugin{}, db.ErrNotFound{Err: err}
+		}
+
+		return db.Plugin{}, err
+	}
+
+	return doc.Plugin, nil
 }
 
 // Delete deletes the plugin corresponding to the given ID.

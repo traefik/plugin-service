@@ -66,6 +66,48 @@ func TestMongoDB_Create(t *testing.T) {
 	assert.Empty(t, stored.Hashes)
 }
 
+func TestMongoDB_Get(t *testing.T) {
+	ctx := context.Background()
+	store, fixtures := createDatabase(t, []fixture{
+		{
+			key: "plugin-1",
+			plugin: pluginDocument{
+				Plugin: db.Plugin{
+					ID:            "123",
+					Name:          "name",
+					DisplayName:   "display-name",
+					Author:        "author",
+					Type:          "type",
+					Import:        "import",
+					Compatibility: "compatibility",
+					Summary:       "summary",
+					IconURL:       "iconURL",
+					BannerURL:     "bannerURL",
+					Readme:        "readme",
+					LatestVersion: "latestVersion",
+					Versions:      []string{"v1.0.0"},
+					Stars:         10,
+					Snippet: map[string]interface{}{
+						"something": "there",
+					},
+					CreatedAt: time.Now().Add(-2 * time.Hour),
+				},
+			},
+		},
+	})
+
+	// Make sure we can get an existing plugin.
+	got, err := store.Get(ctx, fixtures["plugin-1"].ID)
+	require.NoError(t, err)
+
+	assert.Equal(t, fixtures["plugin-1"].Plugin, toUTCPlugin(got))
+
+	// Make sure we receive a NotFound error when the plugin doesn't exist.
+	_, err = store.Get(ctx, "456")
+	require.Error(t, err)
+	assert.ErrorAs(t, err, &db.ErrNotFound{})
+}
+
 type fixture struct {
 	key    string
 	plugin pluginDocument
@@ -109,6 +151,7 @@ func createDatabase(t *testing.T, fixtures []fixture) (*MongoDB, map[string]plug
 
 	for _, f := range fixtures {
 		f.plugin.MongoID = primitive.NewObjectID()
+		f.plugin.CreatedAt = f.plugin.CreatedAt.Truncate(time.Millisecond)
 
 		_, err := mongodb.client.Collection(mongodb.collName).InsertOne(ctx, f.plugin)
 		require.NoError(t, err)
