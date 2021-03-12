@@ -20,15 +20,6 @@ import (
 )
 
 func run(ctx context.Context, cfg Config) error {
-	dbClient, err := internal.CreateFaunaClient(cfg.FaunaDB)
-	if err != nil {
-		return err
-	}
-
-	if err = dbClient.Bootstrap(); err != nil {
-		return fmt.Errorf("unable to bootstrap database: %w", err)
-	}
-
 	exporter, err := tracer.NewJaegerExporter(cfg.Tracing.Endpoint, cfg.Tracing.Username, cfg.Tracing.Password)
 	if err != nil {
 		return fmt.Errorf("unable to configure exporter: %w", err)
@@ -38,6 +29,16 @@ func run(ctx context.Context, cfg Config) error {
 
 	bsp := tracer.Setup(exporter, cfg.Tracing.Probability)
 	defer func() { _ = bsp.Shutdown(ctx) }()
+
+	store, tearDown, err := createDBClient(ctx, cfg)
+	if err != nil {
+		return err
+	}
+	defer tearDown()
+
+	if err = store.Bootstrap(); err != nil {
+		return fmt.Errorf("unable to bootstrap database: %w", err)
+	}
 
 	gpClient, err := newGoProxyClient(cfg.GoProxy)
 	if err != nil {
@@ -50,13 +51,13 @@ func run(ctx context.Context, cfg Config) error {
 	}
 
 	handler := handlers.New(
-		dbClient,
+		store,
 		gpClient,
 		ghClient,
 		token.New(cfg.Pilot.TokenURL, cfg.Pilot.ServicesAccessToken),
 	)
 
-	healthChecker := healthcheck.Client{DB: dbClient}
+	healthChecker := healthcheck.Client{DB: store}
 
 	r := http.NewServeMux()
 
@@ -145,4 +146,33 @@ func newGitHubClient(ctx context.Context, token string) *github.Client {
 		&oauth2.Token{AccessToken: token},
 	)
 	return github.NewClient(oauth2.NewClient(ctx, ts))
+}
+
+type dbInstance interface {
+	handlers.PluginStorer
+
+	Bootstrap() error
+	Ping(ctx context.Context) error
+}
+
+func createDBClient(ctx context.Context, cfg Config) (dbInstance, func(), error) {
+	switch cfg.Pilot.DatabaseDriver {
+	case "fauna":
+		client, err := internal.CreateFaunaClient(cfg.FaunaDB)
+		if err != nil {
+			return nil, func() {}, fmt.Errorf("unable to create FaunaDB client: %w", err)
+		}
+
+		return client, func() {}, nil
+
+	case "mongo":
+		mongoClient, tearDown, err := internal.CreateMongoClient(ctx, cfg.MongoDB)
+		if err != nil {
+			return nil, func() {}, fmt.Errorf("unable to create MongoDB client: %w", err)
+		}
+
+		return mongoClient, tearDown, nil
+	default:
+		return nil, func() {}, fmt.Errorf("unsupported DB driver type: %s", cfg.Pilot.DatabaseDriver)
+	}
 }
