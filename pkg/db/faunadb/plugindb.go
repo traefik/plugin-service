@@ -169,6 +169,11 @@ func (d *FaunaDB) GetByName(ctx context.Context, value string) (db.Plugin, error
 	)
 	if err != nil {
 		span.RecordError(err)
+
+		if errors.As(err, &f.NotFound{}) {
+			return db.Plugin{}, db.ErrNotFound{Err: err}
+		}
+
 		return db.Plugin{}, fmt.Errorf("fauna error: %w", err)
 	}
 

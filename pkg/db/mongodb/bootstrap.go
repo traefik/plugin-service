@@ -32,6 +32,12 @@ func (m *MongoDB) Bootstrap() error {
 			},
 			Keys: bson.D{{Key: "stars", Value: 1}},
 		},
+		{
+			Options: &options.IndexOptions{
+				Name: stringPtr("_by_name"),
+			},
+			Keys: bson.D{{Key: "name", Value: 1}},
+		},
 	}
 
 	if _, err := m.client.Collection(m.collName).Indexes().CreateMany(context.Background(), models); err != nil {
