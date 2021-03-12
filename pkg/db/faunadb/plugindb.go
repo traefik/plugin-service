@@ -2,6 +2,7 @@ package faunadb
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -46,6 +47,11 @@ func (d *FaunaDB) Get(ctx context.Context, id string) (db.Plugin, error) {
 	res, err := client.Query(f.Get(f.RefCollection(f.Collection(d.collName), id)))
 	if err != nil {
 		span.RecordError(err)
+
+		if errors.As(err, &f.NotFound{}) {
+			return db.Plugin{}, db.ErrNotFound{Err: err}
+		}
+
 		return db.Plugin{}, fmt.Errorf("fauna error: %w", err)
 	}
 
