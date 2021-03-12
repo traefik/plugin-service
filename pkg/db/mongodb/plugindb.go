@@ -64,7 +64,25 @@ func (m *MongoDB) Get(ctx context.Context, id string) (db.Plugin, error) {
 
 // Delete deletes the plugin corresponding to the given ID.
 func (m *MongoDB) Delete(ctx context.Context, id string) error {
-	panic("implement me")
+	ctx, span := m.tracer.Start(ctx, "db_delete")
+	defer span.End()
+
+	criteria := bson.D{
+		{Key: "id", Value: id},
+	}
+
+	res, err := m.client.Collection(m.collName).DeleteOne(ctx, criteria)
+	if err != nil {
+		span.RecordError(err)
+
+		return err
+	}
+
+	if res.DeletedCount == 0 {
+		return db.ErrNotFound{Err: err}
+	}
+
+	return nil
 }
 
 // Create creates a new plugin.
