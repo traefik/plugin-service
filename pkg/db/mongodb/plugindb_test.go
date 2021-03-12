@@ -129,6 +129,51 @@ func TestMongoDB_Delete(t *testing.T) {
 	assert.ErrorAs(t, err, &db.ErrNotFound{})
 }
 
+func TestMongoDB_List(t *testing.T) {
+	ctx := context.Background()
+	store, fixtures := createDatabase(t, []fixture{
+		{
+			key: "9-stars",
+			plugin: pluginDocument{
+				Plugin: db.Plugin{ID: "234", Stars: 9},
+			},
+		},
+		{
+			key: "10-stars",
+			plugin: pluginDocument{
+				Plugin: db.Plugin{ID: "123", Stars: 10},
+			},
+		},
+		{
+			key: "8-stars",
+			plugin: pluginDocument{
+				Plugin: db.Plugin{ID: "456", Stars: 8},
+			},
+		},
+	})
+
+	// Make sure plugins are listed ordered by stars and respect pagination constraints
+	page := db.Pagination{Size: 2}
+	plugins, next, err := store.List(ctx, page)
+	require.NoError(t, err)
+
+	assert.Equal(t, []db.Plugin{
+		fixtures["10-stars"].Plugin,
+		fixtures["9-stars"].Plugin,
+	}, plugins)
+	assert.Equal(t, fixtures["8-stars"].ID, next)
+
+	// Make sure we can query the next page
+	page.Start = next
+	plugins, next, err = store.List(ctx, page)
+	require.NoError(t, err)
+
+	assert.Equal(t, []db.Plugin{
+		fixtures["8-stars"].Plugin,
+	}, plugins)
+	assert.Zero(t, next)
+}
+
 type fixture struct {
 	key    string
 	plugin pluginDocument
@@ -174,7 +219,7 @@ func createDatabase(t *testing.T, fixtures []fixture) (*MongoDB, map[string]plug
 		f.plugin.MongoID = primitive.NewObjectID()
 		f.plugin.CreatedAt = f.plugin.CreatedAt.Truncate(time.Millisecond)
 
-		_, err := mongodb.client.Collection(mongodb.collName).InsertOne(ctx, f.plugin)
+		_, err = mongodb.client.Collection(mongodb.collName).InsertOne(ctx, f.plugin)
 		require.NoError(t, err)
 		// Fixtures date needs to converted back to UTC to allow using assert.Equal
 		// even if timezones differ.
