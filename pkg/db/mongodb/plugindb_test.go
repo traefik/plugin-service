@@ -625,6 +625,7 @@ func TestMongoDB_Update(t *testing.T) {
 	err = store.client.Collection(store.collName).
 		FindOne(ctx, bson.D{{Key: "id", Value: "123"}}).
 		Decode(&pluginWithHashes)
+	require.NoError(t, err)
 
 	assert.Equal(t, fixtures["plugin"].Hashes, pluginWithHashes.Hashes)
 
@@ -636,6 +637,64 @@ func TestMongoDB_Update(t *testing.T) {
 
 	// Check that we get a db.NotFound when no plugin have the given id.
 	_, err = store.Update(ctx, "456", got)
+	require.ErrorAs(t, err, &db.ErrNotFound{})
+}
+
+func TestMongoDB_CreateHash(t *testing.T) {
+	ctx := context.Background()
+
+	store, fixtures := createDatabase(t, []fixture{
+		{
+			key: "plugin",
+			plugin: pluginDocument{
+				Plugin: db.Plugin{
+					ID:            "123",
+					Name:          "plugin",
+					DisplayName:   "plugin",
+					Author:        "author",
+					Type:          "type",
+					Import:        "import",
+					Compatibility: "compatibility",
+					Summary:       "summary",
+					IconURL:       "icon",
+					BannerURL:     "banner",
+					Readme:        "readme",
+					LatestVersion: "v1.1.1",
+					Versions: []string{
+						"v1.1.1",
+					},
+					Stars:   10,
+					Snippet: nil,
+				},
+				Hashes: []db.PluginHash{
+					{Name: "plugin@v1.1.1", Hash: "123"},
+				},
+			},
+		},
+	})
+
+	_, err := store.CreateHash(ctx, "plugin", "v1.2.3", "hash")
+	require.NoError(t, err)
+
+	var pluginWithHashes pluginDocument
+	err = store.client.Collection(store.collName).
+		FindOne(ctx, bson.D{{Key: "id", Value: "123"}}).
+		Decode(&pluginWithHashes)
+	require.NoError(t, err)
+
+	want := []db.PluginHash{
+		fixtures["plugin"].Hashes[0],
+		{
+			Name: "plugin@v1.2.3",
+			Hash: "hash",
+		},
+	}
+
+	assert.Equal(t, want, pluginWithHashes.Hashes)
+
+	// With embedded hashes, creating a new one doesn't works if the plugin doesn't exists.
+	// This is not the case with Fauna.
+	_, err = store.CreateHash(ctx, "toto", "v1.2.3", "hash")
 	require.ErrorAs(t, err, &db.ErrNotFound{})
 }
 
