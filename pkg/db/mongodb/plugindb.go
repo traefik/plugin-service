@@ -276,7 +276,33 @@ func (m *MongoDB) SearchByName(ctx context.Context, name string, page db.Paginat
 
 // Update updates the given plugin.
 func (m *MongoDB) Update(ctx context.Context, id string, plugin db.Plugin) (db.Plugin, error) {
-	panic("implement me")
+	ctx, span := m.tracer.Start(ctx, "db_update")
+	defer span.End()
+
+	var updated db.Plugin
+
+	filter := bson.D{
+		{Key: "id", Value: id},
+	}
+
+	update := bson.D{
+		{Key: "$set", Value: plugin},
+	}
+
+	opts := &options.FindOneAndUpdateOptions{}
+	opts.SetReturnDocument(options.After)
+
+	if err := m.client.Collection(collName).FindOneAndUpdate(ctx, filter, update, opts).Decode(&updated); err != nil {
+		span.RecordError(err)
+
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return db.Plugin{}, db.ErrNotFound{Err: err}
+		}
+
+		return db.Plugin{}, fmt.Errorf("unable to update plugin: %w", err)
+	}
+
+	return updated, nil
 }
 
 // DeleteHash deletes a plugin hash.
