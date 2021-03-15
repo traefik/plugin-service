@@ -70,6 +70,11 @@ func (d *FaunaDB) Delete(ctx context.Context, id string) error {
 	)
 	if err != nil {
 		span.RecordError(err)
+
+		if errors.As(err, &f.NotFound{}) {
+			return db.ErrNotFound{Err: err}
+		}
+
 		return fmt.Errorf("fauna error: %w", err)
 	}
 
@@ -247,6 +252,11 @@ func (d *FaunaDB) Update(ctx context.Context, id string, plugin db.Plugin) (db.P
 		))
 	if err != nil {
 		span.RecordError(err)
+
+		if errors.As(err, &f.NotFound{}) {
+			return db.Plugin{}, db.ErrNotFound{Err: err}
+		}
+
 		return db.Plugin{}, fmt.Errorf("fauna error: %w", err)
 	}
 
@@ -294,6 +304,11 @@ func (d *FaunaDB) GetHashByName(ctx context.Context, module, version string) (db
 	)
 	if err != nil {
 		span.RecordError(err)
+
+		if errors.As(err, &f.NotFound{}) {
+			return db.PluginHash{}, db.ErrNotFound{Err: err}
+		}
+
 		return db.PluginHash{}, fmt.Errorf("fauna error: %w", err)
 	}
 
