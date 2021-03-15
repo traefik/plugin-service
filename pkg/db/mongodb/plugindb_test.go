@@ -560,6 +560,85 @@ func TestMongoDB_SearchByName(t *testing.T) {
 	}
 }
 
+func TestMongoDB_Update(t *testing.T) {
+	ctx := context.Background()
+
+	store, fixtures := createDatabase(t, []fixture{
+		{
+			key: "plugin",
+			plugin: pluginDocument{
+				Plugin: db.Plugin{
+					ID:            "123",
+					Name:          "plugin",
+					DisplayName:   "plugin",
+					Author:        "author",
+					Type:          "type",
+					Import:        "import",
+					Compatibility: "compatibility",
+					Summary:       "summary",
+					IconURL:       "icon",
+					BannerURL:     "banner",
+					Readme:        "readme",
+					LatestVersion: "v1.1.1",
+					Versions: []string{
+						"v1.1.1",
+					},
+					Stars:   10,
+					Snippet: nil,
+				},
+				Hashes: []db.PluginHash{
+					{Name: "plugin@v1.1.1", Hash: "123"},
+				},
+			},
+		},
+	})
+
+	got, err := store.Update(ctx, "123", db.Plugin{
+		ID:            "123",
+		Name:          "New Name",
+		DisplayName:   "plugin",
+		Author:        "New Author",
+		Type:          "type",
+		Import:        "import",
+		Compatibility: "compatibility",
+		Summary:       "summary",
+		IconURL:       "icon",
+		BannerURL:     "banner",
+		Readme:        "readme",
+		LatestVersion: "v1.1.1",
+		Versions: []string{
+			"v1.1.1",
+		},
+		Stars:   10,
+		Snippet: nil,
+	})
+	require.NoError(t, err)
+
+	want := fixtures["plugin"].Plugin
+	want.Name = "New Name"
+	want.Author = "New Author"
+
+	assert.Equal(t, want, got)
+
+	// Check hashes are not updated
+	var pluginWithHashes pluginDocument
+	err = store.client.Collection(store.collName).
+		FindOne(ctx, bson.D{{Key: "id", Value: "123"}}).
+		Decode(&pluginWithHashes)
+
+	assert.Equal(t, fixtures["plugin"].Hashes, pluginWithHashes.Hashes)
+
+	// Update with same values
+	got, err = store.Update(ctx, "123", got)
+	require.NoError(t, err)
+
+	assert.Equal(t, want, got)
+
+	// Check that we get a db.NotFound when no plugin have the given id.
+	_, err = store.Update(ctx, "456", got)
+	require.ErrorAs(t, err, &db.ErrNotFound{})
+}
+
 type fixture struct {
 	key    string
 	plugin pluginDocument
