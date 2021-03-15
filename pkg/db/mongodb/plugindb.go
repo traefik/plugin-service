@@ -2,8 +2,11 @@ package mongodb
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"regexp"
 	"time"
 
 	"github.com/traefik/plugin-service/pkg/db"
@@ -197,8 +200,78 @@ func (m *MongoDB) GetByName(ctx context.Context, name string) (db.Plugin, error)
 }
 
 // SearchByName searches for plugins matching with the given name.
-func (m *MongoDB) SearchByName(ctx context.Context, s string, pagination db.Pagination) ([]db.Plugin, string, error) {
-	panic("implement me")
+func (m *MongoDB) SearchByName(ctx context.Context, name string, page db.Pagination) ([]db.Plugin, string, error) {
+	ctx, span := m.tracer.Start(ctx, "db_search_by_name")
+	defer span.End()
+
+	criteria := bson.D{
+		{Key: "displayName", Value: primitive.Regex{Pattern: regexp.QuoteMeta(name), Options: "i"}},
+	}
+
+	if len(page.Start) > 0 {
+		nextPage, err := decodeNextPage(page.Start)
+		if err != nil {
+			span.RecordError(err)
+
+			return nil, "", fmt.Errorf("unable to decode next page cursor: %w", err)
+		}
+
+		// nextID represents a FaunaDB ID and we can't use the $gt operator on a string, it must be done
+		// on an ObjectID. So, we first need to retrieve the corresponding MongoID.
+		var firstPlugin pluginDocument
+
+		err = m.client.Collection(m.collName).
+			FindOne(ctx, bson.D{{Key: "id", Value: nextPage.NextID}}).
+			Decode(&firstPlugin)
+
+		if err != nil {
+			span.RecordError(err)
+
+			if errors.Is(err, mongo.ErrNoDocuments) {
+				return nil, "", nil
+			}
+
+			return nil, "", fmt.Errorf("unable to retrieve first plugin: %w", err)
+		}
+
+		criteria = append(criteria, bson.E{Key: "_id", Value: bson.D{
+			{Key: "$lte", Value: firstPlugin.MongoID},
+		}})
+	}
+
+	opts := &options.FindOptions{}
+	opts.SetLimit(int64(page.Size + 1))
+	opts.SetSort(bson.D{{Key: "displayName", Value: 1}})
+
+	cursor, err := m.client.Collection(collName).Find(ctx, criteria, opts)
+	if err != nil {
+		span.RecordError(err)
+
+		return nil, "", fmt.Errorf("unable to find plugins: %w", err)
+	}
+
+	var plugins []db.Plugin
+	if err = cursor.All(ctx, &plugins); err != nil {
+		span.RecordError(err)
+
+		return nil, "", fmt.Errorf("unable to unmarshal plugins: %w", err)
+	}
+
+	var nextPage string
+
+	if len(plugins) > page.Size {
+		nextPlugin := plugins[page.Size]
+		plugins = plugins[:page.Size]
+
+		nextPage, err = encodeNextPage(db.NextPage{Name: nextPlugin.Name, NextID: nextPlugin.ID})
+		if err != nil {
+			span.RecordError(err)
+
+			return nil, "", fmt.Errorf("unable to build next page cursor: %w", err)
+		}
+	}
+
+	return plugins, nextPage, nil
 }
 
 // Update updates the given plugin.
@@ -224,4 +297,28 @@ func (m *MongoDB) GetHashByName(ctx context.Context, module, version string) (db
 // Ping pings MongoDB to check it health status.
 func (m *MongoDB) Ping(ctx context.Context) error {
 	return m.client.Client().Ping(ctx, nil)
+}
+
+func encodeNextPage(page db.NextPage) (string, error) {
+	b, err := json.Marshal(page)
+	if err != nil {
+		return "", err
+	}
+
+	return base64.RawStdEncoding.EncodeToString(b), nil
+}
+
+func decodeNextPage(cursor string) (db.NextPage, error) {
+	decodeString, err := base64.RawStdEncoding.DecodeString(cursor)
+	if err != nil {
+		return db.NextPage{}, err
+	}
+
+	var nextPage db.NextPage
+
+	if err = json.Unmarshal(decodeString, &nextPage); err != nil {
+		return db.NextPage{}, err
+	}
+
+	return nextPage, nil
 }

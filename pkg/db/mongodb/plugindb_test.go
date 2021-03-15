@@ -3,6 +3,8 @@ package mongodb
 import (
 	"context"
 	"crypto/rand"
+	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"math/big"
 	"strconv"
@@ -216,6 +218,348 @@ func TestMongoDB_GetByName(t *testing.T) {
 	assert.ErrorAs(t, err, &db.ErrNotFound{})
 }
 
+func TestMongoDB_SearchByName(t *testing.T) {
+	ctx := context.Background()
+	store, fixtures := createDatabase(t, []fixture{
+		{
+			key: "plugin-1",
+			plugin: pluginDocument{
+				Plugin: db.Plugin{
+					ID:            "123",
+					Name:          "plugin-1",
+					DisplayName:   "plugin-1",
+					Author:        "author",
+					Type:          "type",
+					Import:        "import",
+					Compatibility: "compatibility",
+					Summary:       "summary",
+					IconURL:       "iconURL",
+					BannerURL:     "bannerURL",
+					Readme:        "readme",
+					LatestVersion: "latestVersion",
+					Versions:      []string{"v1.0.0"},
+					Stars:         10,
+					Snippet: map[string]interface{}{
+						"something": "there",
+					},
+					CreatedAt: time.Now().Add(-2 * time.Hour),
+				},
+			},
+		},
+		{
+			key: "plugin-2",
+			plugin: pluginDocument{
+				Plugin: db.Plugin{
+					ID:            "234",
+					Name:          "plugin-2",
+					DisplayName:   "plugin-2",
+					Author:        "author",
+					Type:          "type",
+					Import:        "import",
+					Compatibility: "compatibility",
+					Summary:       "summary",
+					IconURL:       "iconURL",
+					BannerURL:     "bannerURL",
+					Readme:        "readme",
+					LatestVersion: "latestVersion",
+					Versions:      []string{"v1.0.0"},
+					Stars:         10,
+					Snippet: map[string]interface{}{
+						"something": "there",
+					},
+					CreatedAt: time.Now().Add(-2 * time.Hour),
+				},
+			},
+		},
+		{
+			key: "plugin-3",
+			plugin: pluginDocument{
+				Plugin: db.Plugin{
+					ID:            "345",
+					Name:          "plugin-3",
+					DisplayName:   "plugin-3",
+					Author:        "author",
+					Type:          "type",
+					Import:        "import",
+					Compatibility: "compatibility",
+					Summary:       "summary",
+					IconURL:       "iconURL",
+					BannerURL:     "bannerURL",
+					Readme:        "readme",
+					LatestVersion: "latestVersion",
+					Versions:      []string{"v1.0.0"},
+					Stars:         10,
+					Snippet: map[string]interface{}{
+						"something": "there",
+					},
+					CreatedAt: time.Now().Add(-2 * time.Hour),
+				},
+			},
+		},
+		{
+			key: "plugin-4",
+			plugin: pluginDocument{
+				Plugin: db.Plugin{
+					ID:            "456",
+					Name:          "plugin-4",
+					DisplayName:   "plugin-4",
+					Author:        "author",
+					Type:          "type",
+					Import:        "import",
+					Compatibility: "compatibility",
+					Summary:       "summary",
+					IconURL:       "iconURL",
+					BannerURL:     "bannerURL",
+					Readme:        "readme",
+					LatestVersion: "latestVersion",
+					Versions:      []string{"v1.0.0"},
+					Stars:         10,
+					Snippet: map[string]interface{}{
+						"something": "there",
+					},
+					CreatedAt: time.Now().Add(-2 * time.Hour),
+				},
+			},
+		},
+		{
+			key: "plugin-5",
+			plugin: pluginDocument{
+				Plugin: db.Plugin{
+					ID:            "147",
+					Name:          "plugin-5",
+					DisplayName:   "salad-tomate-onion",
+					Author:        "author",
+					Type:          "type",
+					Import:        "import",
+					Compatibility: "compatibility",
+					Summary:       "summary",
+					IconURL:       "iconURL",
+					BannerURL:     "bannerURL",
+					Readme:        "readme",
+					LatestVersion: "latestVersion",
+					Versions:      []string{"v1.0.0"},
+					Stars:         10,
+					Snippet: map[string]interface{}{
+						"something": "there",
+					},
+					CreatedAt: time.Now().Add(-2 * time.Hour),
+				},
+			},
+		},
+		{
+			key: "plugin-6",
+			plugin: pluginDocument{
+				Plugin: db.Plugin{
+					ID:            "741",
+					Name:          "plugin-6",
+					DisplayName:   "salad-tom.te-onion",
+					Author:        "author",
+					Type:          "type",
+					Import:        "import",
+					Compatibility: "compatibility",
+					Summary:       "summary",
+					IconURL:       "iconURL",
+					BannerURL:     "bannerURL",
+					Readme:        "readme",
+					LatestVersion: "latestVersion",
+					Versions:      []string{"v1.0.0"},
+					Stars:         10,
+					Snippet: map[string]interface{}{
+						"something": "there",
+					},
+					CreatedAt: time.Now().Add(-2 * time.Hour),
+				},
+			},
+		},
+		{
+			key: "plugin-7",
+			plugin: pluginDocument{
+				Plugin: db.Plugin{
+					ID:            "258",
+					Name:          "plugin-7",
+					DisplayName:   "hi^hello",
+					Author:        "author",
+					Type:          "type",
+					Import:        "import",
+					Compatibility: "compatibility",
+					Summary:       "summary",
+					IconURL:       "iconURL",
+					BannerURL:     "bannerURL",
+					Readme:        "readme",
+					LatestVersion: "latestVersion",
+					Versions:      []string{"v1.0.0"},
+					Stars:         10,
+					Snippet: map[string]interface{}{
+						"something": "there",
+					},
+					CreatedAt: time.Now().Add(-2 * time.Hour),
+				},
+			},
+		},
+		{
+			key: "plugin-8",
+			plugin: pluginDocument{
+				Plugin: db.Plugin{
+					ID:            "852",
+					Name:          "plugin-8",
+					DisplayName:   "hello",
+					Author:        "author",
+					Type:          "type",
+					Import:        "import",
+					Compatibility: "compatibility",
+					Summary:       "summary",
+					IconURL:       "iconURL",
+					BannerURL:     "bannerURL",
+					Readme:        "readme",
+					LatestVersion: "latestVersion",
+					Versions:      []string{"v1.0.0"},
+					Stars:         10,
+					Snippet: map[string]interface{}{
+						"something": "there",
+					},
+					CreatedAt: time.Now().Add(-2 * time.Hour),
+				},
+			},
+		},
+		{
+			key: "plugin-9",
+			plugin: pluginDocument{
+				Plugin: db.Plugin{
+					ID:            "369",
+					Name:          "plugin-9",
+					DisplayName:   "h([]){}.*p",
+					Author:        "author",
+					Type:          "type",
+					Import:        "import",
+					Compatibility: "compatibility",
+					Summary:       "summary",
+					IconURL:       "iconURL",
+					BannerURL:     "bannerURL",
+					Readme:        "readme",
+					LatestVersion: "latestVersion",
+					Versions:      []string{"v1.0.0"},
+					Stars:         10,
+					Snippet: map[string]interface{}{
+						"something": "there",
+					},
+					CreatedAt: time.Now().Add(-2 * time.Hour),
+				},
+			},
+		},
+		{
+			key: "plugins-10",
+			plugin: pluginDocument{
+				Plugin: db.Plugin{
+					ID:            "963",
+					Name:          "plugins-10",
+					DisplayName:   "*",
+					Author:        "author",
+					Type:          "type",
+					Import:        "import",
+					Compatibility: "compatibility",
+					Summary:       "summary",
+					IconURL:       "iconURL",
+					BannerURL:     "bannerURL",
+					Readme:        "readme",
+					LatestVersion: "latestVersion",
+					Versions:      []string{"v1.0.0"},
+					Stars:         10,
+					Snippet: map[string]interface{}{
+						"something": "there",
+					},
+					CreatedAt: time.Now().Add(-2 * time.Hour),
+				},
+			},
+		},
+	})
+
+	tests := []struct {
+		desc        string
+		pagination  db.Pagination
+		query       string
+		wantPlugins []db.Plugin
+		wantNextID  string
+		wantErr     bool
+	}{
+		{
+			desc:       "page 1/2 with 2 elements per page: no query",
+			pagination: db.Pagination{Size: 2},
+			wantPlugins: []db.Plugin{
+				fixtures["plugins-10"].Plugin,
+				fixtures["plugin-9"].Plugin,
+			},
+			wantNextID: buildNextID(t, fixtures["plugin-8"].Plugin),
+		},
+		{
+			desc: "page 2/2 with 2 elements per page: no query",
+			pagination: db.Pagination{
+				Start: buildNextID(t, fixtures["plugin-8"].Plugin),
+				Size:  2,
+			},
+			wantPlugins: []db.Plugin{
+				fixtures["plugin-8"].Plugin,
+				fixtures["plugin-7"].Plugin,
+			},
+			wantNextID: buildNextID(t, fixtures["plugin-1"].Plugin),
+		},
+		{
+			desc:        "query: 'tomate' matches 'salad-tomate-onion",
+			pagination:  db.Pagination{Size: 2},
+			query:       "tomate",
+			wantPlugins: []db.Plugin{fixtures["plugin-5"].Plugin},
+		},
+		{
+			desc:        "query: '-tomate-' matches 'salad-tomate-onion",
+			pagination:  db.Pagination{Size: 2},
+			query:       "tomate",
+			wantPlugins: []db.Plugin{fixtures["plugin-5"].Plugin},
+		},
+		{
+			desc:        "query: 'tom.ate' matches 'salad-tom.te-onion",
+			pagination:  db.Pagination{Size: 2},
+			query:       "tom.te",
+			wantPlugins: []db.Plugin{fixtures["plugin-6"].Plugin},
+		},
+		{
+			desc:        "query: '^hello' matches 'hi^hello",
+			pagination:  db.Pagination{Size: 2},
+			query:       "^hello",
+			wantPlugins: []db.Plugin{fixtures["plugin-7"].Plugin},
+		},
+		{
+			desc:        "query: 'h([]){}.*p' matches 'h([]){}.*p",
+			pagination:  db.Pagination{Size: 2},
+			query:       "h([]){}.*p",
+			wantPlugins: []db.Plugin{fixtures["plugin-9"].Plugin},
+		},
+		{
+			desc:       "query: '*' matches 'toto*titi and sort by name",
+			pagination: db.Pagination{Size: 2},
+			query:      "*",
+			wantPlugins: []db.Plugin{
+				fixtures["plugins-10"].Plugin,
+				fixtures["plugin-9"].Plugin,
+			},
+		},
+	}
+
+	for _, test := range tests {
+		test := test
+
+		t.Run(test.desc, func(t *testing.T) {
+			plugins, nextID, err := store.SearchByName(ctx, test.query, test.pagination)
+			if test.wantErr {
+				require.Error(t, err)
+				return
+			}
+
+			require.NoError(t, err)
+			assert.Equal(t, test.wantPlugins, plugins)
+			assert.Equal(t, test.wantNextID, nextID)
+		})
+	}
+}
+
 type fixture struct {
 	key    string
 	plugin pluginDocument
@@ -263,9 +607,11 @@ func createDatabase(t *testing.T, fixtures []fixture) (*MongoDB, map[string]plug
 
 		_, err = mongodb.client.Collection(mongodb.collName).InsertOne(ctx, f.plugin)
 		require.NoError(t, err)
+
 		// Fixtures date needs to converted back to UTC to allow using assert.Equal
 		// even if timezones differ.
 		f.plugin.Plugin = toUTCPlugin(f.plugin.Plugin)
+
 		indexedFixtures[f.key] = f.plugin
 	}
 
@@ -295,4 +641,16 @@ func toUTCPlugin(plugin db.Plugin) db.Plugin {
 	plugin.CreatedAt = plugin.CreatedAt.UTC()
 
 	return plugin
+}
+
+func buildNextID(t *testing.T, next db.Plugin) string {
+	t.Helper()
+
+	b, err := json.Marshal(db.NextPage{
+		NextID: next.ID,
+		Name:   next.Name,
+	})
+	require.NoError(t, err)
+
+	return base64.RawStdEncoding.EncodeToString(b)
 }
