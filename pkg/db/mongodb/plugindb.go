@@ -305,11 +305,6 @@ func (m *MongoDB) Update(ctx context.Context, id string, plugin db.Plugin) (db.P
 	return updated, nil
 }
 
-// DeleteHash deletes a plugin hash.
-func (m *MongoDB) DeleteHash(ctx context.Context, id string) error {
-	panic("implement me")
-}
-
 // CreateHash creates a new plugin hash.
 func (m *MongoDB) CreateHash(ctx context.Context, module, version, hash string) (db.PluginHash, error) {
 	ctx, span := m.tracer.Start(ctx, "db_create_hash")

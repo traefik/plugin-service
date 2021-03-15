@@ -35,7 +35,6 @@ type PluginStorer interface {
 	SearchByName(context.Context, string, db.Pagination) ([]db.Plugin, string, error)
 	Update(context.Context, string, db.Plugin) (db.Plugin, error)
 
-	DeleteHash(ctx context.Context, id string) error
 	CreateHash(ctx context.Context, module, version, hash string) (db.PluginHash, error)
 	GetHashByName(ctx context.Context, module, version string) (db.PluginHash, error)
 }
@@ -270,18 +269,6 @@ func (h Handlers) Delete(rw http.ResponseWriter, req *http.Request) {
 		log.Error().Str("pluginID", id).Err(err).Msg("failed to delete the plugin info")
 		JSONError(rw, http.StatusBadRequest, "failed to delete plugin info")
 		return
-	}
-
-	err = h.store.DeleteHash(ctx, id)
-	if err != nil {
-		span.RecordError(err)
-
-		var notFoundError faunadb.NotFound
-		if !errors.As(err, &notFoundError) {
-			log.Error().Str("pluginID", id).Err(err).Msg("failed to delete the plugin hash")
-			JSONError(rw, http.StatusBadRequest, "failed to delete plugin hash")
-			return
-		}
 	}
 }
 
