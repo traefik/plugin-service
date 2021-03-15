@@ -352,7 +352,42 @@ func (m *MongoDB) CreateHash(ctx context.Context, module, version, hash string) 
 
 // GetHashByName returns the hash corresponding the given name.
 func (m *MongoDB) GetHashByName(ctx context.Context, module, version string) (db.PluginHash, error) {
-	panic("implement me")
+	ctx, span := m.tracer.Start(ctx, "db_create_hash")
+	defer span.End()
+
+	filter := bson.D{
+		{Key: "name", Value: module},
+		{Key: "hashes", Value: bson.D{
+			{Key: "$elemMatch", Value: bson.D{
+				{Key: "name", Value: module + "@" + version},
+			}},
+		}},
+	}
+
+	opts := &options.FindOneOptions{}
+	opts.SetProjection(bson.D{
+		{Key: "hashes", Value: 1},
+		{Key: "_id", Value: 0},
+	})
+
+	var plugin pluginDocument
+	if err := m.client.Collection(collName).FindOne(ctx, filter, opts).Decode(&plugin); err != nil {
+		span.RecordError(err)
+
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return db.PluginHash{}, db.ErrNotFound{Err: err}
+		}
+
+		return db.PluginHash{}, fmt.Errorf("unable to get plugin hash: %w", err)
+	}
+
+	for _, hash := range plugin.Hashes {
+		if hash.Name == module+"@"+version {
+			return hash, nil
+		}
+	}
+
+	return db.PluginHash{}, errors.New("unable to find plugin hash")
 }
 
 // Ping pings MongoDB to check it health status.
