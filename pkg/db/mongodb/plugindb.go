@@ -312,7 +312,42 @@ func (m *MongoDB) DeleteHash(ctx context.Context, id string) error {
 
 // CreateHash creates a new plugin hash.
 func (m *MongoDB) CreateHash(ctx context.Context, module, version, hash string) (db.PluginHash, error) {
-	panic("implement me")
+	ctx, span := m.tracer.Start(ctx, "db_create_hash")
+	defer span.End()
+
+	filter := bson.D{
+		{Key: "name", Value: module},
+	}
+
+	newHash := db.PluginHash{
+		Name: module + "@" + version,
+		Hash: hash,
+	}
+
+	update := bson.D{
+		{
+			Key: "$push",
+			Value: bson.D{
+				{Key: "hashes", Value: newHash},
+			},
+		},
+	}
+
+	opts := &options.FindOneAndUpdateOptions{}
+	opts.SetReturnDocument(options.After)
+
+	var updated pluginDocument
+	if err := m.client.Collection(collName).FindOneAndUpdate(ctx, filter, update, opts).Decode(&updated); err != nil {
+		span.RecordError(err)
+
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return db.PluginHash{}, db.ErrNotFound{Err: err}
+		}
+
+		return db.PluginHash{}, fmt.Errorf("unable to create plugin hash: %w", err)
+	}
+
+	return newHash, nil
 }
 
 // GetHashByName returns the hash corresponding the given name.
