@@ -33,3 +33,9 @@ type Pagination struct {
 	Start string
 	Size  int
 }
+
+// NextPage represents a pagination header value.
+type NextPage struct {
+	Name   string `json:"name"`
+	NextID string `json:"nextId"`
+}

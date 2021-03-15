@@ -81,3 +81,7 @@
   [[issues.exclude-rules]]
     path = "cmd/serve/serve.go"
     text = "cyclomatic complexity [0-9]* of func `setupEnvVars` is high (.*)"
+
+  [[issues.exclude-rules]]
+    path = "pkg/db/mongodb/plugindb.go"
+    text = "Function 'SearchByName' is too long"
