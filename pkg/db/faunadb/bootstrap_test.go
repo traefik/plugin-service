@@ -2,6 +2,7 @@ package faunadb
 
 import (
 	"crypto/rand"
+	"fmt"
 	"math/big"
 	"net/http"
 	"os"
@@ -14,7 +15,13 @@ import (
 	"github.com/traefik/plugin-service/pkg/db"
 )
 
-func createTempDB(t *testing.T, plugins []db.Plugin) *FaunaDB {
+type fixture struct {
+	key    string
+	plugin db.Plugin
+	hashes []db.PluginHash
+}
+
+func createTempDB(t *testing.T, fixtures []fixture) (*FaunaDB, map[string]db.Plugin, map[string][]db.PluginHash) {
 	t.Helper()
 
 	var count int
@@ -67,15 +74,57 @@ func createTempDB(t *testing.T, plugins []db.Plugin) *FaunaDB {
 		})
 	}
 
-	db := NewFaunaDB(client)
-	db.collName = dbName
+	store := NewFaunaDB(client)
+	store.collName = dbName
 
-	err := db.Bootstrap()
+	err := store.Bootstrap()
 	require.NoError(t, err)
 
-	if len(plugins) > 0 {
-		populate(t, db, plugins)
+	indexedPluginFixtures := make(map[string]db.Plugin)
+	indexedHashFixtures := make(map[string][]db.PluginHash)
+
+	for _, fixt := range fixtures {
+		indexedPluginFixtures[fixt.key], err = createPlugin(store, fixt.plugin)
+		require.NoError(t, err)
+
+		for _, hash := range fixt.hashes {
+			storedHash, err := createHash(store, hash)
+
+			indexedHashFixtures[fixt.key] = append(indexedHashFixtures[fixt.key], storedHash)
+
+			require.NoError(t, err)
+		}
 	}
 
-	return db
+	return store, indexedPluginFixtures, indexedHashFixtures
+}
+
+func createPlugin(fauna *FaunaDB, plugin db.Plugin) (db.Plugin, error) {
+	// FaunaDB saves dates as timestamp without changing the location to UTC.
+	plugin.CreatedAt = plugin.CreatedAt.UTC()
+
+	res, err := fauna.client.Query(f.Create(
+		f.RefCollection(f.Collection(fauna.collName), plugin.ID),
+		f.Obj{"data": plugin}))
+	if err != nil {
+		return db.Plugin{}, err
+	}
+
+	return decodePlugin(res)
+}
+
+func createHash(fauna *FaunaDB, hash db.PluginHash) (db.PluginHash, error) {
+	id, err := fauna.client.Query(f.NewId())
+	if err != nil {
+		return db.PluginHash{}, fmt.Errorf("fauna error: %w", err)
+	}
+
+	res, err := fauna.client.Query(f.Create(
+		f.RefCollection(f.Collection(fauna.collName+collNameHashSuffix), id),
+		f.Obj{"data": hash}))
+	if err != nil {
+		return db.PluginHash{}, err
+	}
+
+	return decodePluginHash(res)
 }
