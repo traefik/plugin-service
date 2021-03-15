@@ -1,9 +1,9 @@
 package dbinit
 
 import (
-	"github.com/fauna/faunadb-go/v3/faunadb"
+	f "github.com/fauna/faunadb-go/v3/faunadb"
 	"github.com/traefik/plugin-service/cmd/internal"
-	"github.com/traefik/plugin-service/pkg/db"
+	"github.com/traefik/plugin-service/pkg/db/faunadb"
 	"github.com/urfave/cli/v2"
 )
 
@@ -25,8 +25,8 @@ func Command() *cli.Command {
 	return cmd
 }
 
-func run(cfg db.Config) error {
-	database := db.NewFaunaDB(faunadb.NewFaunaClient(cfg.Secret))
+func run(cfg faunadb.Config) error {
+	database := faunadb.NewFaunaDB(f.NewFaunaClient(cfg.Secret))
 
 	return database.Bootstrap()
 }
