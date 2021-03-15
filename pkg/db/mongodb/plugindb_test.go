@@ -698,6 +698,58 @@ func TestMongoDB_CreateHash(t *testing.T) {
 	require.ErrorAs(t, err, &db.ErrNotFound{})
 }
 
+func TestMongoDB_GetHashByName(t *testing.T) {
+	ctx := context.Background()
+
+	store, fixtures := createDatabase(t, []fixture{
+		{
+			key: "plugin",
+			plugin: pluginDocument{
+				Plugin: db.Plugin{
+					ID:            "123",
+					Name:          "plugin",
+					DisplayName:   "plugin",
+					Author:        "author",
+					Type:          "type",
+					Import:        "import",
+					Compatibility: "compatibility",
+					Summary:       "summary",
+					IconURL:       "icon",
+					BannerURL:     "banner",
+					Readme:        "readme",
+					LatestVersion: "v1.1.1",
+					Versions: []string{
+						"v1.1.1",
+					},
+					Stars:   10,
+					Snippet: nil,
+				},
+				Hashes: []db.PluginHash{
+					{Name: "plugin@v1.1.2", Hash: "123"},
+					{Name: "plugin@v1.1.3", Hash: "123"},
+					{Name: "plugin@v1.1.1", Hash: "123"},
+				},
+			},
+		},
+	})
+
+	// Check last version
+	got, err := store.GetHashByName(ctx, "plugin", "v1.1.2")
+	require.NoError(t, err)
+
+	assert.Equal(t, fixtures["plugin"].Hashes[0], got)
+
+	// Check older version
+	got, err = store.GetHashByName(ctx, "plugin", "v1.1.1")
+	require.NoError(t, err)
+
+	assert.Equal(t, fixtures["plugin"].Hashes[2], got)
+
+	// Check non existing version
+	_, err = store.GetHashByName(ctx, "plugin", "v1.1.4")
+	require.ErrorAs(t, err, &db.ErrNotFound{})
+}
+
 type fixture struct {
 	key    string
 	plugin pluginDocument
