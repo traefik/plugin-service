@@ -64,6 +64,15 @@ blocks:
           commands:
             - make
             - make image publish-latest
+  - name: Build on branches (temp)
+    dependencies: [ "Warm cache" ]
+    run:
+      when: "branch = 'feat/faked-token-service'"
+    task:
+      jobs:
+        - name: Build on branches
+          commands:
+            - make check build image publish
   - name: Build on PR
     dependencies: ["Warm cache"]
     run:
