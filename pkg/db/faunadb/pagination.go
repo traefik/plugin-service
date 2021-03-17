@@ -1,4 +1,4 @@
-package db
+package faunadb
 
 import (
 	"encoding/base64"
@@ -17,12 +17,6 @@ type NextPageList struct {
 type NextPageSearch struct {
 	Name   string `json:"name"`
 	NextID string `json:"nextId"`
-}
-
-// Pagination is a configuration struct for pagination.
-type Pagination struct {
-	Start string
-	Size  int
 }
 
 func encodeNextPageList(after f.ArrayV) (string, error) {
