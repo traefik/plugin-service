@@ -65,6 +65,7 @@ func Command() *cli.Command {
 	cmd.Flags = append(cmd.Flags, goProxyFlags()...)
 	cmd.Flags = append(cmd.Flags, tracingFlags()...)
 	cmd.Flags = append(cmd.Flags, internal.FaunaFlags()...)
+	cmd.Flags = append(cmd.Flags, internal.MongoFlags()...)
 
 	return cmd
 }
