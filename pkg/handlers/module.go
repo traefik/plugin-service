@@ -15,6 +15,7 @@ import (
 	"github.com/fauna/faunadb-go/v3/faunadb"
 	"github.com/google/go-github/v32/github"
 	"github.com/rs/zerolog/log"
+	"github.com/traefik/plugin-service/pkg/db"
 	"go.opentelemetry.io/otel/label"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -131,8 +132,7 @@ func (h Handlers) downloadGoProxy(ctx context.Context, moduleName, version strin
 		defer func() { _ = sources.Close() }()
 
 		_, err = h.store.GetHashByName(ctx, moduleName, version)
-		var notFoundError faunadb.NotFound
-		if err != nil && !errors.As(err, &notFoundError) {
+		if err != nil && !errors.As(err, &db.ErrNotFound{}) {
 			span.RecordError(err)
 			logger.Error().Err(err).Msg("failed to get plugin hash")
 			JSONErrorf(rw, http.StatusInternalServerError, "failed to get plugin %s@%s", moduleName, version)
