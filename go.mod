@@ -14,6 +14,8 @@ require (
 	github.com/rs/zerolog v1.20.0
 	github.com/stretchr/testify v1.7.0
 	github.com/urfave/cli/v2 v2.3.0
+	go.mongodb.org/mongo-driver v1.5.0
+	go.opentelemetry.io/contrib/instrumentation/go.mongodb.org/mongo-driver/mongo/otelmongo v0.17.0
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.17.0
 	go.opentelemetry.io/otel v0.17.0
 	go.opentelemetry.io/otel/exporters/trace/jaeger v0.17.0
