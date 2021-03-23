@@ -9,6 +9,10 @@ type ErrNotFound struct {
 
 // Error stringifies the error.
 func (e ErrNotFound) Error() string {
+	if e.Err == nil {
+		return "not found"
+	}
+
 	return fmt.Sprintf("not found: %v", e.Err.Error())
 }
 

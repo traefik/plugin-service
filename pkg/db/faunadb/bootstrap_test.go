@@ -89,10 +89,9 @@ func createTempDB(t *testing.T, fixtures []fixture) (*FaunaDB, map[string]db.Plu
 
 		for _, hash := range fixt.hashes {
 			storedHash, err := createHash(store, hash)
+			require.NoError(t, err)
 
 			indexedHashFixtures[fixt.key] = append(indexedHashFixtures[fixt.key], storedHash)
-
-			require.NoError(t, err)
 		}
 	}
 

@@ -90,8 +90,7 @@ func TestFaunaDB_Get(t *testing.T) {
 
 	// Make sure we receive a NotFound error when the plugin doesn't exist.
 	_, err = store.Get(ctx, "456")
-	require.Error(t, err)
-	assert.ErrorAs(t, err, &db.ErrNotFound{})
+	require.ErrorAs(t, err, &db.ErrNotFound{})
 }
 
 func TestFaunaDB_Delete(t *testing.T) {
@@ -109,8 +108,7 @@ func TestFaunaDB_Delete(t *testing.T) {
 
 	// Make sure we receive a NotFound error when the plugin doesn't exist.
 	err = store.Delete(ctx, "456")
-	require.Error(t, err)
-	assert.ErrorAs(t, err, &db.ErrNotFound{})
+	require.ErrorAs(t, err, &db.ErrNotFound{})
 }
 
 func TestFaunaDB_List(t *testing.T) {
@@ -188,8 +186,7 @@ func TestFaunaDB_GetByName(t *testing.T) {
 
 	// Make sure we receive a NotFound error when the plugin doesn't exist.
 	_, err = store.GetByName(ctx, "something-else")
-	require.Error(t, err)
-	assert.ErrorAs(t, err, &db.ErrNotFound{})
+	require.ErrorAs(t, err, &db.ErrNotFound{})
 }
 
 func TestFaunaDB_SearchByName(t *testing.T) {
