@@ -105,6 +105,7 @@ func (m *MongoDB) Create(ctx context.Context, plugin db.Plugin) (db.Plugin, erro
 	doc := pluginDocument{
 		Plugin:  plugin,
 		MongoID: id,
+		Hashes:  []db.PluginHash{},
 	}
 
 	_, err := m.client.Collection(m.collName).InsertOne(ctx, doc)
