@@ -36,9 +36,9 @@ func createTempDB(t *testing.T, fixtures []fixture) (*FaunaDB, map[string]db.Plu
 
 		time.Sleep(time.Second)
 
-		require.Less(t, count, 10, "Timeout when contacting local database")
-
 		count++
+
+		require.Less(t, count, 10, "Timeout when contacting local database")
 	}
 
 	n, errRand := rand.Int(rand.Reader, big.NewInt(time.Now().Unix()))

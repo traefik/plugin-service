@@ -10,7 +10,6 @@ import (
 	"regexp"
 	"strconv"
 
-	"github.com/fauna/faunadb-go/v3/faunadb"
 	"github.com/google/go-github/v32/github"
 	"github.com/ldez/grignotin/goproxy"
 	"github.com/rs/zerolog/log"
@@ -220,8 +219,7 @@ func (h Handlers) Update(rw http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		span.RecordError(err)
 
-		var notFoundError faunadb.NotFound
-		if errors.As(err, &notFoundError) {
+		if errors.As(err, &db.ErrNotFound{}) {
 			span.RecordError(err)
 			JSONError(rw, http.StatusNotFound, "plugin not found")
 			return
