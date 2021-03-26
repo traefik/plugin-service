@@ -73,7 +73,10 @@ func (h Handler) check(req *http.Request) (jwt.MapClaims, error) {
 		return nil, fmt.Errorf("unable to parse JWT: %w", err)
 	}
 
-	mapClaims := tok.Claims.(jwt.MapClaims)
+	mapClaims, ok := tok.Claims.(jwt.MapClaims)
+	if !ok {
+		return nil, errors.New("unable to check claims type")
+	}
 
 	// Verify 'aud' claim
 	checkAud := mapClaims.VerifyAudience(h.audience, false)

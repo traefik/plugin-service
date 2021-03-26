@@ -12,7 +12,6 @@ import (
 	"path"
 	"strings"
 
-	"github.com/fauna/faunadb-go/v3/faunadb"
 	"github.com/google/go-github/v32/github"
 	"github.com/rs/zerolog/log"
 	"github.com/traefik/plugin-service/pkg/db"
@@ -61,8 +60,7 @@ func (h Handlers) Download(rw http.ResponseWriter, req *http.Request) {
 	_, err = h.store.GetByName(ctx, moduleName)
 	if err != nil {
 		span.RecordError(err)
-		var notFoundError faunadb.NotFound
-		if errors.As(err, &notFoundError) {
+		if errors.As(err, &db.ErrNotFound{}) {
 			logger.Error().Msg("unknown plugin")
 			JSONErrorf(rw, http.StatusNotFound, "unknown plugin: %s@%s", moduleName, version)
 			return
@@ -78,8 +76,7 @@ func (h Handlers) Download(rw http.ResponseWriter, req *http.Request) {
 		ph, errH := h.store.GetHashByName(ctx, moduleName, version)
 		if errH != nil {
 			span.RecordError(errH)
-			var notFoundError faunadb.NotFound
-			if !errors.As(errH, &notFoundError) {
+			if !errors.As(errH, &db.ErrNotFound{}) {
 				logger.Error().Err(errH).Msg("failed to get plugin hash")
 				JSONErrorf(rw, http.StatusInternalServerError, "failed to get plugin %s@%s", moduleName, version)
 				return
@@ -206,8 +203,7 @@ func (h Handlers) downloadGitHub(ctx context.Context, moduleName, version string
 		}
 
 		_, err = h.store.GetHashByName(ctx, moduleName, version)
-		var notFoundError faunadb.NotFound
-		if err != nil && !errors.As(err, &notFoundError) {
+		if err != nil && !errors.As(err, &db.ErrNotFound{}) {
 			span.RecordError(err)
 			logger.Err(err).Msg("failed to get plugin hash")
 			JSONErrorf(rw, http.StatusInternalServerError, "failed to get plugin %s@%s", moduleName, version)
@@ -328,8 +324,7 @@ func (h Handlers) Validate(rw http.ResponseWriter, req *http.Request) {
 	headerSum := req.Header.Get(hashHeader)
 	ph, err := h.store.GetHashByName(ctx, moduleName, version)
 	if err != nil {
-		var notFoundError faunadb.NotFound
-		if errors.As(err, &notFoundError) {
+		if errors.As(err, &db.ErrNotFound{}) {
 			span.RecordError(fmt.Errorf("plugin not found %s@%s", moduleName, version))
 			logger.Error().Msg("plugin not found")
 			JSONErrorf(rw, http.StatusNotFound, "plugin not found %s@%s", moduleName, version)
