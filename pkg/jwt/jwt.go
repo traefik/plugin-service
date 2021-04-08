@@ -91,8 +91,7 @@ func (h Handler) check(req *http.Request) (jwt.MapClaims, error) {
 	}
 
 	// Verify 'exp, iat, nbf'
-	valid := mapClaims.Valid()
-	if valid != nil {
+	if valid := mapClaims.Valid(); valid != nil {
 		return nil, fmt.Errorf("invalid token: %w", valid)
 	}
 

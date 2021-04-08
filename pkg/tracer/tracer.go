@@ -2,23 +2,29 @@ package tracer
 
 import (
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/trace/jaeger"
-	"go.opentelemetry.io/otel/label"
 	"go.opentelemetry.io/otel/propagation"
 	export "go.opentelemetry.io/otel/sdk/export/trace"
+	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/semconv"
 )
 
 const serviceName = "plugin"
 
 // Setup setups the tracer.
-func Setup(exporter export.SpanExporter, probability float64) *sdktrace.BatchSpanProcessor {
+func Setup(exporter export.SpanExporter, probability float64) sdktrace.SpanProcessor {
 	bsp := sdktrace.NewBatchSpanProcessor(exporter)
 
-	sampler := sdktrace.TraceIDRatioBased(probability)
+	sampler := sdktrace.ParentBased(sdktrace.TraceIDRatioBased(probability))
 
 	tp := sdktrace.NewTracerProvider(
-		sdktrace.WithConfig(sdktrace.Config{DefaultSampler: sdktrace.ParentBased(sampler)}),
+		sdktrace.WithSampler(sampler),
+		sdktrace.WithResource(resource.NewWithAttributes(
+			semconv.ServiceNameKey.String(serviceName),
+			attribute.String("exporter", "jaeger"),
+		)),
 		sdktrace.WithSpanProcessor(bsp),
 	)
 
@@ -34,11 +40,5 @@ func NewJaegerExporter(endpoint, username, password string) (*jaeger.Exporter, e
 		jaeger.WithCollectorEndpoint(endpoint+"/api/traces",
 			jaeger.WithUsername(username),
 			jaeger.WithPassword(password),
-		),
-		jaeger.WithProcess(jaeger.Process{
-			ServiceName: serviceName,
-			Tags: []label.KeyValue{
-				label.String("exporter", "jaeger"),
-			},
-		}))
+		))
 }
