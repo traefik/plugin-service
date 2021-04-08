@@ -126,7 +126,7 @@ func (m *MongoDB) List(ctx context.Context, page db.Pagination) ([]db.Plugin, st
 	criteria := bson.D{}
 
 	if len(page.Start) > 0 {
-		// page.Start represents a FaunaDB ID and we can't use the $gt operator on a string, it must be done
+		// page.Start represents a MongoDB ID and we can't use the $gt operator on a string, it must be done
 		// on an ObjectID. So, we first need to retrieve the corresponding MongoID.
 		var firstPlugin pluginDocument
 
@@ -217,7 +217,7 @@ func (m *MongoDB) SearchByName(ctx context.Context, name string, page db.Paginat
 			return nil, "", fmt.Errorf("unable to decode next page cursor: %w", err)
 		}
 
-		// nextID represents a FaunaDB ID and we can't use the $gt operator on a string, it must be done
+		// nextID represents a MongoDB ID and we can't use the $gt operator on a string, it must be done
 		// on an ObjectID. So, we first need to retrieve the corresponding MongoID.
 		var firstPlugin pluginDocument
 
