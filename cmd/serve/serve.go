@@ -30,9 +30,9 @@ func run(ctx context.Context, cfg Config) error {
 	bsp := tracer.Setup(exporter, cfg.Tracing.Probability)
 	defer func() { _ = bsp.Shutdown(ctx) }()
 
-	store, tearDown, err := createDBClient(ctx, cfg)
+	store, tearDown, err := internal.CreateMongoClient(ctx, cfg.MongoDB)
 	if err != nil {
-		return err
+		return fmt.Errorf("unable to create MongoDB client: %w", err)
 	}
 	defer tearDown()
 
@@ -146,33 +146,4 @@ func newGitHubClient(ctx context.Context, token string) *github.Client {
 		&oauth2.Token{AccessToken: token},
 	)
 	return github.NewClient(oauth2.NewClient(ctx, ts))
-}
-
-type dbInstance interface {
-	handlers.PluginStorer
-
-	Bootstrap() error
-	Ping(ctx context.Context) error
-}
-
-func createDBClient(ctx context.Context, cfg Config) (dbInstance, func(), error) {
-	switch cfg.Pilot.DatabaseDriver {
-	case "fauna":
-		client, err := internal.CreateFaunaClient(cfg.FaunaDB)
-		if err != nil {
-			return nil, func() {}, fmt.Errorf("unable to create FaunaDB client: %w", err)
-		}
-
-		return client, func() {}, nil
-
-	case "mongo":
-		mongoClient, tearDown, err := internal.CreateMongoClient(ctx, cfg.MongoDB)
-		if err != nil {
-			return nil, func() {}, fmt.Errorf("unable to create MongoDB client: %w", err)
-		}
-
-		return mongoClient, tearDown, nil
-	default:
-		return nil, func() {}, fmt.Errorf("unsupported DB driver type: %s", cfg.Pilot.DatabaseDriver)
-	}
 }

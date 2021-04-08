@@ -1,13 +1,11 @@
 package serve
 
 import (
-	"github.com/traefik/plugin-service/pkg/db/faunadb"
 	"github.com/traefik/plugin-service/pkg/db/mongodb"
 )
 
 // Config holds the serve configuration.
 type Config struct {
-	FaunaDB faunadb.Config
 	MongoDB mongodb.Config
 	Pilot   Pilot
 	Tracing Tracing
@@ -21,7 +19,6 @@ type Pilot struct {
 	TokenURL            string
 	ServicesAccessToken string
 	GitHubToken         string
-	DatabaseDriver      string
 }
 
 // Tracing holds tracing configuration.
