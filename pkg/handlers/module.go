@@ -15,7 +15,7 @@ import (
 	"github.com/google/go-github/v32/github"
 	"github.com/rs/zerolog/log"
 	"github.com/traefik/plugin-service/pkg/db"
-	"go.opentelemetry.io/otel/label"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -85,11 +85,11 @@ func (h Handlers) Download(rw http.ResponseWriter, req *http.Request) {
 			rw.WriteHeader(http.StatusNotModified)
 			return
 		}
-		attributes := []label.KeyValue{
-			{Key: label.Key("module.tokenValue"), Value: label.StringValue(tokenValue)},
-			{Key: label.Key("module.moduleName"), Value: label.StringValue(moduleName)},
-			{Key: label.Key("module.version"), Value: label.StringValue(version)},
-			{Key: label.Key("module.sum"), Value: label.StringValue(sum)},
+		attributes := []attribute.KeyValue{
+			{Key: attribute.Key("module.tokenValue"), Value: attribute.StringValue(tokenValue)},
+			{Key: attribute.Key("module.moduleName"), Value: attribute.StringValue(moduleName)},
+			{Key: attribute.Key("module.version"), Value: attribute.StringValue(version)},
+			{Key: attribute.Key("module.sum"), Value: attribute.StringValue(sum)},
 		}
 		span.AddEvent("module.download", trace.WithAttributes(attributes...))
 		logger.Error().Msgf("Someone is trying to hack the archive: %v", sum)
