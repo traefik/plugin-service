@@ -5,7 +5,6 @@ SHA := $(shell git rev-parse --short HEAD)
 VERSION := $(if $(TAG_NAME),$(TAG_NAME),$(SHA))
 BUILD_DATE := $(shell date -u '+%Y-%m-%d_%I:%M:%S%p')
 LOCAL_DB_MONGO := $(shell docker ps -f "name=mongodb-pilot" --format '{{.Names}}')
-LOCAL_DB_FAUNA := $(shell docker ps -f "name=faunadb" --format '{{.Names}}')
 
 default: clean check test build
 
@@ -16,18 +15,11 @@ ifneq ($(LOCAL_DB_MONGO),mongodb-pilot)
         -e MONGO_INITDB_ROOT_PASSWORD=secret \
         mongo:4.2.11
 endif
-ifneq ($(LOCAL_DB_FAUNA),faunadb)
-	docker run -d --name faunadb -p 8443:8443 -p 8084:8084 fauna/faunadb:4.0.1
-endif
 
 stop-local-db:
 ifeq ($(LOCAL_DB_MONGO),mongodb-pilot)
 	docker stop mongodb-pilot
 	docker rm mongodb-pilot
-endif
-ifeq ($(LOCAL_DB_FAUNA),faunadb)
-	docker stop faunadb
-	docker rm faunadb
 endif
 
 clean:

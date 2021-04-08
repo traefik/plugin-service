@@ -45,12 +45,6 @@ func Command() *cli.Command {
 				EnvVars:  []string{"PILOT_GITHUB_TOKEN"},
 				Required: true,
 			},
-			&cli.StringFlag{
-				Name:    "database-driver",
-				Usage:   "DB to use (fauna/mongo).",
-				EnvVars: []string{"PILOT_DATABASE_DRIVER"},
-				Value:   "fauna",
-			},
 		},
 		Action: func(cliCtx *cli.Context) error {
 			cfg, err := buildConfig(cliCtx)
@@ -64,7 +58,6 @@ func Command() *cli.Command {
 
 	cmd.Flags = append(cmd.Flags, goProxyFlags()...)
 	cmd.Flags = append(cmd.Flags, tracingFlags()...)
-	cmd.Flags = append(cmd.Flags, internal.FaunaFlags()...)
 	cmd.Flags = append(cmd.Flags, internal.MongoFlags()...)
 
 	return cmd
@@ -77,7 +70,6 @@ func buildConfig(cliCtx *cli.Context) (Config, error) {
 	}
 
 	return Config{
-		FaunaDB: internal.BuildFaunaConfig(cliCtx),
 		MongoDB: internal.BuildMongoConfig(cliCtx),
 		Tracing: Tracing{
 			Endpoint:    cliCtx.String("tracing-endpoint"),
@@ -91,7 +83,6 @@ func buildConfig(cliCtx *cli.Context) (Config, error) {
 			TokenURL:            cliCtx.String("token-url"),
 			GitHubToken:         cliCtx.String("github-token"),
 			ServicesAccessToken: string(servicesAccessToken),
-			DatabaseDriver:      cliCtx.String("database-driver"),
 		},
 		GoProxy: GoProxy{
 			URL:      cliCtx.String("go-proxy-url"),

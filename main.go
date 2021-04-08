@@ -4,7 +4,6 @@ import (
 	"os"
 
 	"github.com/rs/zerolog/log"
-	"github.com/traefik/plugin-service/cmd/dbinit"
 	"github.com/traefik/plugin-service/cmd/serve"
 	"github.com/traefik/plugin-service/pkg/logger"
 	"github.com/urfave/cli/v2"
@@ -17,7 +16,6 @@ func main() {
 		Name:  "Plugin CLI",
 		Usage: "Run plugin service",
 		Commands: []*cli.Command{
-			dbinit.Command(),
 			serve.Command(),
 		},
 	}

@@ -690,7 +690,6 @@ func TestMongoDB_CreateHash(t *testing.T) {
 	assert.Equal(t, want, pluginWithHashes.Hashes)
 
 	// With embedded hashes, creating a new one doesn't works if the plugin doesn't exists.
-	// This is not the case with Fauna.
 	_, err = store.CreateHash(ctx, "toto", "v1.2.3", "hash")
 	require.ErrorAs(t, err, &db.ErrNotFound{})
 }
