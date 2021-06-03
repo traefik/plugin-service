@@ -137,13 +137,13 @@ func newGoProxyClient(cfg GoProxy) (*goproxy.Client, error) {
 	return gpClient, nil
 }
 
-func newGitHubClient(ctx context.Context, token string) *github.Client {
-	if len(token) == 0 {
+func newGitHubClient(ctx context.Context, tk string) *github.Client {
+	if tk == "" {
 		return github.NewClient(nil)
 	}
 
 	ts := oauth2.StaticTokenSource(
-		&oauth2.Token{AccessToken: token},
+		&oauth2.Token{AccessToken: tk},
 	)
 	return github.NewClient(oauth2.NewClient(ctx, ts))
 }

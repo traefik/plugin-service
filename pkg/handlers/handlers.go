@@ -160,6 +160,7 @@ func (h Handlers) Create(rw http.ResponseWriter, req *http.Request) {
 	}
 
 	if len(body) == 0 {
+		err = errors.New("empty body")
 		span.RecordError(err)
 		log.Error().Err(err).Msg("Error decoding plugin for creation")
 		JSONError(rw, http.StatusBadRequest, err.Error())
