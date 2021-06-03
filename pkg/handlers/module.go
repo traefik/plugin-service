@@ -39,7 +39,7 @@ func (h Handlers) Download(rw http.ResponseWriter, req *http.Request) {
 	moduleName, version := path.Split(strings.TrimPrefix(req.URL.Path, "/download/"))
 	moduleName = cleanModuleName(moduleName)
 
-	logger := log.With().Str("moduleName", moduleName).Str("moduleVersion", version).Logger()
+	logger := log.With().Str("plugin_name", moduleName).Str("module_version", version).Logger()
 
 	tokenValue := req.Header.Get(tokenHeader)
 	if tokenValue == "" {
@@ -116,7 +116,7 @@ func (h Handlers) downloadGoProxy(ctx context.Context, moduleName, version strin
 		ctx, span = h.tracer.Start(ctx, "handler_downloadGoProxy")
 		defer span.End()
 
-		logger := log.With().Str("moduleName", moduleName).Str("moduleVersion", version).Logger()
+		logger := log.With().Str("plugin_name", moduleName).Str("module_version", version).Logger()
 
 		sources, err := h.goProxy.DownloadSources(moduleName, version)
 		if err != nil {
@@ -192,7 +192,7 @@ func (h Handlers) downloadGitHub(ctx context.Context, moduleName, version string
 		ctx, span = h.tracer.Start(ctx, "handler_downloadGitHub")
 		defer span.End()
 
-		logger := log.Error().Str("moduleName", moduleName).Str("moduleVersion", version)
+		logger := log.Error().Str("plugin_name", moduleName).Str("module_version", version)
 
 		request, err := h.getArchiveLinkRequest(ctx, moduleName, version)
 		if err != nil {
@@ -303,7 +303,7 @@ func (h Handlers) Validate(rw http.ResponseWriter, req *http.Request) {
 	moduleName, version := path.Split(strings.TrimPrefix(req.URL.Path, "/validate/"))
 	moduleName = cleanModuleName(moduleName)
 
-	logger := log.With().Str("moduleName", moduleName).Str("moduleVersion", version).Logger()
+	logger := log.With().Str("plugin_name", moduleName).Str("module_version", version).Logger()
 
 	tokenValue := req.Header.Get(tokenHeader)
 	if tokenValue == "" {
