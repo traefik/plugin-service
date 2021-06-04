@@ -315,7 +315,7 @@ func (h Handlers) Validate(rw http.ResponseWriter, req *http.Request) {
 
 	_, err := h.token.Check(ctx, tokenValue)
 	if err != nil {
-		span.RecordError(errors.New("invalid token"))
+		span.RecordError(err)
 		logger.Error().Err(err).Msg("invalid token")
 		JSONError(rw, http.StatusBadRequest, "invalid token")
 		return
