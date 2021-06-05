@@ -31,7 +31,7 @@ func (h Handlers) Download(rw http.ResponseWriter, req *http.Request) {
 
 	if req.Method != http.MethodGet {
 		span.RecordError(fmt.Errorf("unsupported method: %s", req.Method))
-		log.Error().Msgf("unsupported method: %s", req.Method)
+		log.Error().Msgf("Unsupported method: %s", req.Method)
 		JSONErrorf(rw, http.StatusMethodNotAllowed, "unsupported method: %s", req.Method)
 		return
 	}
@@ -39,21 +39,21 @@ func (h Handlers) Download(rw http.ResponseWriter, req *http.Request) {
 	moduleName, version := path.Split(strings.TrimPrefix(req.URL.Path, "/download/"))
 	moduleName = cleanModuleName(moduleName)
 
-	logger := log.With().Str("plugin_name", moduleName).Str("module_version", version).Logger()
+	logger := log.With().Str("module_name", moduleName).Str("module_version", version).Logger()
 
 	tokenValue := req.Header.Get(tokenHeader)
 	if tokenValue == "" {
 		span.RecordError(errors.New("missing token"))
-		logger.Error().Msg("missing token")
-		JSONError(rw, http.StatusBadRequest, "missing token")
+		logger.Warn().Msg("Missing token")
+		JSONError(rw, http.StatusBadRequest, "Missing token")
 		return
 	}
 
 	_, err := h.token.Check(ctx, tokenValue)
 	if err != nil {
 		span.RecordError(err)
-		logger.Error().Err(err).Msg("invalid token")
-		JSONError(rw, http.StatusBadRequest, "invalid token")
+		logger.Warn().Err(err).Msg("Invalid token")
+		JSONError(rw, http.StatusBadRequest, "Invalid token")
 		return
 	}
 
@@ -61,13 +61,13 @@ func (h Handlers) Download(rw http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		span.RecordError(err)
 		if errors.As(err, &db.ErrNotFound{}) {
-			logger.Error().Msg("unknown plugin")
-			JSONErrorf(rw, http.StatusNotFound, "unknown plugin: %s@%s", moduleName, version)
+			logger.Warn().Err(err).Msg("Unknown plugin")
+			JSONErrorf(rw, http.StatusNotFound, "Unknown plugin: %s@%s", moduleName, version)
 			return
 		}
 
-		logger.Error().Err(err).Msg("failed to get plugin")
-		JSONErrorf(rw, http.StatusInternalServerError, "failed to get plugin %s@%s", moduleName, version)
+		logger.Error().Err(err).Msg("Failed to get plugin")
+		JSONErrorf(rw, http.StatusInternalServerError, "Failed to get plugin %s@%s", moduleName, version)
 		return
 	}
 
@@ -77,14 +77,15 @@ func (h Handlers) Download(rw http.ResponseWriter, req *http.Request) {
 		if errH != nil {
 			span.RecordError(errH)
 			if !errors.As(errH, &db.ErrNotFound{}) {
-				logger.Error().Err(errH).Msg("failed to get plugin hash")
-				JSONErrorf(rw, http.StatusInternalServerError, "failed to get plugin %s@%s", moduleName, version)
+				logger.Error().Err(errH).Msg("Failed to get plugin hash")
+				JSONErrorf(rw, http.StatusInternalServerError, "Failed to get plugin %s@%s", moduleName, version)
 				return
 			}
 		} else if ph.Hash == sum {
 			rw.WriteHeader(http.StatusNotModified)
 			return
 		}
+
 		attributes := []attribute.KeyValue{
 			{Key: attribute.Key("module.tokenValue"), Value: attribute.StringValue(tokenValue)},
 			{Key: attribute.Key("module.moduleName"), Value: attribute.StringValue(moduleName)},
@@ -99,6 +100,7 @@ func (h Handlers) Download(rw http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		span.RecordError(err)
 		logger.Error().Err(err).Msg("Failed to get module file")
+		JSONErrorf(rw, http.StatusInternalServerError, "Failed to get plugin %s@%s", moduleName, version)
 		return
 	}
 
@@ -116,13 +118,13 @@ func (h Handlers) downloadGoProxy(ctx context.Context, moduleName, version strin
 		ctx, span = h.tracer.Start(ctx, "handler_downloadGoProxy")
 		defer span.End()
 
-		logger := log.With().Str("plugin_name", moduleName).Str("module_version", version).Logger()
+		logger := log.With().Str("module_name", moduleName).Str("module_version", version).Logger()
 
 		sources, err := h.goProxy.DownloadSources(moduleName, version)
 		if err != nil {
 			span.RecordError(err)
-			logger.Error().Err(err).Msg("failed to download sources")
-			JSONErrorf(rw, http.StatusInternalServerError, "failed to get plugin %s@%s", moduleName, version)
+			logger.Error().Err(err).Msg("Failed to download sources")
+			JSONErrorf(rw, http.StatusInternalServerError, "Failed to get plugin %s@%s", moduleName, version)
 			return
 		}
 
@@ -131,8 +133,8 @@ func (h Handlers) downloadGoProxy(ctx context.Context, moduleName, version strin
 		_, err = h.store.GetHashByName(ctx, moduleName, version)
 		if err != nil && !errors.As(err, &db.ErrNotFound{}) {
 			span.RecordError(err)
-			logger.Error().Err(err).Msg("failed to get plugin hash")
-			JSONErrorf(rw, http.StatusInternalServerError, "failed to get plugin %s@%s", moduleName, version)
+			logger.Error().Err(err).Msg("Failed to get plugin hash")
+			JSONErrorf(rw, http.StatusInternalServerError, "Failed to get plugin %s@%s", moduleName, version)
 			return
 		}
 
@@ -140,8 +142,8 @@ func (h Handlers) downloadGoProxy(ctx context.Context, moduleName, version strin
 			_, err = io.Copy(rw, sources)
 			if err != nil {
 				span.RecordError(err)
-				logger.Error().Err(err).Msg("failed to write response body")
-				JSONErrorf(rw, http.StatusInternalServerError, "failed to get plugin %s@%s", moduleName, version)
+				logger.Error().Err(err).Msg("Failed to write response body")
+				JSONErrorf(rw, http.StatusInternalServerError, "Failed to get plugin %s@%s", moduleName, version)
 				return
 			}
 
@@ -151,8 +153,8 @@ func (h Handlers) downloadGoProxy(ctx context.Context, moduleName, version strin
 		raw, err := ioutil.ReadAll(sources)
 		if err != nil {
 			span.RecordError(err)
-			logger.Error().Err(err).Msg("failed to read response body")
-			JSONErrorf(rw, http.StatusInternalServerError, "failed to get plugin %s@%s", moduleName, version)
+			logger.Error().Err(err).Msg("Failed to read response body")
+			JSONErrorf(rw, http.StatusInternalServerError, "Failed to get plugin %s@%s", moduleName, version)
 			return
 		}
 
@@ -161,8 +163,8 @@ func (h Handlers) downloadGoProxy(ctx context.Context, moduleName, version strin
 		_, err = hash.Write(raw)
 		if err != nil {
 			span.RecordError(err)
-			logger.Error().Err(err).Msg("failed to compute hash")
-			JSONErrorf(rw, http.StatusInternalServerError, "failed to get plugin %s@%s", moduleName, version)
+			logger.Error().Err(err).Msg("Failed to compute hash")
+			JSONErrorf(rw, http.StatusInternalServerError, "Failed to get plugin %s@%s", moduleName, version)
 			return
 		}
 
@@ -172,7 +174,7 @@ func (h Handlers) downloadGoProxy(ctx context.Context, moduleName, version strin
 		if err != nil {
 			span.RecordError(err)
 			logger.Error().Err(err).Msg("Error persisting plugin hash")
-			JSONErrorf(rw, http.StatusInternalServerError, "could not persist data: %s@%s", moduleName, version)
+			JSONErrorf(rw, http.StatusInternalServerError, "Could not persist data: %s@%s", moduleName, version)
 			return
 		}
 
@@ -192,21 +194,21 @@ func (h Handlers) downloadGitHub(ctx context.Context, moduleName, version string
 		ctx, span = h.tracer.Start(ctx, "handler_downloadGitHub")
 		defer span.End()
 
-		logger := log.Error().Str("plugin_name", moduleName).Str("module_version", version)
+		logger := log.With().Str("module_name", moduleName).Str("module_version", version).Logger()
 
 		request, err := h.getArchiveLinkRequest(ctx, moduleName, version)
 		if err != nil {
 			span.RecordError(err)
-			logger.Err(err).Msg("failed to get archive link")
-			JSONErrorf(rw, http.StatusInternalServerError, "failed to get plugin %s@%s", moduleName, version)
+			logger.Error().Err(err).Msg("Failed to get archive link")
+			JSONErrorf(rw, http.StatusInternalServerError, "Failed to get plugin %s@%s", moduleName, version)
 			return
 		}
 
 		_, err = h.store.GetHashByName(ctx, moduleName, version)
 		if err != nil && !errors.As(err, &db.ErrNotFound{}) {
 			span.RecordError(err)
-			logger.Err(err).Msg("failed to get plugin hash")
-			JSONErrorf(rw, http.StatusInternalServerError, "failed to get plugin %s@%s", moduleName, version)
+			logger.Error().Err(err).Msg("Failed to get plugin hash")
+			JSONErrorf(rw, http.StatusInternalServerError, "Failed to get plugin %s@%s", moduleName, version)
 			return
 		}
 
@@ -214,8 +216,8 @@ func (h Handlers) downloadGitHub(ctx context.Context, moduleName, version string
 			_, err = h.gh.Do(ctx, request, rw)
 			if err != nil {
 				span.RecordError(err)
-				logger.Err(err).Msg("failed to write response body")
-				JSONErrorf(rw, http.StatusInternalServerError, "failed to get plugin %s@%s", moduleName, version)
+				logger.Error().Err(err).Msg("Failed to write response body")
+				JSONErrorf(rw, http.StatusInternalServerError, "Failed to get plugin %s@%s", moduleName, version)
 				return
 			}
 
@@ -227,16 +229,16 @@ func (h Handlers) downloadGitHub(ctx context.Context, moduleName, version string
 		_, err = h.gh.Do(ctx, request, sources)
 		if err != nil {
 			span.RecordError(err)
-			logger.Err(err).Msg("failed to get archive content")
-			JSONErrorf(rw, http.StatusInternalServerError, "failed to get plugin %s@%s", moduleName, version)
+			logger.Error().Err(err).Msg("Failed to get archive content")
+			JSONErrorf(rw, http.StatusInternalServerError, "Failed to get plugin %s@%s", moduleName, version)
 			return
 		}
 
 		raw, err := ioutil.ReadAll(sources)
 		if err != nil {
 			span.RecordError(err)
-			logger.Err(err).Msg("failed to read response body")
-			JSONErrorf(rw, http.StatusInternalServerError, "failed to get plugin %s@%s", moduleName, version)
+			logger.Error().Err(err).Msg("Failed to read response body")
+			JSONErrorf(rw, http.StatusInternalServerError, "Failed to get plugin %s@%s", moduleName, version)
 			return
 		}
 
@@ -245,8 +247,8 @@ func (h Handlers) downloadGitHub(ctx context.Context, moduleName, version string
 		_, err = hash.Write(raw)
 		if err != nil {
 			span.RecordError(err)
-			logger.Err(err).Msg("failed to compute hash")
-			JSONErrorf(rw, http.StatusInternalServerError, "failed to get plugin %s@%s", moduleName, version)
+			logger.Error().Err(err).Msg("Failed to compute hash")
+			JSONErrorf(rw, http.StatusInternalServerError, "Failed to get plugin %s@%s", moduleName, version)
 			return
 		}
 
@@ -255,16 +257,16 @@ func (h Handlers) downloadGitHub(ctx context.Context, moduleName, version string
 		_, err = h.store.CreateHash(ctx, moduleName, version, sum)
 		if err != nil {
 			span.RecordError(err)
-			logger.Err(err).Msg("Error persisting plugin hash")
-			JSONErrorf(rw, http.StatusInternalServerError, "failed to get plugin %s@%s", moduleName, version)
+			logger.Error().Err(err).Msg("Error persisting plugin hash")
+			JSONErrorf(rw, http.StatusInternalServerError, "Failed to get plugin %s@%s", moduleName, version)
 			return
 		}
 
 		_, err = rw.Write(raw)
 		if err != nil {
 			span.RecordError(err)
-			logger.Err(err).Msg("failed to write response body")
-			JSONErrorf(rw, http.StatusInternalServerError, "failed to get plugin %s@%s", moduleName, version)
+			logger.Error().Err(err).Msg("Failed to write response body")
+			JSONErrorf(rw, http.StatusInternalServerError, "Failed to get plugin %s@%s", moduleName, version)
 			return
 		}
 	}
@@ -295,29 +297,29 @@ func (h Handlers) Validate(rw http.ResponseWriter, req *http.Request) {
 
 	if req.Method != http.MethodGet {
 		span.RecordError(fmt.Errorf("unsupported method: %s", req.Method))
-		log.Error().Msgf("unsupported method: %s", req.Method)
-		JSONErrorf(rw, http.StatusMethodNotAllowed, "unsupported method: %s", req.Method)
+		log.Warn().Msgf("Unsupported method: %s", req.Method)
+		JSONErrorf(rw, http.StatusMethodNotAllowed, "Unsupported method: %s", req.Method)
 		return
 	}
 
 	moduleName, version := path.Split(strings.TrimPrefix(req.URL.Path, "/validate/"))
 	moduleName = cleanModuleName(moduleName)
 
-	logger := log.With().Str("plugin_name", moduleName).Str("module_version", version).Logger()
+	logger := log.With().Str("module_name", moduleName).Str("module_version", version).Logger()
 
 	tokenValue := req.Header.Get(tokenHeader)
 	if tokenValue == "" {
 		span.RecordError(errors.New("missing token"))
-		logger.Error().Msg("missing token")
-		JSONError(rw, http.StatusBadRequest, "missing token")
+		logger.Warn().Msg("Missing token")
+		JSONError(rw, http.StatusBadRequest, "Missing token")
 		return
 	}
 
 	_, err := h.token.Check(ctx, tokenValue)
 	if err != nil {
 		span.RecordError(err)
-		logger.Error().Err(err).Msg("invalid token")
-		JSONError(rw, http.StatusBadRequest, "invalid token")
+		logger.Warn().Err(err).Msg("Invalid token")
+		JSONError(rw, http.StatusBadRequest, "Invalid token")
 		return
 	}
 
@@ -326,12 +328,14 @@ func (h Handlers) Validate(rw http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		if errors.As(err, &db.ErrNotFound{}) {
 			span.RecordError(fmt.Errorf("plugin not found %s@%s", moduleName, version))
-			logger.Error().Msg("plugin not found")
-			JSONErrorf(rw, http.StatusNotFound, "plugin not found %s@%s", moduleName, version)
+			logger.Warn().Err(err).Msg("Plugin not found")
+			JSONErrorf(rw, http.StatusNotFound, "Plugin not found %s@%s", moduleName, version)
 			return
 		}
 
-		JSONError(rw, http.StatusInternalServerError, err.Error())
+		span.RecordError(err)
+		logger.Error().Err(err).Msg("Error while fetch")
+		JSONInternalServerError(rw)
 		return
 	}
 

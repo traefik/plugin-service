@@ -68,7 +68,7 @@ func (h Handlers) Get(rw http.ResponseWriter, req *http.Request) {
 	id, err := getPathParam(req.URL)
 	if err != nil {
 		span.RecordError(err)
-		JSONError(rw, http.StatusBadRequest, "missing plugin id")
+		JSONError(rw, http.StatusBadRequest, "Missing plugin id")
 		return
 	}
 
@@ -79,19 +79,19 @@ func (h Handlers) Get(rw http.ResponseWriter, req *http.Request) {
 		span.RecordError(err)
 
 		if errors.As(err, &db.ErrNotFound{}) {
-			JSONError(rw, http.StatusNotFound, "plugin not found")
+			NotFound(rw, req)
 			return
 		}
 
-		logger.Error().Err(err).Msg("Error while fetch")
-		JSONError(rw, http.StatusInternalServerError, "error")
+		logger.Error().Err(err).Msg("Error while trying to get plugin")
+		JSONInternalServerError(rw)
 		return
 	}
 
 	if err := json.NewEncoder(rw).Encode(plugin); err != nil {
 		span.RecordError(err)
-		logger.Error().Err(err).Msg("failed to get plugin")
-		JSONError(rw, http.StatusInternalServerError, "could not write response")
+		logger.Error().Err(err).Msg("Failed to get plugin")
+		JSONInternalServerError(rw)
 		return
 	}
 }
@@ -114,22 +114,25 @@ func (h Handlers) List(rw http.ResponseWriter, req *http.Request) {
 	}
 
 	start := req.URL.Query().Get("start")
+
+	logger := log.With().Str("search_start", start).Logger()
+
 	plugins, next, err := h.store.List(ctx, db.Pagination{
 		Start: start,
 		Size:  defaultPerPage,
 	})
 	if err != nil {
 		span.RecordError(err)
-		log.Error().Err(err).Msg("Error fetching plugins")
-		JSONError(rw, http.StatusNotFound, "could not fetch plugins")
+		logger.Error().Err(err).Msg("Error fetching plugins")
+		NotFound(rw, req)
 		return
 	}
 
 	if len(plugins) == 0 {
 		if err := json.NewEncoder(rw).Encode(make([]*db.Plugin, 0)); err != nil {
 			span.RecordError(err)
-			log.Error().Err(err).Msg("Error sending create response")
-			JSONError(rw, http.StatusInternalServerError, "could not write response")
+			logger.Error().Err(err).Msg("Failed to encode response")
+			JSONInternalServerError(rw)
 		}
 		return
 	}
@@ -138,8 +141,8 @@ func (h Handlers) List(rw http.ResponseWriter, req *http.Request) {
 
 	if err := json.NewEncoder(rw).Encode(plugins); err != nil {
 		span.RecordError(err)
-		log.Error().Err(err).Msg("Error sending create response")
-		JSONError(rw, http.StatusInternalServerError, "could not write response")
+		logger.Error().Err(err).Msg("Failed to encode response")
+		JSONInternalServerError(rw)
 		return
 	}
 }
@@ -155,7 +158,7 @@ func (h Handlers) Create(rw http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		span.RecordError(err)
 		log.Error().Err(err).Msg("Error reading body for creation")
-		JSONError(rw, http.StatusInternalServerError, err.Error())
+		JSONError(rw, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -177,19 +180,21 @@ func (h Handlers) Create(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	logger := log.With().Str("module_name", pl.Name).Logger()
+
 	created, err := h.store.Create(ctx, pl)
 	if err != nil {
 		span.RecordError(err)
-		log.Error().Str("module_name", pl.Name).Err(err).Msg("Error persisting plugin")
-		JSONError(rw, http.StatusInternalServerError, "could not persist data")
+		logger.Error().Err(err).Msg("Error persisting plugin")
+		JSONError(rw, http.StatusInternalServerError, "Could not persist data")
 		return
 	}
 
 	rw.WriteHeader(http.StatusCreated)
 	if err := json.NewEncoder(rw).Encode(created); err != nil {
 		span.RecordError(err)
-		log.Error().Str("module_name", pl.Name).Err(err).Msg("Error sending create response")
-		JSONError(rw, http.StatusInternalServerError, "could not write response")
+		logger.Error().Err(err).Msg("Error sending create response")
+		JSONInternalServerError(rw)
 		return
 	}
 }
@@ -204,15 +209,18 @@ func (h Handlers) Update(rw http.ResponseWriter, req *http.Request) {
 	id, err := getPathParam(req.URL)
 	if err != nil {
 		span.RecordError(err)
-		JSONError(rw, http.StatusBadRequest, "missing plugin id")
+		log.Error().Err(err).Msg("Missing plugin id")
+		JSONError(rw, http.StatusBadRequest, "Missing plugin id")
 		return
 	}
+
+	logger := log.With().Str("plugin_id", id).Logger()
 
 	input := db.Plugin{}
 	err = json.NewDecoder(req.Body).Decode(&input)
 	if err != nil {
 		span.RecordError(err)
-		log.Error().Err(err).Msg("Error reading body for update")
+		logger.Error().Err(err).Msg("Error reading body for update")
 		JSONError(rw, http.StatusBadRequest, err.Error())
 		return
 	}
@@ -223,21 +231,21 @@ func (h Handlers) Update(rw http.ResponseWriter, req *http.Request) {
 
 		if errors.As(err, &db.ErrNotFound{}) {
 			span.RecordError(err)
-			JSONError(rw, http.StatusNotFound, "plugin not found")
+			log.Error().Err(err).Msg("Plugin not found")
+			NotFound(rw, req)
 			return
 		}
 
-		log.Error().Str("plugin_id", id).Err(err).Msg("Error updating plugin")
-
-		JSONError(rw, http.StatusInternalServerError, "could not update plugin")
+		logger.Error().Err(err).Msg("Error updating plugin")
+		JSONInternalServerError(rw)
 		return
 	}
 
 	rw.WriteHeader(http.StatusOK)
 	if err := json.NewEncoder(rw).Encode(pg); err != nil {
 		span.RecordError(err)
-		log.Error().Str("plugin_id", id).Err(err).Msg("failed to marshal plugin")
-		JSONError(rw, http.StatusInternalServerError, "could not write response")
+		logger.Error().Err(err).Msg("Failed to marshal plugin")
+		JSONInternalServerError(rw)
 		return
 	}
 }
@@ -250,15 +258,17 @@ func (h Handlers) Delete(rw http.ResponseWriter, req *http.Request) {
 	id, err := getPathParam(req.URL)
 	if err != nil {
 		span.RecordError(err)
-		log.Error().Err(err).Msg("missing plugin id")
-		JSONError(rw, http.StatusBadRequest, "missing plugin id")
+		log.Warn().Err(err).Msg("Missing plugin id")
+		JSONError(rw, http.StatusBadRequest, "Missing plugin id")
 		return
 	}
+
+	logger := log.With().Str("plugin_id", id).Logger()
 
 	_, err = h.store.Get(ctx, id)
 	if err != nil {
 		span.RecordError(err)
-		log.Error().Str("plugin_id", id).Err(err).Msg("failed to get plugin information")
+		logger.Error().Err(err).Msg("Failed to get plugin information")
 		NotFound(rw, req)
 		return
 	}
@@ -266,8 +276,8 @@ func (h Handlers) Delete(rw http.ResponseWriter, req *http.Request) {
 	err = h.store.Delete(ctx, id)
 	if err != nil {
 		span.RecordError(err)
-		log.Error().Str("plugin_id", id).Err(err).Msg("failed to delete the plugin info")
-		JSONError(rw, http.StatusBadRequest, "failed to delete plugin info")
+		logger.Error().Err(err).Msg("Failed to delete the plugin info")
+		JSONError(rw, http.StatusInternalServerError, "Failed to delete plugin info")
 		return
 	}
 }
@@ -279,8 +289,9 @@ func (h Handlers) searchByName(rw http.ResponseWriter, req *http.Request) {
 	rw.Header().Set("Content-Type", "application/json")
 
 	query := unquote(req.FormValue("query"))
-
 	start := req.URL.Query().Get("start")
+
+	logger := log.With().Str("search_query", query).Str("search_start", start).Logger()
 
 	plugins, next, err := h.store.SearchByName(ctx, query, db.Pagination{
 		Start: start,
@@ -288,16 +299,16 @@ func (h Handlers) searchByName(rw http.ResponseWriter, req *http.Request) {
 	})
 	if err != nil {
 		span.RecordError(err)
-		log.Error().Str("query", query).Err(err).Msg("unable to get plugins by name")
-		JSONError(rw, http.StatusBadRequest, "unable to get plugins")
+		logger.Error().Err(err).Msg("Unable to get plugins by name")
+		JSONError(rw, http.StatusBadRequest, "Unable to get plugins")
 		return
 	}
 
 	if len(plugins) == 0 {
 		if err := json.NewEncoder(rw).Encode(make([]*db.Plugin, 0)); err != nil {
 			span.RecordError(err)
-			log.Error().Str("query", query).Err(err).Msg("Error sending create response")
-			JSONError(rw, http.StatusInternalServerError, "could not write response")
+			logger.Error().Err(err).Msg("Error sending create response")
+			JSONInternalServerError(rw)
 		}
 		return
 	}
@@ -306,8 +317,8 @@ func (h Handlers) searchByName(rw http.ResponseWriter, req *http.Request) {
 
 	if err := json.NewEncoder(rw).Encode(plugins); err != nil {
 		span.RecordError(err)
-		log.Error().Str("query", query).Err(err).Msg("Error sending create response")
-		JSONError(rw, http.StatusInternalServerError, "could not write response")
+		logger.Error().Err(err).Msg("Error sending create response")
+		JSONInternalServerError(rw)
 		return
 	}
 }
@@ -318,26 +329,27 @@ func (h Handlers) getByName(rw http.ResponseWriter, req *http.Request) {
 
 	name := unquote(req.FormValue("name"))
 
+	logger := log.With().Str("module_name", name).Logger()
+
 	plugin, err := h.store.GetByName(ctx, name)
 	if err != nil {
 		span.RecordError(err)
 
 		if errors.As(err, &db.ErrNotFound{}) {
-			log.Error().Str("plugin_name", name).Msg("plugin not found")
-			JSONError(rw, http.StatusNotFound, "plugin not found")
+			logger.Error().Msg("plugin not found")
+			NotFound(rw, req)
 			return
 		}
 
-		log.Error().Str("plugin_name", name).Err(err).Msg("Error while fetch")
-
-		JSONError(rw, http.StatusInternalServerError, "error")
+		logger.Error().Err(err).Msg("Error while fetch")
+		JSONInternalServerError(rw)
 		return
 	}
 
 	if err := json.NewEncoder(rw).Encode([]*db.Plugin{&plugin}); err != nil {
 		span.RecordError(err)
-		log.Error().Str("plugin_name", name).Err(err).Msg("failed to get plugin")
-		JSONError(rw, http.StatusInternalServerError, "could not write response")
+		logger.Error().Err(err).Msg("Failed to encode response")
+		JSONInternalServerError(rw)
 		return
 	}
 }

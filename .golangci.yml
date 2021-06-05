@@ -43,10 +43,6 @@ linters-settings:
       - rangeValCopy
       - octalLiteral
       - paramTypeCombine # already handle by gofumpt.extra-rules
-  tagliatelle:
-    case:
-      rules:
-        json: camel
 
 linters:
   enable-all: true
