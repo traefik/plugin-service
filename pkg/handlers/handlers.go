@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -78,7 +78,7 @@ func (h Handlers) Get(rw http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		span.RecordError(err)
 
-		if errors.As(err, &db.ErrNotFound{}) {
+		if errors.As(err, &db.NotFoundError{}) {
 			NotFound(rw, req)
 			return
 		}
@@ -154,7 +154,7 @@ func (h Handlers) Create(rw http.ResponseWriter, req *http.Request) {
 
 	rw.Header().Set("Content-Type", "application/json")
 
-	body, err := ioutil.ReadAll(req.Body)
+	body, err := io.ReadAll(req.Body)
 	if err != nil {
 		span.RecordError(err)
 		log.Error().Err(err).Msg("Error reading body for creation")
@@ -229,7 +229,7 @@ func (h Handlers) Update(rw http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		span.RecordError(err)
 
-		if errors.As(err, &db.ErrNotFound{}) {
+		if errors.As(err, &db.NotFoundError{}) {
 			span.RecordError(err)
 			log.Error().Err(err).Msg("Plugin not found")
 			NotFound(rw, req)
@@ -335,7 +335,7 @@ func (h Handlers) getByName(rw http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		span.RecordError(err)
 
-		if errors.As(err, &db.ErrNotFound{}) {
+		if errors.As(err, &db.NotFoundError{}) {
 			logger.Error().Msg("plugin not found")
 			NotFound(rw, req)
 			return

@@ -2,13 +2,13 @@ package db
 
 import "fmt"
 
-// ErrNotFound represents a document not found error.
-type ErrNotFound struct {
+// NotFoundError represents a document not found error.
+type NotFoundError struct {
 	Err error
 }
 
 // Error stringifies the error.
-func (e ErrNotFound) Error() string {
+func (e NotFoundError) Error() string {
 	if e.Err == nil {
 		return "not found"
 	}
@@ -17,4 +17,4 @@ func (e ErrNotFound) Error() string {
 }
 
 // Unwrap returns the underlying error.
-func (e ErrNotFound) Unwrap() error { return e.Err }
+func (e NotFoundError) Unwrap() error { return e.Err }

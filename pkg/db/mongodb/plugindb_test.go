@@ -106,7 +106,7 @@ func TestMongoDB_Get(t *testing.T) {
 
 	// Make sure we receive a NotFound error when the plugin doesn't exist.
 	_, err = store.Get(ctx, "456")
-	require.ErrorAs(t, err, &db.ErrNotFound{})
+	require.ErrorAs(t, err, &db.NotFoundError{})
 }
 
 func TestMongoDB_Delete(t *testing.T) {
@@ -126,7 +126,7 @@ func TestMongoDB_Delete(t *testing.T) {
 
 	// Make sure we receive a NotFound error when the plugin doesn't exist.
 	err = store.Delete(ctx, "456")
-	require.ErrorAs(t, err, &db.ErrNotFound{})
+	require.ErrorAs(t, err, &db.NotFoundError{})
 }
 
 func TestMongoDB_List(t *testing.T) {
@@ -212,7 +212,7 @@ func TestMongoDB_GetByName(t *testing.T) {
 
 	// Make sure we receive a NotFound error when the plugin doesn't exist.
 	_, err = store.GetByName(ctx, "something-else")
-	require.ErrorAs(t, err, &db.ErrNotFound{})
+	require.ErrorAs(t, err, &db.NotFoundError{})
 }
 
 func TestMongoDB_SearchByName(t *testing.T) {
@@ -634,7 +634,7 @@ func TestMongoDB_Update(t *testing.T) {
 
 	// Check that we get a db.NotFound when no plugin have the given id.
 	_, err = store.Update(ctx, "456", got)
-	require.ErrorAs(t, err, &db.ErrNotFound{})
+	require.ErrorAs(t, err, &db.NotFoundError{})
 }
 
 func TestMongoDB_CreateHash(t *testing.T) {
@@ -691,7 +691,7 @@ func TestMongoDB_CreateHash(t *testing.T) {
 
 	// With embedded hashes, creating a new one doesn't works if the plugin doesn't exists.
 	_, err = store.CreateHash(ctx, "toto", "v1.2.3", "hash")
-	require.ErrorAs(t, err, &db.ErrNotFound{})
+	require.ErrorAs(t, err, &db.NotFoundError{})
 }
 
 func TestMongoDB_GetHashByName(t *testing.T) {
@@ -743,7 +743,7 @@ func TestMongoDB_GetHashByName(t *testing.T) {
 
 	// Check non existing version
 	_, err = store.GetHashByName(ctx, "plugin", "v1.1.4")
-	require.ErrorAs(t, err, &db.ErrNotFound{})
+	require.ErrorAs(t, err, &db.NotFoundError{})
 }
 
 type fixture struct {

@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"path"
@@ -45,7 +45,7 @@ func (c Client) Check(ctx context.Context, token string) (*Token, error) {
 	query.Set("value", token)
 	endpoint.RawQuery = query.Encode()
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint.String(), nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint.String(), http.NoBody)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
@@ -61,7 +61,7 @@ func (c Client) Check(ctx context.Context, token string) (*Token, error) {
 
 	defer func() { _ = resp.Body.Close() }()
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response body: %w", err)
 	}
@@ -95,7 +95,7 @@ func (c Client) Get(ctx context.Context, token string) (*Token, error) {
 		return nil, fmt.Errorf("failed to parse endpoint URL: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint.String(), nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint.String(), http.NoBody)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
@@ -111,7 +111,7 @@ func (c Client) Get(ctx context.Context, token string) (*Token, error) {
 
 	defer func() { _ = resp.Body.Close() }()
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response body: %w", err)
 	}

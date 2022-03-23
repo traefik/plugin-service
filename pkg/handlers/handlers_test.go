@@ -2,9 +2,9 @@ package handlers
 
 import (
 	"context"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 	"time"
 
@@ -64,7 +64,7 @@ func TestHandlers_List(t *testing.T) {
 	assert.Equal(t, http.StatusOK, rw.Code)
 	assert.Equal(t, "next", rw.Header().Get(nextPageHeader))
 
-	file, err := ioutil.ReadFile("./fixtures/get_plugins.json")
+	file, err := os.ReadFile("./fixtures/get_plugins.json")
 	require.NoError(t, err)
 
 	assert.JSONEq(t, string(file), rw.Body.String())
@@ -102,7 +102,7 @@ func TestHandlers_List_GetByName(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, rw.Code)
 
-	file, err := ioutil.ReadFile("./fixtures/get_plugin_by_name.json")
+	file, err := os.ReadFile("./fixtures/get_plugin_by_name.json")
 	require.NoError(t, err)
 
 	assert.JSONEq(t, string(file), rw.Body.String())
@@ -140,7 +140,7 @@ func TestHandlers_List_SearchByName(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, rw.Code)
 
-	file, err := ioutil.ReadFile("./fixtures/get_plugin_by_name.json")
+	file, err := os.ReadFile("./fixtures/get_plugin_by_name.json")
 	require.NoError(t, err)
 
 	assert.JSONEq(t, string(file), rw.Body.String())

@@ -68,6 +68,9 @@ linters:
     - exhaustivestruct
     - ifshort
     - noctx
+    - varnamelen
+    - ireturn
+    - contextcheck
 
 issues:
   exclude-use-default: false
@@ -82,6 +85,7 @@ issues:
       linters:
         - funlen
         - unused
+        - maintidx
     - path: pkg/handlers/module.go
       text: Function 'Download' is too long (.*)
     - path: pkg/handlers/module.go

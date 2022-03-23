@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"path"
 	"strings"
@@ -60,7 +59,7 @@ func (h Handlers) Download(rw http.ResponseWriter, req *http.Request) {
 	_, err = h.store.GetByName(ctx, moduleName)
 	if err != nil {
 		span.RecordError(err)
-		if errors.As(err, &db.ErrNotFound{}) {
+		if errors.As(err, &db.NotFoundError{}) {
 			logger.Warn().Err(err).Msg("Unknown plugin")
 			JSONErrorf(rw, http.StatusNotFound, "Unknown plugin: %s@%s", moduleName, version)
 			return
@@ -76,7 +75,7 @@ func (h Handlers) Download(rw http.ResponseWriter, req *http.Request) {
 		ph, errH := h.store.GetHashByName(ctx, moduleName, version)
 		if errH != nil {
 			span.RecordError(errH)
-			if !errors.As(errH, &db.ErrNotFound{}) {
+			if !errors.As(errH, &db.NotFoundError{}) {
 				logger.Error().Err(errH).Msg("Failed to get plugin hash")
 				JSONErrorf(rw, http.StatusInternalServerError, "Failed to get plugin %s@%s", moduleName, version)
 				return
@@ -131,7 +130,7 @@ func (h Handlers) downloadGoProxy(ctx context.Context, moduleName, version strin
 		defer func() { _ = sources.Close() }()
 
 		_, err = h.store.GetHashByName(ctx, moduleName, version)
-		if err != nil && !errors.As(err, &db.ErrNotFound{}) {
+		if err != nil && !errors.As(err, &db.NotFoundError{}) {
 			span.RecordError(err)
 			logger.Error().Err(err).Msg("Failed to get plugin hash")
 			JSONErrorf(rw, http.StatusInternalServerError, "Failed to get plugin %s@%s", moduleName, version)
@@ -150,7 +149,7 @@ func (h Handlers) downloadGoProxy(ctx context.Context, moduleName, version strin
 			return
 		}
 
-		raw, err := ioutil.ReadAll(sources)
+		raw, err := io.ReadAll(sources)
 		if err != nil {
 			span.RecordError(err)
 			logger.Error().Err(err).Msg("Failed to read response body")
@@ -205,7 +204,7 @@ func (h Handlers) downloadGitHub(ctx context.Context, moduleName, version string
 		}
 
 		_, err = h.store.GetHashByName(ctx, moduleName, version)
-		if err != nil && !errors.As(err, &db.ErrNotFound{}) {
+		if err != nil && !errors.As(err, &db.NotFoundError{}) {
 			span.RecordError(err)
 			logger.Error().Err(err).Msg("Failed to get plugin hash")
 			JSONErrorf(rw, http.StatusInternalServerError, "Failed to get plugin %s@%s", moduleName, version)
@@ -234,7 +233,7 @@ func (h Handlers) downloadGitHub(ctx context.Context, moduleName, version string
 			return
 		}
 
-		raw, err := ioutil.ReadAll(sources)
+		raw, err := io.ReadAll(sources)
 		if err != nil {
 			span.RecordError(err)
 			logger.Error().Err(err).Msg("Failed to read response body")
@@ -287,7 +286,7 @@ func (h Handlers) getArchiveLinkRequest(ctx context.Context, moduleName, version
 		return nil, fmt.Errorf("failed to get archive link: %w", err)
 	}
 
-	return http.NewRequestWithContext(ctx, http.MethodGet, link.String(), nil)
+	return http.NewRequestWithContext(ctx, http.MethodGet, link.String(), http.NoBody)
 }
 
 // Validate validates a plugin archive.
@@ -326,7 +325,7 @@ func (h Handlers) Validate(rw http.ResponseWriter, req *http.Request) {
 	headerSum := req.Header.Get(hashHeader)
 	ph, err := h.store.GetHashByName(ctx, moduleName, version)
 	if err != nil {
-		if errors.As(err, &db.ErrNotFound{}) {
+		if errors.As(err, &db.NotFoundError{}) {
 			span.RecordError(fmt.Errorf("plugin not found %s@%s", moduleName, version))
 			logger.Warn().Err(err).Msg("Plugin not found")
 			JSONErrorf(rw, http.StatusNotFound, "Plugin not found %s@%s", moduleName, version)

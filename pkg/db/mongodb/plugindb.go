@@ -61,7 +61,7 @@ func (m *MongoDB) Get(ctx context.Context, id string) (db.Plugin, error) {
 		span.RecordError(err)
 
 		if errors.Is(err, mongo.ErrNoDocuments) {
-			return db.Plugin{}, db.ErrNotFound{Err: err}
+			return db.Plugin{}, db.NotFoundError{Err: err}
 		}
 
 		return db.Plugin{}, err
@@ -87,7 +87,7 @@ func (m *MongoDB) Delete(ctx context.Context, id string) error {
 	}
 
 	if res.DeletedCount == 0 {
-		return db.ErrNotFound{Err: err}
+		return db.NotFoundError{Err: err}
 	}
 
 	return nil
@@ -191,7 +191,7 @@ func (m *MongoDB) GetByName(ctx context.Context, name string) (db.Plugin, error)
 		span.RecordError(err)
 
 		if errors.Is(err, mongo.ErrNoDocuments) {
-			return db.Plugin{}, db.ErrNotFound{Err: err}
+			return db.Plugin{}, db.NotFoundError{Err: err}
 		}
 
 		return db.Plugin{}, err
@@ -297,7 +297,7 @@ func (m *MongoDB) Update(ctx context.Context, id string, plugin db.Plugin) (db.P
 		span.RecordError(err)
 
 		if errors.Is(err, mongo.ErrNoDocuments) {
-			return db.Plugin{}, db.ErrNotFound{Err: err}
+			return db.Plugin{}, db.NotFoundError{Err: err}
 		}
 
 		return db.Plugin{}, fmt.Errorf("unable to update plugin: %w", err)
@@ -337,7 +337,7 @@ func (m *MongoDB) CreateHash(ctx context.Context, module, version, hash string) 
 		span.RecordError(err)
 
 		if errors.Is(err, mongo.ErrNoDocuments) {
-			return db.PluginHash{}, db.ErrNotFound{Err: err}
+			return db.PluginHash{}, db.NotFoundError{Err: err}
 		}
 
 		return db.PluginHash{}, fmt.Errorf("unable to create plugin hash: %w", err)
@@ -371,7 +371,7 @@ func (m *MongoDB) GetHashByName(ctx context.Context, module, version string) (db
 		span.RecordError(err)
 
 		if errors.Is(err, mongo.ErrNoDocuments) {
-			return db.PluginHash{}, db.ErrNotFound{Err: err}
+			return db.PluginHash{}, db.NotFoundError{Err: err}
 		}
 
 		return db.PluginHash{}, fmt.Errorf("unable to get plugin hash: %w", err)

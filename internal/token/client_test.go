@@ -20,6 +20,7 @@ func mock(data interface{}, status int) *httptest.Server {
 			err := json.NewEncoder(w).Encode(data)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
 			}
 		}))
 }
