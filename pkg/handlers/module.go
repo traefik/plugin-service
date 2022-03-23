@@ -41,22 +41,17 @@ func (h Handlers) Download(rw http.ResponseWriter, req *http.Request) {
 	logger := log.With().Str("module_name", moduleName).Str("module_version", version).Logger()
 
 	tokenValue := req.Header.Get(tokenHeader)
-	if tokenValue == "" {
-		span.RecordError(errors.New("missing token"))
-		logger.Warn().Msg("Missing token")
-		JSONError(rw, http.StatusBadRequest, "Missing token")
-		return
+	if tokenValue != "" {
+		_, err := h.token.Check(ctx, tokenValue)
+		if err != nil {
+			span.RecordError(err)
+			logger.Warn().Err(err).Msg("Invalid token")
+			JSONError(rw, http.StatusBadRequest, "Invalid token")
+			return
+		}
 	}
 
-	_, err := h.token.Check(ctx, tokenValue)
-	if err != nil {
-		span.RecordError(err)
-		logger.Warn().Err(err).Msg("Invalid token")
-		JSONError(rw, http.StatusBadRequest, "Invalid token")
-		return
-	}
-
-	_, err = h.store.GetByName(ctx, moduleName)
+	_, err := h.store.GetByName(ctx, moduleName)
 	if err != nil {
 		span.RecordError(err)
 		if errors.As(err, &db.NotFoundError{}) {
@@ -307,19 +302,14 @@ func (h Handlers) Validate(rw http.ResponseWriter, req *http.Request) {
 	logger := log.With().Str("module_name", moduleName).Str("module_version", version).Logger()
 
 	tokenValue := req.Header.Get(tokenHeader)
-	if tokenValue == "" {
-		span.RecordError(errors.New("missing token"))
-		logger.Warn().Msg("Missing token")
-		JSONError(rw, http.StatusBadRequest, "Missing token")
-		return
-	}
-
-	_, err := h.token.Check(ctx, tokenValue)
-	if err != nil {
-		span.RecordError(err)
-		logger.Warn().Err(err).Msg("Invalid token")
-		JSONError(rw, http.StatusBadRequest, "Invalid token")
-		return
+	if tokenValue != "" {
+		_, err := h.token.Check(ctx, tokenValue)
+		if err != nil {
+			span.RecordError(err)
+			logger.Warn().Err(err).Msg("Invalid token")
+			JSONError(rw, http.StatusBadRequest, "Invalid token")
+			return
+		}
 	}
 
 	headerSum := req.Header.Get(hashHeader)
