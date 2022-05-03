@@ -67,6 +67,7 @@ linters:
     - exhaustive
     - exhaustivestruct
     - ifshort
+    - prealloc
     - noctx
     - varnamelen
     - ireturn
