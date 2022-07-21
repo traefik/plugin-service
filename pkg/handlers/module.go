@@ -40,17 +40,6 @@ func (h Handlers) Download(rw http.ResponseWriter, req *http.Request) {
 
 	logger := log.With().Str("module_name", moduleName).Str("module_version", version).Logger()
 
-	tokenValue := req.Header.Get(tokenHeader)
-	if tokenValue != "" {
-		_, err := h.token.Check(ctx, tokenValue)
-		if err != nil {
-			span.RecordError(err)
-			logger.Warn().Err(err).Msg("Invalid token")
-			JSONError(rw, http.StatusBadRequest, "Invalid token")
-			return
-		}
-	}
-
 	_, err := h.store.GetByName(ctx, moduleName)
 	if err != nil {
 		span.RecordError(err)
@@ -81,11 +70,12 @@ func (h Handlers) Download(rw http.ResponseWriter, req *http.Request) {
 		}
 
 		attributes := []attribute.KeyValue{
-			{Key: attribute.Key("module.tokenValue"), Value: attribute.StringValue(tokenValue)},
+			{Key: attribute.Key("module.tokenValue"), Value: attribute.StringValue(req.Header.Get(tokenHeader))},
 			{Key: attribute.Key("module.moduleName"), Value: attribute.StringValue(moduleName)},
 			{Key: attribute.Key("module.version"), Value: attribute.StringValue(version)},
 			{Key: attribute.Key("module.sum"), Value: attribute.StringValue(sum)},
 		}
+
 		span.AddEvent("module.download", trace.WithAttributes(attributes...))
 		logger.Error().Msgf("Someone is trying to hack the archive: %v", sum)
 	}
@@ -300,17 +290,6 @@ func (h Handlers) Validate(rw http.ResponseWriter, req *http.Request) {
 	moduleName = cleanModuleName(moduleName)
 
 	logger := log.With().Str("module_name", moduleName).Str("module_version", version).Logger()
-
-	tokenValue := req.Header.Get(tokenHeader)
-	if tokenValue != "" {
-		_, err := h.token.Check(ctx, tokenValue)
-		if err != nil {
-			span.RecordError(err)
-			logger.Warn().Err(err).Msg("Invalid token")
-			JSONError(rw, http.StatusBadRequest, "Invalid token")
-			return
-		}
-	}
 
 	headerSum := req.Header.Get(hashHeader)
 	ph, err := h.store.GetHashByName(ctx, moduleName, version)
