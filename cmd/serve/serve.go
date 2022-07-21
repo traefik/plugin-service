@@ -10,7 +10,6 @@ import (
 	"github.com/julienschmidt/httprouter"
 	"github.com/ldez/grignotin/goproxy"
 	"github.com/traefik/plugin-service/cmd/internal"
-	"github.com/traefik/plugin-service/internal/token"
 	"github.com/traefik/plugin-service/pkg/handlers"
 	"github.com/traefik/plugin-service/pkg/healthcheck"
 	"github.com/traefik/plugin-service/pkg/jwt"
@@ -54,7 +53,6 @@ func run(ctx context.Context, cfg Config) error {
 		store,
 		gpClient,
 		ghClient,
-		token.New(cfg.Pilot.TokenURL, cfg.Pilot.ServicesAccessToken),
 	)
 
 	healthChecker := healthcheck.Client{DB: store}

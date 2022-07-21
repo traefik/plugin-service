@@ -14,11 +14,9 @@ type Config struct {
 
 // Pilot holds pilots configuration.
 type Pilot struct {
-	Host                string
-	JWTCert             string
-	TokenURL            string
-	ServicesAccessToken string
-	GitHubToken         string
+	Host        string
+	JWTCert     string
+	GitHubToken string
 }
 
 // Tracing holds tracing configuration.

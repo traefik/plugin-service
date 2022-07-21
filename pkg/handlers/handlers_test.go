@@ -59,7 +59,7 @@ func TestHandlers_List(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 
-	New(testDB, nil, nil, nil).List(rw, req)
+	New(testDB, nil, nil).List(rw, req)
 
 	assert.Equal(t, http.StatusOK, rw.Code)
 	assert.Equal(t, "next", rw.Header().Get(nextPageHeader))
@@ -98,7 +98,7 @@ func TestHandlers_List_GetByName(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodGet, "/?name=Demo%20Plugin", nil)
 
-	New(testDB, nil, nil, nil).getByName(rw, req)
+	New(testDB, nil, nil).getByName(rw, req)
 
 	assert.Equal(t, http.StatusOK, rw.Code)
 
@@ -136,7 +136,7 @@ func TestHandlers_List_SearchByName(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodGet, "/?query=demo", nil)
 
-	New(testDB, nil, nil, nil).getByName(rw, req)
+	New(testDB, nil, nil).getByName(rw, req)
 
 	assert.Equal(t, http.StatusOK, rw.Code)
 
