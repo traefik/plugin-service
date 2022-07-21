@@ -53,6 +53,7 @@ linters:
     - golint # deprecated
     - sqlclosecheck # not relevant (SQL)
     - rowserrcheck # not relevant (SQL)
+    - execinquery # not relevant (SQL)
     - cyclop # duplicate of gocyclo
     - lll
     - dupl
@@ -66,12 +67,16 @@ linters:
     - wsl
     - exhaustive
     - exhaustivestruct
+    - exhaustruct
     - ifshort
     - prealloc
     - noctx
     - varnamelen
     - ireturn
     - contextcheck
+    - nosnakecase
+    - varnamelen
+    - nonamedreturns
 
 issues:
   exclude-use-default: false
