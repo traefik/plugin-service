@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"regexp"
 	"strconv"
+	"time"
 
 	"github.com/google/go-github/v35/github"
 	"github.com/ldez/grignotin/goproxy"
@@ -30,11 +31,31 @@ type PluginStorer interface {
 	Create(context.Context, db.Plugin) (db.Plugin, error)
 	List(context.Context, db.Pagination) ([]db.Plugin, string, error)
 	GetByName(context.Context, string) (db.Plugin, error)
-	SearchByName(context.Context, string, db.Pagination) ([]db.Plugin, string, error)
+	SearchByDisplayName(context.Context, string, db.Pagination) ([]db.Plugin, string, error)
 	Update(context.Context, string, db.Plugin) (db.Plugin, error)
 
 	CreateHash(ctx context.Context, module, version, hash string) (db.PluginHash, error)
 	GetHashByName(ctx context.Context, module, version string) (db.PluginHash, error)
+}
+
+// PluginView The plugin information.
+type PluginView struct {
+	ID            string                 `json:"id,omitempty"`
+	Name          string                 `json:"name,omitempty"`
+	DisplayName   string                 `json:"displayName,omitempty"`
+	Author        string                 `json:"author,omitempty"`
+	Type          string                 `json:"type,omitempty"`
+	Import        string                 `json:"import,omitempty"`
+	Compatibility string                 `json:"compatibility,omitempty"`
+	Summary       string                 `json:"summary,omitempty"`
+	IconURL       string                 `json:"iconUrl,omitempty"`
+	BannerURL     string                 `json:"bannerUrl,omitempty"`
+	Readme        string                 `json:"readme,omitempty"`
+	LatestVersion string                 `json:"latestVersion,omitempty"`
+	Versions      []string               `json:"versions,omitempty"`
+	Stars         int                    `json:"stars,omitempty"`
+	Snippet       map[string]interface{} `json:"snippet,omitempty"`
+	CreatedAt     time.Time              `json:"createdAt"`
 }
 
 // Handlers a set of handlers.
@@ -85,7 +106,7 @@ func (h Handlers) Get(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	if err := json.NewEncoder(rw).Encode(plugin); err != nil {
+	if err := json.NewEncoder(rw).Encode(pluginToPluginView(plugin)); err != nil {
 		span.RecordError(err)
 		logger.Error().Err(err).Msg("Failed to get plugin")
 		JSONInternalServerError(rw)
@@ -126,13 +147,13 @@ func (h Handlers) List(rw http.ResponseWriter, req *http.Request) {
 	}
 
 	// TODO: detection of the plugin name changes must be done in piceus.
-	var cleanPlugins []db.Plugin
+	var cleanPlugins []PluginView
 	for _, plugin := range plugins {
 		if plugin.Name == "github.com/tommoulard/fail2ban" || plugin.Name == "github.com/tommoulard/htransformation" {
 			continue
 		}
 
-		cleanPlugins = append(cleanPlugins, plugin)
+		cleanPlugins = append(cleanPlugins, pluginToPluginView(plugin))
 	}
 
 	if len(cleanPlugins) == 0 {
@@ -177,7 +198,7 @@ func (h Handlers) Create(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	pl := db.Plugin{}
+	pl := PluginView{}
 
 	err = json.Unmarshal(body, &pl)
 	if err != nil {
@@ -189,7 +210,7 @@ func (h Handlers) Create(rw http.ResponseWriter, req *http.Request) {
 
 	logger := log.With().Str("module_name", pl.Name).Logger()
 
-	created, err := h.store.Create(ctx, pl)
+	created, err := h.store.Create(ctx, pluginViewToPlugin(pl))
 	if err != nil {
 		span.RecordError(err)
 		logger.Error().Err(err).Msg("Error persisting plugin")
@@ -223,7 +244,7 @@ func (h Handlers) Update(rw http.ResponseWriter, req *http.Request) {
 
 	logger := log.With().Str("plugin_id", id).Logger()
 
-	input := db.Plugin{}
+	input := PluginView{}
 	err = json.NewDecoder(req.Body).Decode(&input)
 	if err != nil {
 		span.RecordError(err)
@@ -232,7 +253,7 @@ func (h Handlers) Update(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	pg, err := h.store.Update(ctx, id, input)
+	pg, err := h.store.Update(ctx, id, pluginViewToPlugin(input))
 	if err != nil {
 		span.RecordError(err)
 
@@ -300,7 +321,7 @@ func (h Handlers) searchByName(rw http.ResponseWriter, req *http.Request) {
 
 	logger := log.With().Str("search_query", query).Str("search_start", start).Logger()
 
-	plugins, next, err := h.store.SearchByName(ctx, query, db.Pagination{
+	plugins, next, err := h.store.SearchByDisplayName(ctx, query, db.Pagination{
 		Start: start,
 		Size:  defaultPerPage,
 	})
@@ -353,7 +374,9 @@ func (h Handlers) getByName(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	if err := json.NewEncoder(rw).Encode([]*db.Plugin{&plugin}); err != nil {
+	pv := pluginToPluginView(plugin)
+
+	if err := json.NewEncoder(rw).Encode([]*PluginView{&pv}); err != nil {
 		span.RecordError(err)
 		logger.Error().Err(err).Msg("Failed to encode response")
 		JSONInternalServerError(rw)
@@ -384,4 +407,63 @@ func unquote(value string) string {
 	}
 
 	return unquote
+}
+
+func pluginToPluginView(plugin db.Plugin) PluginView {
+	p := PluginView{
+		ID:            plugin.ID,
+		Name:          plugin.Name,
+		DisplayName:   plugin.DisplayName,
+		Author:        plugin.Author,
+		Type:          plugin.Type,
+		Import:        "",
+		Compatibility: plugin.Compatibility,
+		Summary:       plugin.Summary,
+		IconURL:       plugin.IconURL,
+		BannerURL:     plugin.BannerURL,
+		Readme:        plugin.Readme,
+		LatestVersion: plugin.LatestVersion,
+		Stars:         plugin.Stars,
+		Snippet:       plugin.Snippet,
+		CreatedAt:     plugin.CreatedAt,
+	}
+
+	for _, version := range plugin.Versions {
+		p.Versions = append(p.Versions, version.Name)
+		if version.Name == p.LatestVersion {
+			p.Import = version.Import
+		}
+	}
+
+	return p
+}
+
+func pluginViewToPlugin(plugin PluginView) db.Plugin {
+	p := db.Plugin{
+		ID:            plugin.ID,
+		Name:          plugin.Name,
+		DisplayName:   plugin.DisplayName,
+		Author:        plugin.Author,
+		Type:          plugin.Type,
+		Compatibility: plugin.Compatibility,
+		Summary:       plugin.Summary,
+		IconURL:       plugin.IconURL,
+		BannerURL:     plugin.BannerURL,
+		Readme:        plugin.Readme,
+		LatestVersion: plugin.LatestVersion,
+		Stars:         plugin.Stars,
+		Snippet:       plugin.Snippet,
+		CreatedAt:     plugin.CreatedAt,
+	}
+
+	for _, version := range plugin.Versions {
+		if version == plugin.LatestVersion {
+			p.Versions = append(p.Versions, db.PluginVersion{
+				Name:   plugin.LatestVersion,
+				Import: plugin.Import,
+			})
+		}
+	}
+
+	return p
 }

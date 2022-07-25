@@ -4,22 +4,27 @@ import "time"
 
 // Plugin The plugin information.
 type Plugin struct {
-	ID            string                 `json:"id,omitempty" bson:"id"`
-	Name          string                 `json:"name,omitempty" bson:"name"`
-	DisplayName   string                 `json:"displayName,omitempty" bson:"displayName"`
-	Author        string                 `json:"author,omitempty" bson:"author"`
-	Type          string                 `json:"type,omitempty" bson:"type"`
-	Import        string                 `json:"import,omitempty" bson:"import"`
-	Compatibility string                 `json:"compatibility,omitempty" bson:"compatibility"`
-	Summary       string                 `json:"summary,omitempty" bson:"summary"`
-	IconURL       string                 `json:"iconUrl,omitempty" bson:"iconUrl"`
-	BannerURL     string                 `json:"bannerUrl,omitempty" bson:"bannerUrl"`
-	Readme        string                 `json:"readme,omitempty" bson:"readme"`
-	LatestVersion string                 `json:"latestVersion,omitempty" bson:"latestVersion"`
-	Versions      []string               `json:"versions,omitempty" bson:"versions"`
-	Stars         int                    `json:"stars,omitempty" bson:"stars"`
-	Snippet       map[string]interface{} `json:"snippet,omitempty" bson:"snippet"`
-	CreatedAt     time.Time              `json:"createdAt" bson:"createdAt"`
+	ID            string                 `bson:"id"`
+	Name          string                 `bson:"name"`
+	DisplayName   string                 `bson:"displayName"`
+	Author        string                 `bson:"author"`
+	Type          string                 `bson:"type"`
+	Compatibility string                 `bson:"compatibility"`
+	Summary       string                 `bson:"summary"`
+	IconURL       string                 `bson:"iconUrl"`
+	BannerURL     string                 `bson:"bannerUrl"`
+	Readme        string                 `bson:"readme"`
+	LatestVersion string                 `bson:"latestVersion"`
+	Versions      []PluginVersion        `bson:"versions"`
+	Stars         int                    `bson:"stars"`
+	Snippet       map[string]interface{} `bson:"snippet"`
+	CreatedAt     time.Time              `bson:"createdAt"`
+}
+
+// PluginVersion is a plugin version with the correct import.
+type PluginVersion struct {
+	Name   string `json:"name" bson:"name"`
+	Import string `json:"import" bson:"import"`
 }
 
 // PluginHash The plugin hash tuple..

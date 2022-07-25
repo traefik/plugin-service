@@ -21,7 +21,6 @@ func TestHandlers_List(t *testing.T) {
 			CreatedAt:     time.Date(2020, 1, 1, 1, 0, 0, 0, time.UTC),
 			DisplayName:   "Demo Plugin",
 			ID:            "276809780784267776",
-			Import:        "github.com/traefik/plugindemo",
 			LatestVersion: "v0.2.1",
 			Name:          "github.com/traefik/plugindemo",
 			Readme:        "README",
@@ -29,7 +28,11 @@ func TestHandlers_List(t *testing.T) {
 			Stars:         22,
 			Summary:       "[Demo] Add Request Header",
 			Type:          "middleware",
-			Versions:      []string{"v0.2.1", "v0.2.0", "v0.1.0"},
+			Versions: []db.PluginVersion{{
+				Name: "v0.2.1", Import: "github.com/traefik/plugindemo"},
+				{Name: "v0.2.0", Import: "github.com/traefik/plugindemo"},
+				{Name: "v0.1.0", Import: "github.com/Traefik/plugindemo"},
+			},
 		},
 		{
 			Author:        "traefik",
@@ -37,7 +40,6 @@ func TestHandlers_List(t *testing.T) {
 			CreatedAt:     time.Date(2020, 1, 1, 1, 0, 0, 0, time.UTC),
 			DisplayName:   "Block Path",
 			ID:            "2768097807845374",
-			Import:        "github.com/traefik/plugin-blockpath",
 			LatestVersion: "v0.3.1",
 			Name:          "github.com/traefik/plugin-blockpath",
 			Readme:        "README",
@@ -45,7 +47,11 @@ func TestHandlers_List(t *testing.T) {
 			Stars:         3,
 			Summary:       "Block Path plugin",
 			Type:          "middleware",
-			Versions:      []string{"v0.3.1", "v0.2.0", "v0.1.0"},
+			Versions: []db.PluginVersion{{
+				Name: "v0.3.1", Import: "github.com/traefik/plugin-blockpath"},
+				{Name: "v0.2.0", Import: "github.com/traefik/plugin-blockpath"},
+				{Name: "v0.1.0", Import: "github.com/traefik/plugin-blockpath"},
+			},
 		},
 	}
 
@@ -77,7 +83,6 @@ func TestHandlers_List_GetByName(t *testing.T) {
 		CreatedAt:     time.Date(2020, 1, 1, 1, 0, 0, 0, time.UTC),
 		DisplayName:   "Demo Plugin",
 		ID:            "276809780784267776",
-		Import:        "github.com/traefik/plugindemo",
 		LatestVersion: "v0.2.1",
 		Name:          "github.com/traefik/plugindemo",
 		Readme:        "README",
@@ -85,7 +90,11 @@ func TestHandlers_List_GetByName(t *testing.T) {
 		Stars:         22,
 		Summary:       "[Demo] Add Request Header",
 		Type:          "middleware",
-		Versions:      []string{"v0.2.1", "v0.2.0", "v0.1.0"},
+		Versions: []db.PluginVersion{
+			{Name: "v0.2.1", Import: "github.com/traefik/plugindemo"},
+			{Name: "v0.2.0", Import: "github.com/traefik/plugindemo"},
+			{Name: "v0.1.0", Import: "github.com/Traefik/plugindemo"},
+		},
 	}
 
 	testDB := mockDB{
@@ -115,7 +124,6 @@ func TestHandlers_List_SearchByName(t *testing.T) {
 		CreatedAt:     time.Date(2020, 1, 1, 1, 0, 0, 0, time.UTC),
 		DisplayName:   "Demo Plugin",
 		ID:            "276809780784267776",
-		Import:        "github.com/traefik/plugindemo",
 		LatestVersion: "v0.2.1",
 		Name:          "github.com/traefik/plugindemo",
 		Readme:        "README",
@@ -123,7 +131,11 @@ func TestHandlers_List_SearchByName(t *testing.T) {
 		Stars:         22,
 		Summary:       "[Demo] Add Request Header",
 		Type:          "middleware",
-		Versions:      []string{"v0.2.1", "v0.2.0", "v0.1.0"},
+		Versions: []db.PluginVersion{{
+			Name: "v0.2.1", Import: "github.com/traefik/plugindemo"},
+			{Name: "v0.2.0", Import: "github.com/traefik/plugindemo"},
+			{Name: "v0.1.0", Import: "github.com/Traefik/plugindemo"},
+		},
 	}
 
 	testDB := mockDB{

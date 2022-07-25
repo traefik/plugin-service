@@ -30,14 +30,13 @@ func TestMongoDB_Create(t *testing.T) {
 		DisplayName:   "display-name",
 		Author:        "author",
 		Type:          "type",
-		Import:        "import",
 		Compatibility: "compatibility",
 		Summary:       "summary",
 		IconURL:       "iconURL",
 		BannerURL:     "bannerURL",
 		Readme:        "readme",
 		LatestVersion: "latestVersion",
-		Versions:      []string{"v1.0.0"},
+		Versions:      []db.PluginVersion{{Name: "v1.0.0", Import: "import"}},
 		Stars:         10,
 		Snippet: map[string]interface{}{
 			"something": "there",
@@ -80,14 +79,13 @@ func TestMongoDB_Get(t *testing.T) {
 					DisplayName:   "display-name",
 					Author:        "author",
 					Type:          "type",
-					Import:        "import",
 					Compatibility: "compatibility",
 					Summary:       "summary",
 					IconURL:       "iconURL",
 					BannerURL:     "bannerURL",
 					Readme:        "readme",
 					LatestVersion: "latestVersion",
-					Versions:      []string{"v1.0.0"},
+					Versions:      []db.PluginVersion{{Name: "v1.0.0", Import: "import"}},
 					Stars:         10,
 					Snippet: map[string]interface{}{
 						"something": "there",
@@ -186,14 +184,13 @@ func TestMongoDB_GetByName(t *testing.T) {
 					DisplayName:   "display-name",
 					Author:        "author",
 					Type:          "type",
-					Import:        "import",
 					Compatibility: "compatibility",
 					Summary:       "summary",
 					IconURL:       "iconURL",
 					BannerURL:     "bannerURL",
 					Readme:        "readme",
 					LatestVersion: "latestVersion",
-					Versions:      []string{"v1.0.0"},
+					Versions:      []db.PluginVersion{{Name: "v1.0.0", Import: "import"}},
 					Stars:         10,
 					Snippet: map[string]interface{}{
 						"something": "there",
@@ -206,6 +203,12 @@ func TestMongoDB_GetByName(t *testing.T) {
 
 	// Make sure we can get an existing plugin.
 	got, err := store.GetByName(ctx, "my-super-plugin")
+	require.NoError(t, err)
+
+	assert.Equal(t, fixtures["my-super-plugin"].Plugin, toUTCPlugin(got))
+
+	// Make sure we can get an existing plugin (case-insensitive).
+	got, err = store.GetByName(ctx, "My-Super-Plugin")
 	require.NoError(t, err)
 
 	assert.Equal(t, fixtures["my-super-plugin"].Plugin, toUTCPlugin(got))
@@ -227,14 +230,13 @@ func TestMongoDB_SearchByName(t *testing.T) {
 					DisplayName:   "plugin-1",
 					Author:        "author",
 					Type:          "type",
-					Import:        "import",
 					Compatibility: "compatibility",
 					Summary:       "summary",
 					IconURL:       "iconURL",
 					BannerURL:     "bannerURL",
 					Readme:        "readme",
 					LatestVersion: "latestVersion",
-					Versions:      []string{"v1.0.0"},
+					Versions:      []db.PluginVersion{{Name: "v1.0.0", Import: "import"}},
 					Stars:         10,
 					Snippet: map[string]interface{}{
 						"something": "there",
@@ -252,14 +254,13 @@ func TestMongoDB_SearchByName(t *testing.T) {
 					DisplayName:   "plugin-2",
 					Author:        "author",
 					Type:          "type",
-					Import:        "import",
 					Compatibility: "compatibility",
 					Summary:       "summary",
 					IconURL:       "iconURL",
 					BannerURL:     "bannerURL",
 					Readme:        "readme",
 					LatestVersion: "latestVersion",
-					Versions:      []string{"v1.0.0"},
+					Versions:      []db.PluginVersion{{Name: "v1.0.0", Import: "import"}},
 					Stars:         10,
 					Snippet: map[string]interface{}{
 						"something": "there",
@@ -277,14 +278,13 @@ func TestMongoDB_SearchByName(t *testing.T) {
 					DisplayName:   "plugin-3",
 					Author:        "author",
 					Type:          "type",
-					Import:        "import",
 					Compatibility: "compatibility",
 					Summary:       "summary",
 					IconURL:       "iconURL",
 					BannerURL:     "bannerURL",
 					Readme:        "readme",
 					LatestVersion: "latestVersion",
-					Versions:      []string{"v1.0.0"},
+					Versions:      []db.PluginVersion{{Name: "v1.0.0", Import: "import"}},
 					Stars:         10,
 					Snippet: map[string]interface{}{
 						"something": "there",
@@ -302,14 +302,13 @@ func TestMongoDB_SearchByName(t *testing.T) {
 					DisplayName:   "plugin-4",
 					Author:        "author",
 					Type:          "type",
-					Import:        "import",
 					Compatibility: "compatibility",
 					Summary:       "summary",
 					IconURL:       "iconURL",
 					BannerURL:     "bannerURL",
 					Readme:        "readme",
 					LatestVersion: "latestVersion",
-					Versions:      []string{"v1.0.0"},
+					Versions:      []db.PluginVersion{{Name: "v1.0.0", Import: "import"}},
 					Stars:         10,
 					Snippet: map[string]interface{}{
 						"something": "there",
@@ -327,14 +326,13 @@ func TestMongoDB_SearchByName(t *testing.T) {
 					DisplayName:   "salad-tomate-onion",
 					Author:        "author",
 					Type:          "type",
-					Import:        "import",
 					Compatibility: "compatibility",
 					Summary:       "summary",
 					IconURL:       "iconURL",
 					BannerURL:     "bannerURL",
 					Readme:        "readme",
 					LatestVersion: "latestVersion",
-					Versions:      []string{"v1.0.0"},
+					Versions:      []db.PluginVersion{{Name: "v1.0.0", Import: "import"}},
 					Stars:         10,
 					Snippet: map[string]interface{}{
 						"something": "there",
@@ -352,14 +350,13 @@ func TestMongoDB_SearchByName(t *testing.T) {
 					DisplayName:   "salad-tom.te-onion",
 					Author:        "author",
 					Type:          "type",
-					Import:        "import",
 					Compatibility: "compatibility",
 					Summary:       "summary",
 					IconURL:       "iconURL",
 					BannerURL:     "bannerURL",
 					Readme:        "readme",
 					LatestVersion: "latestVersion",
-					Versions:      []string{"v1.0.0"},
+					Versions:      []db.PluginVersion{{Name: "v1.0.0", Import: "import"}},
 					Stars:         10,
 					Snippet: map[string]interface{}{
 						"something": "there",
@@ -377,14 +374,13 @@ func TestMongoDB_SearchByName(t *testing.T) {
 					DisplayName:   "hi^hello",
 					Author:        "author",
 					Type:          "type",
-					Import:        "import",
 					Compatibility: "compatibility",
 					Summary:       "summary",
 					IconURL:       "iconURL",
 					BannerURL:     "bannerURL",
 					Readme:        "readme",
 					LatestVersion: "latestVersion",
-					Versions:      []string{"v1.0.0"},
+					Versions:      []db.PluginVersion{{Name: "v1.0.0", Import: "import"}},
 					Stars:         10,
 					Snippet: map[string]interface{}{
 						"something": "there",
@@ -402,14 +398,13 @@ func TestMongoDB_SearchByName(t *testing.T) {
 					DisplayName:   "hello",
 					Author:        "author",
 					Type:          "type",
-					Import:        "import",
 					Compatibility: "compatibility",
 					Summary:       "summary",
 					IconURL:       "iconURL",
 					BannerURL:     "bannerURL",
 					Readme:        "readme",
 					LatestVersion: "latestVersion",
-					Versions:      []string{"v1.0.0"},
+					Versions:      []db.PluginVersion{{Name: "v1.0.0", Import: "import"}},
 					Stars:         10,
 					Snippet: map[string]interface{}{
 						"something": "there",
@@ -427,14 +422,13 @@ func TestMongoDB_SearchByName(t *testing.T) {
 					DisplayName:   "h([]){}.*p",
 					Author:        "author",
 					Type:          "type",
-					Import:        "import",
 					Compatibility: "compatibility",
 					Summary:       "summary",
 					IconURL:       "iconURL",
 					BannerURL:     "bannerURL",
 					Readme:        "readme",
 					LatestVersion: "latestVersion",
-					Versions:      []string{"v1.0.0"},
+					Versions:      []db.PluginVersion{{Name: "v1.0.0", Import: "import"}},
 					Stars:         10,
 					Snippet: map[string]interface{}{
 						"something": "there",
@@ -452,14 +446,13 @@ func TestMongoDB_SearchByName(t *testing.T) {
 					DisplayName:   "*",
 					Author:        "author",
 					Type:          "type",
-					Import:        "import",
 					Compatibility: "compatibility",
 					Summary:       "summary",
 					IconURL:       "iconURL",
 					BannerURL:     "bannerURL",
 					Readme:        "readme",
 					LatestVersion: "latestVersion",
-					Versions:      []string{"v1.0.0"},
+					Versions:      []db.PluginVersion{{Name: "v1.0.0", Import: "import"}},
 					Stars:         10,
 					Snippet: map[string]interface{}{
 						"something": "there",
@@ -544,7 +537,7 @@ func TestMongoDB_SearchByName(t *testing.T) {
 		test := test
 
 		t.Run(test.desc, func(t *testing.T) {
-			plugins, nextID, err := store.SearchByName(ctx, test.query, test.pagination)
+			plugins, nextID, err := store.SearchByDisplayName(ctx, test.query, test.pagination)
 			if test.wantErr {
 				require.Error(t, err)
 				return
@@ -570,18 +563,15 @@ func TestMongoDB_Update(t *testing.T) {
 					DisplayName:   "plugin",
 					Author:        "author",
 					Type:          "type",
-					Import:        "import",
 					Compatibility: "compatibility",
 					Summary:       "summary",
 					IconURL:       "icon",
 					BannerURL:     "banner",
 					Readme:        "readme",
 					LatestVersion: "v1.1.1",
-					Versions: []string{
-						"v1.1.1",
-					},
-					Stars:   10,
-					Snippet: nil,
+					Versions:      []db.PluginVersion{{Name: "v1.1.1", Import: "import"}},
+					Stars:         10,
+					Snippet:       nil,
 				},
 				Hashes: []db.PluginHash{
 					{Name: "plugin@v1.1.1", Hash: "123"},
@@ -596,24 +586,22 @@ func TestMongoDB_Update(t *testing.T) {
 		DisplayName:   "plugin",
 		Author:        "New Author",
 		Type:          "type",
-		Import:        "import",
 		Compatibility: "compatibility",
 		Summary:       "summary",
 		IconURL:       "icon",
 		BannerURL:     "banner",
 		Readme:        "readme",
 		LatestVersion: "v1.1.1",
-		Versions: []string{
-			"v1.1.1",
-		},
-		Stars:   10,
-		Snippet: nil,
+		Versions:      []db.PluginVersion{{Name: "v1.1.1", Import: "import2"}, {Name: "v1.1.2", Import: "import2"}},
+		Stars:         10,
+		Snippet:       nil,
 	})
 	require.NoError(t, err)
 
 	want := fixtures["plugin"].Plugin
 	want.Name = "New Name"
 	want.Author = "New Author"
+	want.Versions = []db.PluginVersion{{Name: "v1.1.1", Import: "import"}, {Name: "v1.1.2", Import: "import2"}}
 
 	assert.Equal(t, want, got)
 
@@ -650,18 +638,15 @@ func TestMongoDB_CreateHash(t *testing.T) {
 					DisplayName:   "plugin",
 					Author:        "author",
 					Type:          "type",
-					Import:        "import",
 					Compatibility: "compatibility",
 					Summary:       "summary",
 					IconURL:       "icon",
 					BannerURL:     "banner",
 					Readme:        "readme",
 					LatestVersion: "v1.1.1",
-					Versions: []string{
-						"v1.1.1",
-					},
-					Stars:   10,
-					Snippet: nil,
+					Versions:      []db.PluginVersion{{Name: "v1.1.1", Import: "import"}},
+					Stars:         10,
+					Snippet:       nil,
 				},
 				Hashes: []db.PluginHash{
 					{Name: "plugin@v1.1.1", Hash: "123"},
@@ -707,18 +692,15 @@ func TestMongoDB_GetHashByName(t *testing.T) {
 					DisplayName:   "plugin",
 					Author:        "author",
 					Type:          "type",
-					Import:        "import",
 					Compatibility: "compatibility",
 					Summary:       "summary",
 					IconURL:       "icon",
 					BannerURL:     "banner",
 					Readme:        "readme",
 					LatestVersion: "v1.1.1",
-					Versions: []string{
-						"v1.1.1",
-					},
-					Stars:   10,
-					Snippet: nil,
+					Versions:      []db.PluginVersion{{Name: "v1.1.1", Import: "import"}},
+					Stars:         10,
+					Snippet:       nil,
 				},
 				Hashes: []db.PluginHash{
 					{Name: "plugin@v1.1.2", Hash: "123"},

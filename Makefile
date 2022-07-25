@@ -19,7 +19,7 @@ ifneq ($(LOCAL_DB_MONGO),mongodb-pilot)
 	docker run -d -p 27017:27017 --name mongodb-pilot \
         -e MONGO_INITDB_ROOT_USERNAME=mongoadmin \
         -e MONGO_INITDB_ROOT_PASSWORD=secret \
-        mongo:4.2.11
+        mongo:5.0.9
 endif
 
 stop-local-db:

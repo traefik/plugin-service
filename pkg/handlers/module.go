@@ -40,7 +40,7 @@ func (h Handlers) Download(rw http.ResponseWriter, req *http.Request) {
 
 	logger := log.With().Str("module_name", moduleName).Str("module_version", version).Logger()
 
-	_, err := h.store.GetByName(ctx, moduleName)
+	plugin, err := h.store.GetByName(ctx, moduleName)
 	if err != nil {
 		span.RecordError(err)
 		if errors.As(err, &db.NotFoundError{}) {
@@ -50,6 +50,13 @@ func (h Handlers) Download(rw http.ResponseWriter, req *http.Request) {
 		}
 
 		logger.Error().Err(err).Msg("Failed to get plugin")
+		JSONErrorf(rw, http.StatusInternalServerError, "Failed to get plugin %s@%s", moduleName, version)
+		return
+	}
+
+	moduleName, err = getModuleNameWithVersion(plugin, version)
+	if err != nil {
+		logger.Error().Err(err).Msg("Failed to get plugin version")
 		JSONErrorf(rw, http.StatusInternalServerError, "Failed to get plugin %s@%s", moduleName, version)
 		return
 	}
@@ -94,6 +101,16 @@ func (h Handlers) Download(rw http.ResponseWriter, req *http.Request) {
 	}
 
 	h.downloadGoProxy(ctx, moduleName, version)(rw, req)
+}
+
+func getModuleNameWithVersion(plugin db.Plugin, version string) (string, error) {
+	for _, v := range plugin.Versions {
+		if v.Name == version {
+			return v.Import, nil
+		}
+	}
+
+	return "", errors.New("version not found")
 }
 
 func (h Handlers) downloadGoProxy(ctx context.Context, moduleName, version string) http.HandlerFunc {
