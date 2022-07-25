@@ -125,17 +125,7 @@ func (h Handlers) List(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// TODO: detection of the plugin name changes must be done in piceus.
-	var cleanPlugins []db.Plugin
-	for _, plugin := range plugins {
-		if plugin.Name == "github.com/tommoulard/fail2ban" || plugin.Name == "github.com/tommoulard/htransformation" {
-			continue
-		}
-
-		cleanPlugins = append(cleanPlugins, plugin)
-	}
-
-	if len(cleanPlugins) == 0 {
+	if len(plugins) == 0 {
 		if err := json.NewEncoder(rw).Encode(make([]*db.Plugin, 0)); err != nil {
 			span.RecordError(err)
 			logger.Error().Err(err).Msg("Failed to encode response")
@@ -146,7 +136,7 @@ func (h Handlers) List(rw http.ResponseWriter, req *http.Request) {
 
 	rw.Header().Set(nextPageHeader, next)
 
-	if err := json.NewEncoder(rw).Encode(cleanPlugins); err != nil {
+	if err := json.NewEncoder(rw).Encode(plugins); err != nil {
 		span.RecordError(err)
 		logger.Error().Err(err).Msg("Failed to encode response")
 		JSONInternalServerError(rw)
@@ -335,6 +325,7 @@ func (h Handlers) getByName(rw http.ResponseWriter, req *http.Request) {
 	defer span.End()
 
 	name := unquote(req.FormValue("name"))
+	name = cleanModuleName(name)
 
 	logger := log.With().Str("module_name", name).Logger()
 
