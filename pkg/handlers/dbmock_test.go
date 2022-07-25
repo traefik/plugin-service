@@ -40,7 +40,7 @@ func (m mockDB) GetByName(ctx context.Context, name string) (db.Plugin, error) {
 	return m.getByNameFn(ctx, name)
 }
 
-func (m mockDB) SearchByName(ctx context.Context, query string, pagination db.Pagination) ([]db.Plugin, string, error) {
+func (m mockDB) SearchByDisplayName(ctx context.Context, query string, pagination db.Pagination) ([]db.Plugin, string, error) {
 	return m.searchByNameFn(ctx, query, pagination)
 }
 

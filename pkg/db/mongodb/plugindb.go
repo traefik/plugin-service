@@ -179,7 +179,7 @@ func (m *MongoDB) GetByName(ctx context.Context, name string) (db.Plugin, error)
 	defer span.End()
 
 	criteria := bson.D{
-		{Key: "name", Value: name},
+		{Key: "name", Value: primitive.Regex{Pattern: regexp.QuoteMeta(name), Options: "i"}},
 	}
 
 	opts := &options.FindOneOptions{}
@@ -200,8 +200,8 @@ func (m *MongoDB) GetByName(ctx context.Context, name string) (db.Plugin, error)
 	return plugin, nil
 }
 
-// SearchByName searches for plugins matching with the given name.
-func (m *MongoDB) SearchByName(ctx context.Context, name string, page db.Pagination) ([]db.Plugin, string, error) {
+// SearchByDisplayName searches for plugins matching with the given display name.
+func (m *MongoDB) SearchByDisplayName(ctx context.Context, name string, page db.Pagination) ([]db.Plugin, string, error) {
 	ctx, span := m.tracer.Start(ctx, "db_search_by_name")
 	defer span.End()
 
@@ -286,8 +286,37 @@ func (m *MongoDB) Update(ctx context.Context, id string, plugin db.Plugin) (db.P
 		{Key: "id", Value: id},
 	}
 
-	update := bson.D{
-		{Key: "$set", Value: plugin},
+	update := bson.A{
+		bson.D{{Key: "$set", Value: bson.D{{Key: "name", Value: plugin.Name}}}},
+		bson.D{{Key: "$set", Value: bson.D{{Key: "displayName", Value: plugin.DisplayName}}}},
+		bson.D{{Key: "$set", Value: bson.D{{Key: "author", Value: plugin.Author}}}},
+		bson.D{{Key: "$set", Value: bson.D{{Key: "type", Value: plugin.Type}}}},
+		bson.D{{Key: "$set", Value: bson.D{{Key: "compatibility", Value: plugin.Compatibility}}}},
+		bson.D{{Key: "$set", Value: bson.D{{Key: "summary", Value: plugin.Summary}}}},
+		bson.D{{Key: "$set", Value: bson.D{{Key: "iconUrl", Value: plugin.IconURL}}}},
+		bson.D{{Key: "$set", Value: bson.D{{Key: "bannerUrl", Value: plugin.BannerURL}}}},
+		bson.D{{Key: "$set", Value: bson.D{{Key: "readme", Value: plugin.Readme}}}},
+		bson.D{{Key: "$set", Value: bson.D{{Key: "latestVersion", Value: plugin.LatestVersion}}}},
+		bson.D{{Key: "$set", Value: bson.D{{Key: "stars", Value: plugin.Stars}}}},
+		bson.D{{Key: "$set", Value: bson.D{{Key: "snippet", Value: plugin.Snippet}}}},
+		// needs mongo > 4.2
+		bson.D{{Key: "$set", Value: bson.D{{Key: "versions", Value: bson.D{
+			{Key: "$concatArrays", Value: bson.A{"$versions", bson.D{
+				{Key: "$filter", Value: bson.D{
+					{Key: "input", Value: plugin.Versions},
+					{Key: "cond", Value: bson.D{
+						{Key: "$not", Value: bson.D{
+							{Key: "$in", Value: bson.A{
+								"$$this.name", "$versions.name",
+							}},
+						}},
+					}},
+				},
+				}},
+			}},
+		}},
+		}},
+		},
 	}
 
 	opts := &options.FindOneAndUpdateOptions{}
