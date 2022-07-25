@@ -85,6 +85,7 @@ func (h Handlers) Get(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	plugin.Name = cleanModuleName(plugin.Name)
 	if err := json.NewEncoder(rw).Encode(plugin); err != nil {
 		span.RecordError(err)
 		logger.Error().Err(err).Msg("Failed to get plugin")
@@ -125,12 +126,9 @@ func (h Handlers) List(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// TODO: detection of the plugin name changes must be done in piceus.
 	var cleanPlugins []db.Plugin
 	for _, plugin := range plugins {
-		if plugin.Name == "github.com/tommoulard/fail2ban" || plugin.Name == "github.com/tommoulard/htransformation" {
-			continue
-		}
+		plugin.Name = cleanModuleName(plugin.Name)
 
 		cleanPlugins = append(cleanPlugins, plugin)
 	}
@@ -178,6 +176,7 @@ func (h Handlers) Create(rw http.ResponseWriter, req *http.Request) {
 	}
 
 	pl := db.Plugin{}
+	pl.Name = cleanModuleName(pl.Name)
 
 	err = json.Unmarshal(body, &pl)
 	if err != nil {
@@ -232,6 +231,7 @@ func (h Handlers) Update(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	input.Name = cleanModuleName(input.Name)
 	pg, err := h.store.Update(ctx, id, input)
 	if err != nil {
 		span.RecordError(err)
@@ -335,6 +335,7 @@ func (h Handlers) getByName(rw http.ResponseWriter, req *http.Request) {
 	defer span.End()
 
 	name := unquote(req.FormValue("name"))
+	name = cleanModuleName(name)
 
 	logger := log.With().Str("module_name", name).Logger()
 

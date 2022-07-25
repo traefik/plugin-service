@@ -33,6 +33,10 @@ func Test_cleanModuleName(t *testing.T) {
 			name:     "powpow/v2/",
 			expected: "powpow/v2",
 		},
+		{
+			name:     "PowPow/v2/",
+			expected: "powpow/v2",
+		},
 	}
 
 	for _, test := range testCases {

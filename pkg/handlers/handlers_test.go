@@ -90,6 +90,7 @@ func TestHandlers_List_GetByName(t *testing.T) {
 
 	testDB := mockDB{
 		getByNameFn: func(ctx context.Context, query string) (db.Plugin, error) {
+			assert.Equal(t, query, "demo plugin")
 			return data, nil
 		},
 	}
