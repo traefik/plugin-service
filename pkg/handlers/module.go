@@ -316,5 +316,5 @@ func (h Handlers) Validate(rw http.ResponseWriter, req *http.Request) {
 }
 
 func cleanModuleName(moduleName string) string {
-	return strings.TrimSuffix(strings.TrimPrefix(moduleName, "/"), "/")
+	return strings.ToLower(strings.TrimSuffix(strings.TrimPrefix(moduleName, "/"), "/"))
 }
