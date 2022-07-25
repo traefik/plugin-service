@@ -123,7 +123,7 @@ func (m *MongoDB) List(ctx context.Context, page db.Pagination) ([]db.Plugin, st
 	ctx, span := m.tracer.Start(ctx, "db_create")
 	defer span.End()
 
-	criteria := bson.D{}
+	criteria := bson.D{{Key: "disabled", Value: bson.D{{Key: "$in", Value: bson.A{false, nil}}}}}
 
 	if len(page.Start) > 0 {
 		// page.Start represents a MongoDB ID and we can't use the $gt operator on a string, it must be done

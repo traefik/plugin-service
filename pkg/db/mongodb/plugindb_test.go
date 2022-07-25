@@ -150,6 +150,12 @@ func TestMongoDB_List(t *testing.T) {
 				Plugin: db.Plugin{ID: "456", Stars: 8},
 			},
 		},
+		{
+			key: "disabled",
+			plugin: pluginDocument{
+				Plugin: db.Plugin{ID: "789", Stars: 8, Disabled: true},
+			},
+		},
 	})
 
 	// Make sure plugins are listed ordered by stars and respect pagination constraints
