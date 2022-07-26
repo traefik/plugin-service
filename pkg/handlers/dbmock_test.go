@@ -36,12 +36,12 @@ func (m mockDB) List(ctx context.Context, pagination db.Pagination) ([]db.Plugin
 	return m.listFn(ctx, pagination)
 }
 
-func (m mockDB) GetByName(ctx context.Context, name string) (db.Plugin, error) {
+func (m mockDB) GetByName(ctx context.Context, name string, filterDisabled bool) (db.Plugin, error) {
 	return m.getByNameFn(ctx, name)
 }
 
-func (m mockDB) SearchByName(ctx context.Context, query string, pagination db.Pagination) ([]db.Plugin, string, error) {
-	return m.searchByNameFn(ctx, query, pagination)
+func (m mockDB) SearchByName(ctx context.Context, query string, page db.Pagination) ([]db.Plugin, string, error) {
+	return m.searchByNameFn(ctx, query, page)
 }
 
 func (m mockDB) Update(ctx context.Context, id string, plugin db.Plugin) (db.Plugin, error) {
