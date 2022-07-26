@@ -174,12 +174,16 @@ func (m *MongoDB) List(ctx context.Context, page db.Pagination) ([]db.Plugin, st
 }
 
 // GetByName gets the plugin with the given name.
-func (m *MongoDB) GetByName(ctx context.Context, name string) (db.Plugin, error) {
+func (m *MongoDB) GetByName(ctx context.Context, name string, filterDisabled bool) (db.Plugin, error) {
 	ctx, span := m.tracer.Start(ctx, "db_get_by_name")
 	defer span.End()
 
 	criteria := bson.D{
 		{Key: "name", Value: name},
+	}
+
+	if filterDisabled {
+		criteria = append(criteria, bson.E{Key: "disabled", Value: bson.D{{Key: "$in", Value: bson.A{false, nil}}}})
 	}
 
 	opts := &options.FindOneOptions{}
@@ -201,12 +205,13 @@ func (m *MongoDB) GetByName(ctx context.Context, name string) (db.Plugin, error)
 }
 
 // SearchByName searches for plugins matching with the given name.
-func (m *MongoDB) SearchByName(ctx context.Context, name string, page db.Pagination) ([]db.Plugin, string, error) {
+func (m *MongoDB) SearchByName(ctx context.Context, query string, page db.Pagination) ([]db.Plugin, string, error) {
 	ctx, span := m.tracer.Start(ctx, "db_search_by_name")
 	defer span.End()
 
 	criteria := bson.D{
-		{Key: "displayName", Value: primitive.Regex{Pattern: regexp.QuoteMeta(name), Options: "i"}},
+		{Key: "displayName", Value: primitive.Regex{Pattern: regexp.QuoteMeta(query), Options: "i"}},
+		{Key: "disabled", Value: bson.D{{Key: "$in", Value: bson.A{false, nil}}}},
 	}
 
 	if len(page.Start) > 0 {
