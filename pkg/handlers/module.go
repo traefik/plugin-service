@@ -40,7 +40,7 @@ func (h Handlers) Download(rw http.ResponseWriter, req *http.Request) {
 
 	logger := log.With().Str("module_name", moduleName).Str("module_version", version).Logger()
 
-	_, err := h.store.GetByName(ctx, moduleName)
+	_, err := h.store.GetByName(ctx, moduleName, false)
 	if err != nil {
 		span.RecordError(err)
 		if errors.As(err, &db.NotFoundError{}) {
