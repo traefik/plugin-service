@@ -205,19 +205,24 @@ func TestMongoDB_GetByName(t *testing.T) {
 						"something": "there",
 					},
 					CreatedAt: time.Now().Add(-2 * time.Hour),
+					Disabled:  true,
 				},
 			},
 		},
 	})
 
 	// Make sure we can get an existing plugin.
-	got, err := store.GetByName(ctx, "my-super-plugin")
+	got, err := store.GetByName(ctx, "my-super-plugin", false)
 	require.NoError(t, err)
 
 	assert.Equal(t, fixtures["my-super-plugin"].Plugin, toUTCPlugin(got))
 
+	// Make sure we can't get an existing disabled plugin.
+	got, err = store.GetByName(ctx, "my-super-plugin", true)
+	require.Error(t, err)
+
 	// Make sure we receive a NotFound error when the plugin doesn't exist.
-	_, err = store.GetByName(ctx, "something-else")
+	_, err = store.GetByName(ctx, "something-else", true)
 	require.ErrorAs(t, err, &db.NotFoundError{})
 }
 
@@ -471,6 +476,32 @@ func TestMongoDB_SearchByName(t *testing.T) {
 						"something": "there",
 					},
 					CreatedAt: time.Now().Add(-2 * time.Hour),
+				},
+			},
+		},
+		{
+			key: "plugins-11",
+			plugin: pluginDocument{
+				Plugin: db.Plugin{
+					ID:            "4242",
+					Name:          "plugins-11",
+					DisplayName:   "*",
+					Author:        "author",
+					Type:          "type",
+					Import:        "import",
+					Compatibility: "compatibility",
+					Summary:       "summary",
+					IconURL:       "iconURL",
+					BannerURL:     "bannerURL",
+					Readme:        "readme",
+					LatestVersion: "latestVersion",
+					Versions:      []string{"v1.0.0"},
+					Stars:         10,
+					Snippet: map[string]interface{}{
+						"something": "there",
+					},
+					CreatedAt: time.Now().Add(-2 * time.Hour),
+					Disabled:  true,
 				},
 			},
 		},

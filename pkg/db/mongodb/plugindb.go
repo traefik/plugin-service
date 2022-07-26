@@ -174,12 +174,16 @@ func (m *MongoDB) List(ctx context.Context, page db.Pagination) ([]db.Plugin, st
 }
 
 // GetByName gets the plugin with the given name.
-func (m *MongoDB) GetByName(ctx context.Context, name string) (db.Plugin, error) {
+func (m *MongoDB) GetByName(ctx context.Context, name string, filterDisabled bool) (db.Plugin, error) {
 	ctx, span := m.tracer.Start(ctx, "db_get_by_name")
 	defer span.End()
 
 	criteria := bson.D{
 		{Key: "name", Value: name},
+	}
+
+	if filterDisabled {
+		criteria = append(criteria, bson.E{Key: "disabled", Value: bson.D{{Key: "$in", Value: bson.A{false, nil}}}})
 	}
 
 	opts := &options.FindOneOptions{}
@@ -201,16 +205,17 @@ func (m *MongoDB) GetByName(ctx context.Context, name string) (db.Plugin, error)
 }
 
 // SearchByName searches for plugins matching with the given name.
-func (m *MongoDB) SearchByName(ctx context.Context, name string, page db.Pagination) ([]db.Plugin, string, error) {
+func (m *MongoDB) SearchByName(ctx context.Context, query string, pagination db.Pagination) ([]db.Plugin, string, error) {
 	ctx, span := m.tracer.Start(ctx, "db_search_by_name")
 	defer span.End()
 
 	criteria := bson.D{
-		{Key: "displayName", Value: primitive.Regex{Pattern: regexp.QuoteMeta(name), Options: "i"}},
+		{Key: "displayName", Value: primitive.Regex{Pattern: regexp.QuoteMeta(query), Options: "i"}},
+		{Key: "disabled", Value: bson.D{{Key: "$in", Value: bson.A{false, nil}}}},
 	}
 
-	if len(page.Start) > 0 {
-		nextPage, err := decodeNextPage(page.Start)
+	if len(pagination.Start) > 0 {
+		nextPage, err := decodeNextPage(pagination.Start)
 		if err != nil {
 			span.RecordError(err)
 
@@ -241,7 +246,7 @@ func (m *MongoDB) SearchByName(ctx context.Context, name string, page db.Paginat
 	}
 
 	opts := &options.FindOptions{}
-	opts.SetLimit(int64(page.Size + 1))
+	opts.SetLimit(int64(pagination.Size + 1))
 	opts.SetSort(bson.D{{Key: "displayName", Value: 1}})
 
 	cursor, err := m.client.Collection(collName).Find(ctx, criteria, opts)
@@ -260,9 +265,9 @@ func (m *MongoDB) SearchByName(ctx context.Context, name string, page db.Paginat
 
 	var nextPage string
 
-	if len(plugins) > page.Size {
-		nextPlugin := plugins[page.Size]
-		plugins = plugins[:page.Size]
+	if len(plugins) > pagination.Size {
+		nextPlugin := plugins[pagination.Size]
+		plugins = plugins[:pagination.Size]
 
 		nextPage, err = encodeNextPage(db.NextPage{Name: nextPlugin.Name, NextID: nextPlugin.ID})
 		if err != nil {
