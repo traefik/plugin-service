@@ -15,7 +15,6 @@ type Config struct {
 // Pilot holds pilots configuration.
 type Pilot struct {
 	Host        string
-	JWTCert     string
 	GitHubToken string
 }
 

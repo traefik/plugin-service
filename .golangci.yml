@@ -47,10 +47,17 @@ linters-settings:
 linters:
   enable-all: true
   disable:
-    - maligned # deprecated
-    - interfacer # deprecated
-    - scopelint # deprecated
+    - deadcode # deprecated
+    - exhaustivestruct # deprecated
     - golint # deprecated
+    - ifshort # deprecated
+    - interfacer # deprecated
+    - maligned # deprecated
+    - nosnakecase # deprecated
+    - scopelint # deprecated
+    - scopelint # deprecated
+    - structcheck # deprecated
+    - varcheck # deprecated
     - sqlclosecheck # not relevant (SQL)
     - rowserrcheck # not relevant (SQL)
     - execinquery # not relevant (SQL)
@@ -66,9 +73,7 @@ linters:
     - nlreturn
     - wsl
     - exhaustive
-    - exhaustivestruct
     - exhaustruct
-    - ifshort
     - prealloc
     - noctx
     - varnamelen
@@ -84,6 +89,8 @@ issues:
   max-same-issues: 0
   exclude:
     - 'ST1000: at least one file in a package should have a package comment'
+    - 'package-comments: should have a package comment'
+    - 'G114: Use of net/http serve function that has no support for setting timeouts'
   exclude-rules:
     - path: version.go
       text: '`(version|date|commit)` is a global variable'
