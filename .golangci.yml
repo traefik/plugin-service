@@ -47,10 +47,17 @@ linters-settings:
 linters:
   enable-all: true
   disable:
-    - maligned # deprecated
-    - interfacer # deprecated
-    - scopelint # deprecated
+    - deadcode # deprecated
+    - exhaustivestruct # deprecated
     - golint # deprecated
+    - ifshort # deprecated
+    - interfacer # deprecated
+    - maligned # deprecated
+    - nosnakecase # deprecated
+    - scopelint # deprecated
+    - scopelint # deprecated
+    - structcheck # deprecated
+    - varcheck # deprecated
     - sqlclosecheck # not relevant (SQL)
     - rowserrcheck # not relevant (SQL)
     - execinquery # not relevant (SQL)
@@ -66,9 +73,7 @@ linters:
     - nlreturn
     - wsl
     - exhaustive
-    - exhaustivestruct
     - exhaustruct
-    - ifshort
     - prealloc
     - noctx
     - varnamelen
