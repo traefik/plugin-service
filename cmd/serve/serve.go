@@ -12,7 +12,6 @@ import (
 	"github.com/traefik/plugin-service/cmd/internal"
 	"github.com/traefik/plugin-service/pkg/handlers"
 	"github.com/traefik/plugin-service/pkg/healthcheck"
-	"github.com/traefik/plugin-service/pkg/jwt"
 	"github.com/traefik/plugin-service/pkg/tracer"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"golang.org/x/oauth2"
@@ -60,8 +59,8 @@ func run(ctx context.Context, cfg Config) error {
 	r := http.NewServeMux()
 
 	r.Handle("/public/", buildPublicRouter(handler))
-	r.Handle("/internal/", buildInternalRouter(handler, cfg.Pilot))
-	r.Handle("/external/", buildExternalRouter(handler, cfg.Pilot))
+	r.Handle("/internal/", buildInternalRouter(handler))
+	r.Handle("/external/", buildExternalRouter(handler))
 	r.HandleFunc("/live", healthChecker.Live)
 	r.HandleFunc("/ready", healthChecker.Ready)
 
@@ -81,7 +80,7 @@ func buildPublicRouter(handler handlers.Handlers) http.Handler {
 	return http.StripPrefix("/public", r)
 }
 
-func buildInternalRouter(handler handlers.Handlers, cfg Pilot) http.Handler {
+func buildInternalRouter(handler handlers.Handlers) http.Handler {
 	r := httprouter.New()
 
 	r.Handler(http.MethodGet, "/", otelhttp.NewHandler(http.HandlerFunc(handler.List), "internal_list"))
@@ -92,15 +91,10 @@ func buildInternalRouter(handler handlers.Handlers, cfg Pilot) http.Handler {
 	r.NotFound = http.HandlerFunc(handlers.NotFound)
 	r.PanicHandler = handlers.PanicHandler
 
-	return jwt.NewHandler(cfg.JWTCert,
-		jwt.ServicesAudience,
-		jwt.Issuer,
-		map[string]jwt.Check{"sub": {Value: "Ie2dYtbQ5N5hRz4cNHZNKJ3WHrp62Mr7@clients"}},
-		http.StripPrefix("/internal", r),
-	)
+	return http.StripPrefix("/internal", r)
 }
 
-func buildExternalRouter(handler handlers.Handlers, cfg Pilot) http.Handler {
+func buildExternalRouter(handler handlers.Handlers) http.Handler {
 	r := httprouter.New()
 
 	r.Handler(http.MethodGet, "/", otelhttp.NewHandler(http.HandlerFunc(handler.List), "external_list"))
@@ -109,15 +103,7 @@ func buildExternalRouter(handler handlers.Handlers, cfg Pilot) http.Handler {
 	r.NotFound = http.HandlerFunc(handlers.NotFound)
 	r.PanicHandler = handlers.PanicHandler
 
-	return jwt.NewHandler(cfg.JWTCert,
-		jwt.ClientsAudience,
-		jwt.Issuer,
-		map[string]jwt.Check{
-			jwt.UserIDClaim:         {},
-			jwt.OrganizationIDClaim: {},
-		},
-		http.StripPrefix("/external", r),
-	)
+	return http.StripPrefix("/external", r)
 }
 
 func newGoProxyClient(cfg GoProxy) (*goproxy.Client, error) {

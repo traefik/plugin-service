@@ -18,12 +18,6 @@ func Command() *cli.Command {
 				EnvVars: []string{"PILOT_HOST"},
 			},
 			&cli.StringFlag{
-				Name:     "jwt-cert",
-				Usage:    "Pilot JWT Cert",
-				EnvVars:  []string{"PILOT_JWT_CERT"},
-				Required: true,
-			},
-			&cli.StringFlag{
 				Name:     "github-token",
 				Usage:    "Pilot GitHub Token",
 				EnvVars:  []string{"PILOT_GITHUB_TOKEN"},
@@ -53,7 +47,6 @@ func buildConfig(cliCtx *cli.Context) Config {
 		},
 		Pilot: Pilot{
 			Host:        cliCtx.String("host"),
-			JWTCert:     cliCtx.String("jwt-cert"),
 			GitHubToken: cliCtx.String("github-token"),
 		},
 		GoProxy: GoProxy{
