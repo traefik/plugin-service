@@ -95,9 +95,6 @@ func (h Handlers) Get(rw http.ResponseWriter, req *http.Request) {
 
 // List gets a list of plugins.
 func (h Handlers) List(rw http.ResponseWriter, req *http.Request) {
-	ctx, span := h.tracer.Start(req.Context(), "handler_list")
-	defer span.End()
-
 	rw.Header().Set("Content-Type", "application/json")
 
 	if value := req.FormValue("query"); value != "" {
@@ -110,48 +107,7 @@ func (h Handlers) List(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	start := req.URL.Query().Get("start")
-
-	logger := log.With().Str("search_start", start).Logger()
-
-	plugins, next, err := h.store.List(ctx, db.Pagination{
-		Start: start,
-		Size:  defaultPerPage,
-	})
-	if err != nil {
-		span.RecordError(err)
-		logger.Error().Err(err).Msg("Error fetching plugins")
-		NotFound(rw, req)
-		return
-	}
-
-	// TODO: detection of the plugin name changes must be done in piceus.
-	var cleanPlugins []db.Plugin
-	for _, plugin := range plugins {
-		if plugin.Name == "github.com/tommoulard/fail2ban" || plugin.Name == "github.com/tommoulard/htransformation" {
-			continue
-		}
-
-		cleanPlugins = append(cleanPlugins, plugin)
-	}
-
-	if len(cleanPlugins) == 0 {
-		if err := json.NewEncoder(rw).Encode(make([]*db.Plugin, 0)); err != nil {
-			span.RecordError(err)
-			logger.Error().Err(err).Msg("Failed to encode response")
-			JSONInternalServerError(rw)
-		}
-		return
-	}
-
-	rw.Header().Set(nextPageHeader, next)
-
-	if err := json.NewEncoder(rw).Encode(cleanPlugins); err != nil {
-		span.RecordError(err)
-		logger.Error().Err(err).Msg("Failed to encode response")
-		JSONInternalServerError(rw)
-		return
-	}
+	h.list(rw, req)
 }
 
 // Create creates a plugin.
@@ -354,6 +310,54 @@ func (h Handlers) getByName(rw http.ResponseWriter, req *http.Request) {
 	}
 
 	if err := json.NewEncoder(rw).Encode([]*db.Plugin{&plugin}); err != nil {
+		span.RecordError(err)
+		logger.Error().Err(err).Msg("Failed to encode response")
+		JSONInternalServerError(rw)
+		return
+	}
+}
+
+func (h Handlers) list(rw http.ResponseWriter, req *http.Request) {
+	ctx, span := h.tracer.Start(req.Context(), "handler_list")
+	defer span.End()
+
+	start := req.URL.Query().Get("start")
+
+	logger := log.With().Str("search_start", start).Logger()
+
+	plugins, next, err := h.store.List(ctx, db.Pagination{
+		Start: start,
+		Size:  defaultPerPage,
+	})
+	if err != nil {
+		span.RecordError(err)
+		logger.Error().Err(err).Msg("Error fetching plugins")
+		NotFound(rw, req)
+		return
+	}
+
+	// TODO: detection of the plugin name changes must be done in piceus.
+	var cleanPlugins []db.Plugin
+	for _, plugin := range plugins {
+		if plugin.Name == "github.com/tommoulard/fail2ban" || plugin.Name == "github.com/tommoulard/htransformation" {
+			continue
+		}
+
+		cleanPlugins = append(cleanPlugins, plugin)
+	}
+
+	if len(cleanPlugins) == 0 {
+		if err := json.NewEncoder(rw).Encode(make([]*db.Plugin, 0)); err != nil {
+			span.RecordError(err)
+			logger.Error().Err(err).Msg("Failed to encode response")
+			JSONInternalServerError(rw)
+		}
+		return
+	}
+
+	rw.Header().Set(nextPageHeader, next)
+
+	if err := json.NewEncoder(rw).Encode(cleanPlugins); err != nil {
 		span.RecordError(err)
 		logger.Error().Err(err).Msg("Failed to encode response")
 		JSONInternalServerError(rw)
