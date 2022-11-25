@@ -10,7 +10,7 @@ import (
 	"regexp"
 	"strconv"
 
-	"github.com/google/go-github/v35/github"
+	"github.com/google/go-github/v48/github"
 	"github.com/ldez/grignotin/goproxy"
 	"github.com/rs/zerolog/log"
 	"github.com/traefik/plugin-service/pkg/db"

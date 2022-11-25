@@ -44,7 +44,7 @@ func TestClient_Ready(t *testing.T) {
 
 			client := Client{DB: pingerMock(func(ctx context.Context) error {
 				if test.err {
-					return errors.New("ho ho ho")
+					return errors.New("hey ya")
 				}
 				return nil
 			})}
