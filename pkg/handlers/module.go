@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"path"
 	"strings"
 
@@ -35,8 +36,7 @@ func (h Handlers) Download(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	moduleName, version := path.Split(strings.TrimPrefix(req.URL.Path, "/download/"))
-	moduleName = cleanModuleName(moduleName)
+	moduleName, version := extractModuleInfo(req.URL, "/download/")
 
 	logger := log.With().Str("module_name", moduleName).Str("module_version", version).Logger()
 
@@ -286,8 +286,7 @@ func (h Handlers) Validate(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	moduleName, version := path.Split(strings.TrimPrefix(req.URL.Path, "/validate/"))
-	moduleName = cleanModuleName(moduleName)
+	moduleName, version := extractModuleInfo(req.URL, "/validate/")
 
 	logger := log.With().Str("module_name", moduleName).Str("module_version", version).Logger()
 
@@ -313,6 +312,13 @@ func (h Handlers) Validate(rw http.ResponseWriter, req *http.Request) {
 	}
 
 	rw.WriteHeader(http.StatusNotFound)
+}
+
+func extractModuleInfo(endpoint *url.URL, sep string) (string, string) {
+	_, after, _ := strings.Cut(strings.TrimSuffix(endpoint.Path, "/"), sep)
+	moduleName, version := path.Split(after)
+
+	return cleanModuleName(moduleName), version
 }
 
 func cleanModuleName(moduleName string) string {
