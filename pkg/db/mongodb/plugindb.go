@@ -40,7 +40,6 @@ type pluginDocument struct {
 	db.Plugin `bson:",inline"`
 
 	MongoID primitive.ObjectID `bson:"_id,omitempty"`
-	Hashes  []db.PluginHash    `bson:"hashes"`
 }
 
 // Get returns the plugin corresponding to the given ID.
@@ -105,7 +104,6 @@ func (m *MongoDB) Create(ctx context.Context, plugin db.Plugin) (db.Plugin, erro
 	doc := pluginDocument{
 		Plugin:  plugin,
 		MongoID: id,
-		Hashes:  []db.PluginHash{},
 	}
 
 	_, err := m.client.Collection(m.collName).InsertOne(ctx, doc)
@@ -118,7 +116,7 @@ func (m *MongoDB) Create(ctx context.Context, plugin db.Plugin) (db.Plugin, erro
 	return plugin, nil
 }
 
-// List lists plugins.
+// List lists all enabled plugins, with pagination.
 func (m *MongoDB) List(ctx context.Context, page db.Pagination) ([]db.Plugin, string, error) {
 	ctx, span := m.tracer.Start(ctx, "db_create")
 	defer span.End()
@@ -171,6 +169,22 @@ func (m *MongoDB) List(ctx context.Context, page db.Pagination) ([]db.Plugin, st
 	}
 
 	return plugins, nextPage, nil
+}
+
+// ListAll lists all plugins, without pagination.
+func (m *MongoDB) ListAll(ctx context.Context) ([]db.Plugin, error) {
+	// page.Start represents a MongoDB ID and we can't use the $gt operator on a string, it must be done
+	// on an ObjectID. So, we first need to retrieve the corresponding MongoID.
+	var plugins []db.Plugin
+
+	cursor, err := m.client.Collection(m.collName).Find(ctx, bson.D{})
+	if err != nil {
+		return nil, fmt.Errorf("unable to find plugins: %w", err)
+	}
+	if err := cursor.All(ctx, &plugins); err != nil {
+		return nil, fmt.Errorf("unable to retrieve plugins: %w", err)
+	}
+	return plugins, nil
 }
 
 // GetByName gets the plugin with the given name.
