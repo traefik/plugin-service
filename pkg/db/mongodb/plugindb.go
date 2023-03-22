@@ -218,8 +218,8 @@ func (m *MongoDB) GetByName(ctx context.Context, name string, filterDisabled boo
 	return plugin, nil
 }
 
-// SearchByName searches for plugins matching with the given name.
-func (m *MongoDB) SearchByName(ctx context.Context, name string, page db.Pagination) ([]db.Plugin, string, error) {
+// SearchByDisplayName searches for plugins matching with the given name.
+func (m *MongoDB) SearchByDisplayName(ctx context.Context, name string, page db.Pagination) ([]db.Plugin, string, error) {
 	ctx, span := m.tracer.Start(ctx, "db_search_by_name")
 	defer span.End()
 

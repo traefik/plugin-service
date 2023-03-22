@@ -581,7 +581,7 @@ func TestMongoDB_SearchByName(t *testing.T) {
 		test := test
 
 		t.Run(test.desc, func(t *testing.T) {
-			plugins, nextID, err := store.SearchByName(ctx, test.query, test.pagination)
+			plugins, nextID, err := store.SearchByDisplayName(ctx, test.query, test.pagination)
 			if test.wantErr {
 				require.Error(t, err)
 				return

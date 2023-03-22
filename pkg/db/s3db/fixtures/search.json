@@ -1,0 +1,17 @@
+[
+  {
+    "id": "plugin-disabled",
+    "displayName": "sablier",
+    "disabled": true
+  },
+  {
+    "id": "plugin-enabled",
+    "displayName": "sablier",
+    "disabled": false
+  },
+  {
+    "id": "plugin-case-sensitive",
+    "displayName": "Disable GraphQL",
+    "disabled": false
+  }
+]

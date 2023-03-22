@@ -43,9 +43,9 @@ func NewS3DB(ctx context.Context, s3Client S3Client, s3Bucket, s3Key string) (*S
 		return nil, fmt.Errorf("cannot decode %s on %s: %w", s3Key, s3Bucket, err)
 	}
 
-	// Sorted by Stars by default
+	// Sorted by Higher Stars by default
 	sort.SliceStable(plugins, func(i, j int) bool {
-		return plugins[i].Stars < plugins[j].Stars
+		return plugins[i].Stars > plugins[j].Stars
 	})
 
 	return &S3DB{
@@ -98,7 +98,7 @@ func (s *S3DB) GetByName(ctx context.Context, name string, filterDisabled bool) 
 	defer span.End()
 
 	for _, plugin := range s.plugins {
-		if filterDisabled && !plugin.Disabled {
+		if filterDisabled && plugin.Disabled {
 			continue
 		}
 		if strings.EqualFold(plugin.Name, name) {
@@ -108,20 +108,20 @@ func (s *S3DB) GetByName(ctx context.Context, name string, filterDisabled bool) 
 
 	return db.Plugin{}, fmt.Errorf("plugin '%s' not found", name)
 }
-func (s *S3DB) SearchByName(ctx context.Context, name string, pagination db.Pagination) ([]db.Plugin, string, error) {
+func (s *S3DB) SearchByDisplayName(ctx context.Context, name string, pagination db.Pagination) ([]db.Plugin, string, error) {
 	_, span := s.tracer.Start(ctx, "s3db_get")
 	defer span.End()
 	var results []db.Plugin
 
+	r, err := regexp.Compile(".*" + name + ".*")
+	if err != nil {
+		return nil, "", fmt.Errorf("cannot build regex: %w", err)
+	}
 	for _, plugin := range s.plugins {
-		if !plugin.Disabled {
+		if plugin.Disabled {
 			continue
 		}
-		matched, err := regexp.Match(name, []byte(plugin.DisplayName))
-		if err != nil {
-			return nil, "", err
-		}
-		if matched {
+		if matched := r.Match([]byte(plugin.DisplayName)); matched {
 			results = append(results, plugin)
 		}
 	}

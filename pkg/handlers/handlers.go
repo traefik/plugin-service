@@ -32,7 +32,7 @@ type PluginStorer interface {
 	Create(context.Context, db.Plugin) (db.Plugin, error)
 	List(context.Context, db.Pagination) ([]db.Plugin, string, error)
 	GetByName(context.Context, string, bool) (db.Plugin, error)
-	SearchByName(context.Context, string, db.Pagination) ([]db.Plugin, string, error)
+	SearchByDisplayName(context.Context, string, db.Pagination) ([]db.Plugin, string, error)
 	Update(context.Context, string, db.Plugin) (db.Plugin, error)
 
 	CreateHash(ctx context.Context, module, version, hash string) (db.PluginHash, error)
@@ -258,7 +258,7 @@ func (h Handlers) searchByName(rw http.ResponseWriter, req *http.Request) {
 
 	logger := log.With().Str("search_query", query).Str("search_start", start).Logger()
 
-	plugins, next, err := h.store.SearchByName(ctx, query, db.Pagination{
+	plugins, next, err := h.store.SearchByDisplayName(ctx, query, db.Pagination{
 		Start: start,
 		Size:  defaultPerPage,
 	})
