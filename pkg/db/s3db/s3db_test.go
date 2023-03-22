@@ -27,6 +27,7 @@ func (_m *s3Mock) GetObject(ctx context.Context, input *s3.GetObjectInput, opts 
 }
 
 func (_m *s3Mock) OnGetObject() *mock.Call {
+	// By default, no data
 	output := &s3.GetObjectOutput{Body: io.NopCloser(strings.NewReader("{}"))}
 	call := _m.Mock.On("GetObject",
 		mock.Anything,
@@ -57,9 +58,11 @@ func TestS3DB_Create(t *testing.T) {
 	client := newMockClient("")
 
 	s3db, err := NewS3DB(context.Background(), client, "bucket", "key")
+	require.NoError(t, err)
 
 	_, err = s3db.Create(context.Background(), db.Plugin{})
 	assert.Error(t, err)
+	client.AssertExpectations(t)
 }
 
 func TestS3DB_Get(t *testing.T) {
@@ -72,4 +75,5 @@ func TestS3DB_Get(t *testing.T) {
 	plugin, err := s3db.Get(context.Background(), "123")
 	require.NoError(t, err)
 	assert.Equal(t, "github.com/test/test123", plugin.Name)
+	client.AssertExpectations(t)
 }

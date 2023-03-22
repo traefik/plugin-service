@@ -21,7 +21,7 @@ type S3DB struct {
 	s3Client S3Client
 	s3Bucket string
 	s3Key    string
-	plugins  map[string]db.Plugin
+	plugins  []db.Plugin
 	tracer   trace.Tracer
 }
 
@@ -36,12 +36,17 @@ func NewS3DB(ctx context.Context, s3Client S3Client, s3Bucket, s3Key string) (*S
 	}
 
 	defer func() { _ = s3Object.Body.Close() }()
-	plugins := make(map[string]db.Plugin)
+	plugins := make([]db.Plugin, 0)
 
 	decoder := json.NewDecoder(s3Object.Body)
 	if err := decoder.Decode(&plugins); err != nil {
 		return nil, fmt.Errorf("cannot decode %s on %s: %w", s3Key, s3Bucket, err)
 	}
+
+	// Sorted by Stars by default
+	sort.SliceStable(plugins, func(i, j int) bool {
+		return plugins[i].Stars < plugins[j].Stars
+	})
 
 	return &S3DB{
 		s3Bucket: s3Bucket,
@@ -64,12 +69,13 @@ func (s *S3DB) Get(ctx context.Context, id string) (db.Plugin, error) {
 	_, span := s.tracer.Start(ctx, "s3db_get")
 	defer span.End()
 
-	plugin, present := s.plugins[id]
-	if !present {
-		return db.Plugin{}, fmt.Errorf("unable to retrieve plugin '%s'", id)
+	for _, plugin := range s.plugins {
+		if plugin.ID == id {
+			return plugin, nil
+		}
 	}
 
-	return plugin, nil
+	return db.Plugin{}, fmt.Errorf("unable to retrieve plugin '%s'", id)
 }
 
 func (s *S3DB) Delete(ctx context.Context, id string) error {
@@ -84,23 +90,7 @@ func (s *S3DB) List(ctx context.Context, pagination db.Pagination) ([]db.Plugin,
 	_, span := s.tracer.Start(ctx, "s3db_get")
 	defer span.End()
 
-	keys := make([]string, 0, len(s.plugins))
-
-	for key := range s.plugins {
-		keys = append(keys, key)
-	}
-	sort.SliceStable(keys, func(i, j int) bool {
-		return s.plugins[keys[i]].Stars < s.plugins[keys[j]].Stars
-	})
-
-	plugins := make([]db.Plugin, 0, len(s.plugins))
-	for _, k := range keys {
-		if plugin := s.plugins[k]; !plugin.Disabled {
-			plugins = append(plugins, s.plugins[k])
-		}
-	}
-
-	return plugins, "", nil
+	return s.plugins, "", nil
 }
 
 func (s *S3DB) GetByName(ctx context.Context, name string, filterDisabled bool) (db.Plugin, error) {
