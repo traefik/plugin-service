@@ -65,26 +65,6 @@ func TestS3DB_Create(t *testing.T) {
 	client.AssertExpectations(t)
 }
 
-func TestS3DB_Bootstrap(t *testing.T) {
-	client := newMockClient("")
-
-	s3db, err := NewS3DB(context.Background(), client, "bucket", "key")
-	require.NoError(t, err)
-
-	err = s3db.Bootstrap()
-	assert.NoError(t, err)
-}
-
-func TestS3DB_Ping(t *testing.T) {
-	client := newMockClient("")
-
-	s3db, err := NewS3DB(context.Background(), client, "bucket", "key")
-	require.NoError(t, err)
-
-	err = s3db.Ping(context.Background())
-	assert.NoError(t, err)
-}
-
 func TestS3DB_Get(t *testing.T) {
 	client := newMockClient("get.json")
 
@@ -96,16 +76,6 @@ func TestS3DB_Get(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "github.com/test/test123", plugin.Name)
 	client.AssertExpectations(t)
-}
-
-func TestS3DB_Delete(t *testing.T) {
-	client := newMockClient("")
-
-	s3db, err := NewS3DB(context.Background(), client, "bucket", "key")
-	require.NoError(t, err)
-
-	err = s3db.Delete(context.Background(), "")
-	assert.Error(t, err)
 }
 
 func TestS3DB_List(t *testing.T) {
@@ -177,4 +147,29 @@ func TestS3DB_SearchByDisplayName(t *testing.T) {
 	assert.Equal(t, plugins[0].DisplayName, "Disable GraphQL")
 	assert.Equal(t, plugins[0].Disabled, false)
 
+}
+
+func TestS3DB_Unimplemented(t *testing.T) {
+	client := newMockClient("")
+
+	s3db, err := NewS3DB(context.Background(), client, "bucket", "key")
+	require.NoError(t, err)
+
+	err = s3db.Bootstrap()
+	assert.NoError(t, err)
+
+	err = s3db.Ping(context.Background())
+	assert.NoError(t, err)
+
+	err = s3db.Delete(context.Background(), "")
+	assert.Error(t, err)
+
+	_, err = s3db.Update(context.Background(), "", db.Plugin{})
+	assert.Error(t, err)
+
+	_, err = s3db.CreateHash(context.Background(), "", "", "")
+	assert.Error(t, err)
+
+	_, err = s3db.GetHashByName(context.Background(), "", "")
+	assert.Error(t, err)
 }
