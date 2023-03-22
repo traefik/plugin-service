@@ -20,6 +20,14 @@ type mockDB struct {
 	getHashByNameFn func(ctx context.Context, module, version string) (db.PluginHash, error)
 }
 
+func (m mockDB) Bootstrap() error {
+	return nil
+}
+
+func (m mockDB) Ping(ctx context.Context) error {
+	return nil
+}
+
 func (m mockDB) Get(ctx context.Context, id string) (db.Plugin, error) {
 	return m.getFn(ctx, id)
 }

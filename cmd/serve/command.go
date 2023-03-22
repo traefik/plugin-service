@@ -32,6 +32,7 @@ func Command() *cli.Command {
 	cmd.Flags = append(cmd.Flags, goProxyFlags()...)
 	cmd.Flags = append(cmd.Flags, tracingFlags()...)
 	cmd.Flags = append(cmd.Flags, internal.MongoFlags()...)
+	cmd.Flags = append(cmd.Flags, internal.S3Flags()...)
 
 	return cmd
 }
@@ -39,6 +40,10 @@ func Command() *cli.Command {
 func buildConfig(cliCtx *cli.Context) Config {
 	return Config{
 		MongoDB: internal.BuildMongoConfig(cliCtx),
+		S3: S3{
+			Bucket: cliCtx.String("s3-bucket"),
+			Key:    cliCtx.String("s3-key"),
+		},
 		Tracing: Tracing{
 			Endpoint:    cliCtx.String("tracing-endpoint"),
 			Username:    cliCtx.String("tracing-username"),

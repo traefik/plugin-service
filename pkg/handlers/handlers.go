@@ -25,6 +25,8 @@ const (
 
 // PluginStorer is capable of storing plugins.
 type PluginStorer interface {
+	Bootstrap() error
+	Ping(ctx context.Context) error
 	Get(ctx context.Context, id string) (db.Plugin, error)
 	Delete(ctx context.Context, id string) error
 	Create(context.Context, db.Plugin) (db.Plugin, error)

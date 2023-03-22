@@ -10,6 +10,7 @@ import (
 	"github.com/julienschmidt/httprouter"
 	"github.com/ldez/grignotin/goproxy"
 	"github.com/traefik/plugin-service/cmd/internal"
+	"github.com/traefik/plugin-service/pkg/db/s3db"
 	"github.com/traefik/plugin-service/pkg/handlers"
 	"github.com/traefik/plugin-service/pkg/healthcheck"
 	"github.com/traefik/plugin-service/pkg/tracer"
@@ -28,11 +29,21 @@ func run(ctx context.Context, cfg Config) error {
 	bsp := tracer.Setup(exporter, cfg.Tracing.Probability)
 	defer func() { _ = bsp.Shutdown(ctx) }()
 
-	store, tearDown, err := internal.CreateMongoClient(ctx, cfg.MongoDB)
+	var store handlers.PluginStorer
+	if cfg.S3.Bucket != "" && cfg.S3.Key != "" {
+		s3Client, err := internal.CreateS3Client(ctx)
+		if err != nil {
+			return fmt.Errorf("unable to create s3 client: %w", err)
+		}
+		store, err = s3db.NewS3DB(ctx, *s3Client, cfg.S3.Bucket, cfg.S3.Key)
+	} else {
+		var tearDown func()
+		store, tearDown, err = internal.CreateMongoClient(ctx, cfg.MongoDB)
+		defer tearDown()
+	}
 	if err != nil {
 		return fmt.Errorf("unable to create MongoDB client: %w", err)
 	}
-	defer tearDown()
 
 	if err = store.Bootstrap(); err != nil {
 		return fmt.Errorf("unable to bootstrap database: %w", err)
