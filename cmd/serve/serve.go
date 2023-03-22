@@ -24,7 +24,7 @@ func run(ctx context.Context, cfg Config) error {
 		return fmt.Errorf("unable to configure exporter: %w", err)
 	}
 
-	defer exporter.Flush()
+	defer func() { _ = exporter.Shutdown(ctx) }()
 
 	bsp := tracer.Setup(exporter, cfg.Tracing.Probability)
 	defer func() { _ = bsp.Shutdown(ctx) }()
@@ -35,7 +35,7 @@ func run(ctx context.Context, cfg Config) error {
 		if err != nil {
 			return fmt.Errorf("unable to create s3 client: %w", err)
 		}
-		store, err = s3db.NewS3DB(ctx, *s3Client, cfg.S3.Bucket, cfg.S3.Key)
+		store, err = s3db.NewS3DB(ctx, s3Client, cfg.S3.Bucket, cfg.S3.Key)
 	} else {
 		var tearDown func()
 		store, tearDown, err = internal.CreateMongoClient(ctx, cfg.MongoDB)
