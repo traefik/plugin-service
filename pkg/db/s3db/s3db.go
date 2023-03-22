@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
@@ -29,32 +30,52 @@ type S3Client interface {
 	manager.DownloadAPIClient
 }
 
-func NewS3DB(ctx context.Context, s3Client S3Client, s3Bucket, s3Key string) (*S3DB, error) {
-	s3Object, err := s3Client.GetObject(ctx, &s3.GetObjectInput{Key: aws.String(s3Key), Bucket: aws.String(s3Bucket)})
-	if err != nil {
-		return nil, fmt.Errorf("cannot get %s on %s: %w", s3Key, s3Bucket, err)
-	}
-
-	defer func() { _ = s3Object.Body.Close() }()
-	plugins := make([]db.Plugin, 0)
-
-	decoder := json.NewDecoder(s3Object.Body)
-	if err := decoder.Decode(&plugins); err != nil {
-		return nil, fmt.Errorf("cannot decode %s on %s: %w", s3Key, s3Bucket, err)
-	}
-
-	// Sorted by Higher Stars by default
-	sort.SliceStable(plugins, func(i, j int) bool {
-		return plugins[i].Stars > plugins[j].Stars
-	})
-
-	return &S3DB{
+func NewS3DB(ctx context.Context, s3Client S3Client, s3Bucket, s3Key string, refreshInterval time.Duration) (*S3DB, func(), error) {
+	s := S3DB{
 		s3Bucket: s3Bucket,
 		s3Client: s3Client,
 		s3Key:    s3Key,
-		plugins:  plugins,
 		tracer:   otel.Tracer("S3Database"),
-	}, nil
+	}
+	err := s.updatePlugins(ctx)
+
+	// refresh json file on each refreshInterval
+	ticker := time.NewTicker(refreshInterval)
+	done := make(chan bool)
+	go func() {
+		for {
+			select {
+			case <-done:
+				return
+			case <-ticker.C:
+				err = s.updatePlugins(ctx)
+			}
+		}
+	}()
+
+	return &s, func() { done <- true }, err
+}
+
+func (s *S3DB) updatePlugins(ctx context.Context) error {
+	s3Object, err := s.s3Client.GetObject(ctx, &s3.GetObjectInput{Key: aws.String(s.s3Key),
+		Bucket: aws.String(s.s3Bucket)})
+	if err != nil {
+		return fmt.Errorf("cannot get %s on %s: %w", s.s3Key, s.s3Bucket, err)
+	}
+
+	defer func() { _ = s3Object.Body.Close() }()
+	s.plugins = make([]db.Plugin, 0)
+
+	decoder := json.NewDecoder(s3Object.Body)
+	if err := decoder.Decode(&s.plugins); err != nil {
+		return fmt.Errorf("cannot decode %s on %s: %w", s.s3Key, s.s3Bucket, err)
+	}
+
+	// Sorted by Higher Stars by default
+	sort.SliceStable(s.plugins, func(i, j int) bool {
+		return s.plugins[i].Stars > s.plugins[j].Stars
+	})
+	return nil
 }
 
 func (s *S3DB) Bootstrap() error {

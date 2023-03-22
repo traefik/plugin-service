@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"time"
 
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/google/go-github/v48/github"
 	"github.com/gorilla/mux"
 	"github.com/julienschmidt/httprouter"
@@ -30,17 +32,18 @@ func run(ctx context.Context, cfg Config) error {
 	defer func() { _ = bsp.Shutdown(ctx) }()
 
 	var store handlers.PluginStorer
+	var tearDown func()
 	if cfg.S3.Bucket != "" && cfg.S3.Key != "" {
-		s3Client, err := internal.CreateS3Client(ctx)
+		var s3Client *s3.Client
+		s3Client, err = internal.CreateS3Client(ctx)
 		if err != nil {
 			return fmt.Errorf("unable to create s3 client: %w", err)
 		}
-		store, err = s3db.NewS3DB(ctx, s3Client, cfg.S3.Bucket, cfg.S3.Key)
+		store, tearDown, err = s3db.NewS3DB(ctx, s3Client, cfg.S3.Bucket, cfg.S3.Key, time.Hour)
 	} else {
-		var tearDown func()
 		store, tearDown, err = internal.CreateMongoClient(ctx, cfg.MongoDB)
-		defer tearDown()
 	}
+	defer tearDown()
 	if err != nil {
 		return fmt.Errorf("unable to create MongoDB client: %w", err)
 	}
