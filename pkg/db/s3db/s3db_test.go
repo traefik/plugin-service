@@ -2,6 +2,7 @@ package s3db
 
 import (
 	"context"
+	"errors"
 	"io"
 	"os"
 	"path"
@@ -54,82 +55,137 @@ func newMockClient(testFile string) *s3Mock {
 	return client
 }
 
+func TestS3DB_GetObjectError(t *testing.T) {
+	client := &s3Mock{testFile: "get.json"}
+	ctx := context.Background()
+
+	client.On("GetObject",
+		mock.Anything,
+		mock.MatchedBy(func(input *s3.GetObjectInput) bool {
+			return input.Bucket != nil && input.Key != nil && *input.Bucket == "bucket" && *input.Key == "key"
+		}),
+		mock.Anything,
+	).Return(&s3.GetObjectOutput{}, errors.New("s3 error")).Once()
+
+	_, err := NewS3DB(ctx, client, "bucket", "key")
+	assert.Error(t, err)
+
+	client.AssertExpectations(t)
+}
+
+func TestS3DB_FileFormatError(t *testing.T) {
+	client := newMockClient("error.json")
+	ctx := context.Background()
+
+	s3db, err := NewS3DB(ctx, client, "bucket", "key")
+	require.Error(t, err)
+
+	_, err = s3db.Create(ctx, db.Plugin{})
+	assert.Error(t, err)
+
+	client.AssertExpectations(t)
+}
+
 func TestS3DB_Create(t *testing.T) {
 	client := newMockClient("")
+	ctx := context.Background()
 
-	s3db, err := NewS3DB(context.Background(), client, "bucket", "key")
+	s3db, err := NewS3DB(ctx, client, "bucket", "key")
 	require.NoError(t, err)
 
-	_, err = s3db.Create(context.Background(), db.Plugin{})
+	_, err = s3db.Create(ctx, db.Plugin{})
 	assert.Error(t, err)
+
 	client.AssertExpectations(t)
 }
 
 func TestS3DB_Get(t *testing.T) {
 	client := newMockClient("get.json")
+	ctx := context.Background()
 
-	s3db, err := NewS3DB(context.Background(), client, "bucket", "key")
+	s3db, err := NewS3DB(ctx, client, "bucket", "key")
 	require.NoError(t, err)
 	assert.NotNil(t, s3db)
 
-	plugin, err := s3db.Get(context.Background(), "123")
+	plugin, err := s3db.Get(ctx, "don't exist")
+	assert.Error(t, err)
+
+	plugin, err = s3db.Get(ctx, "123")
 	require.NoError(t, err)
 	assert.Equal(t, "github.com/test/test123", plugin.Name)
+
 	client.AssertExpectations(t)
 }
 
 func TestS3DB_List(t *testing.T) {
 	client := newMockClient("list.json")
+	ctx := context.Background()
 
-	s3db, err := NewS3DB(context.Background(), client, "bucket", "key")
+	s3db, err := NewS3DB(ctx, client, "bucket", "key")
 	require.NoError(t, err)
 	assert.NotNil(t, s3db)
 
-	plugins, _, err := s3db.List(context.Background(), db.Pagination{})
+	plugins, _, err := s3db.List(ctx, db.Pagination{})
 	require.NoError(t, err)
 
 	assert.Len(t, plugins, 10)
 	assert.Equal(t, plugins[0].Stars, 150)
 	assert.Greater(t, plugins[0].Stars, plugins[9].Stars)
+
+	client.AssertExpectations(t)
 }
 
 func TestS3DB_GetByName(t *testing.T) {
 	client := newMockClient("getbyname.json")
+	ctx := context.Background()
 
-	s3db, err := NewS3DB(context.Background(), client, "bucket", "key")
+	s3db, err := NewS3DB(ctx, client, "bucket", "key")
 	require.NoError(t, err)
 	assert.NotNil(t, s3db)
 
+	plugin, err := s3db.GetByName(ctx, "don't exist", false)
+	assert.Error(t, err)
+
 	// filter disabled
-	plugin, err := s3db.GetByName(context.Background(), "plugin", true)
+	plugin, err = s3db.GetByName(ctx, "plugin", true)
 	require.NoError(t, err)
 	assert.Equal(t, plugin.ID, "plugin-enabled")
 	assert.Equal(t, plugin.Name, "plugin")
 	assert.Equal(t, plugin.Disabled, false)
 
 	// unfiltered
-	plugin, err = s3db.GetByName(context.Background(), "plugin", false)
+	plugin, err = s3db.GetByName(ctx, "plugin", false)
 	require.NoError(t, err)
 	assert.Equal(t, plugin.ID, "plugin-disabled")
 	assert.Equal(t, plugin.Name, "plugin")
 	assert.Equal(t, plugin.Disabled, true)
 
 	// case-sensitivity
-	plugin, err = s3db.GetByName(context.Background(), "PLUGIn__", false)
+	plugin, err = s3db.GetByName(ctx, "PLUGIn__", false)
 	require.NoError(t, err)
 	assert.Equal(t, plugin.ID, "plugin-case-sensitive")
 	assert.Equal(t, plugin.Name, "PluGin__")
 
+	client.AssertExpectations(t)
 }
 
 func TestS3DB_SearchByDisplayName(t *testing.T) {
 	client := newMockClient("search.json")
+	ctx := context.Background()
 
-	s3db, err := NewS3DB(context.Background(), client, "bucket", "key")
+	s3db, err := NewS3DB(ctx, client, "bucket", "key")
 	require.NoError(t, err)
 	assert.NotNil(t, s3db)
 
-	plugins, _, err := s3db.SearchByDisplayName(context.Background(), "sab", db.Pagination{})
+	plugins, _, err := s3db.SearchByDisplayName(ctx, "bas", db.Pagination{})
+	require.NoError(t, err)
+	require.Len(t, plugins, 0)
+
+	plugins, _, err = s3db.SearchByDisplayName(ctx, "invalid[regexp`?!^W", db.Pagination{})
+	require.Error(t, err)
+	require.Len(t, plugins, 0)
+
+	plugins, _, err = s3db.SearchByDisplayName(ctx, "sab", db.Pagination{})
 	require.NoError(t, err)
 	require.Len(t, plugins, 2)
 	assert.Equal(t, plugins[0].DisplayName, "sablier")
@@ -137,16 +193,13 @@ func TestS3DB_SearchByDisplayName(t *testing.T) {
 	assert.Equal(t, plugins[1].DisplayName, "Disable GraphQL")
 	assert.Equal(t, plugins[0].Disabled, false)
 
-	plugins, _, err = s3db.SearchByDisplayName(context.Background(), "bas", db.Pagination{})
-	require.NoError(t, err)
-	require.Len(t, plugins, 0)
-
-	plugins, _, err = s3db.SearchByDisplayName(context.Background(), "Gra[a-z]+", db.Pagination{})
+	plugins, _, err = s3db.SearchByDisplayName(ctx, "Gra[a-z]+", db.Pagination{})
 	require.NoError(t, err)
 	require.Len(t, plugins, 1)
 	assert.Equal(t, plugins[0].DisplayName, "Disable GraphQL")
 	assert.Equal(t, plugins[0].Disabled, false)
 
+	client.AssertExpectations(t)
 }
 
 func TestS3DB_Unimplemented(t *testing.T) {
@@ -172,4 +225,6 @@ func TestS3DB_Unimplemented(t *testing.T) {
 
 	_, err = s3db.GetHashByName(context.Background(), "", "")
 	assert.Error(t, err)
+
+	client.AssertExpectations(t)
 }
