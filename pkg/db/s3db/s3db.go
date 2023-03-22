@@ -9,8 +9,8 @@ import (
 	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
-	"github.com/aws/aws-sdk-go/service/s3/s3iface"
 	"github.com/traefik/plugin-service/pkg/db"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/trace"
@@ -18,18 +18,19 @@ import (
 
 // S3DB is a S3DB client.
 type S3DB struct {
-	s3Client s3iface.S3API
+	s3Client S3Client
 	s3Bucket string
 	s3Key    string
 	plugins  map[string]db.Plugin
 	tracer   trace.Tracer
 }
 
-func NewS3DB(ctx context.Context, s3Client s3iface.S3API, s3Bucket, s3Key string) (*S3DB, error) {
-	s3Object, err := s3Client.GetObject(s3.GetObjectInput{
-		Bucket: aws.String(s3Bucket),
-		Key:    aws.String(s3Key),
-	})
+type S3Client interface {
+	manager.DownloadAPIClient
+}
+
+func NewS3DB(ctx context.Context, s3Client S3Client, s3Bucket, s3Key string) (*S3DB, error) {
+	s3Object, err := s3Client.GetObject(ctx, &s3.GetObjectInput{Key: aws.String(s3Key), Bucket: aws.String(s3Bucket)})
 	if err != nil {
 		return nil, fmt.Errorf("cannot get %s on %s: %w", s3Key, s3Bucket, err)
 	}
