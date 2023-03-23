@@ -9,18 +9,24 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
+const (
+  flagS3Bucket    = "s3-bucket"
+  flagS3Key       = "s3-key"
+)
+
 func S3Flags() []cli.Flag {
 	return []cli.Flag{
 		&cli.StringFlag{
-			Name:     "s3-bucket",
-			Usage:    "S3 Bucket URL",
-			EnvVars:  []string{"S3_BUCKET"},
+			Name:     flagS3Bucket,,
+			Usage:    "Bucket to use for loading data",
+			EnvVars:  []string{strcase.ToSNAKE(flagS3Bucket)},
 			Required: false,
 		},
 		&cli.StringFlag{
-			Name:     "s3-key",
-			Usage:    "S3 Key to use on S3 Bucket",
-			EnvVars:  []string{"S3_KEY"},
+			Name:     flagS3Key,
+			Usage:    "Key of file to use on S3 Bucket",
+			EnvVars:  []string{strcase.ToSNAKE(flagS3Key)},
+			Value:    "plugins.json"
 			Required: false,
 		},
 	}
