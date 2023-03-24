@@ -19,8 +19,7 @@ import (
 
 type s3Mock struct {
 	mock.Mock
-	testFile       string
-	getObjectCalls int
+	testFile string
 }
 
 const defaultRefresh = time.Hour
@@ -39,7 +38,7 @@ func (_m *s3Mock) OnGetObject() *mock.Call {
 		mock.MatchedBy(func(input *s3.GetObjectInput) bool {
 			return input.Bucket != nil && input.Key != nil && *input.Bucket == "bucket" && *input.Key == "key"
 		}),
-		mock.Anything).Return(output, nil).Times(_m.getObjectCalls)
+		mock.Anything).Return(output, nil).Once()
 
 	if err != nil {
 		call.Panic(err.Error())
@@ -63,7 +62,7 @@ func getOutputFromFile(file string) (*s3.GetObjectOutput, error) {
 }
 
 func newMockClient(testFile string) *s3Mock {
-	client := &s3Mock{testFile: testFile, getObjectCalls: 1}
+	client := &s3Mock{testFile: testFile}
 	client.OnGetObject()
 
 	return client
@@ -135,27 +134,13 @@ func TestS3DB_Get(t *testing.T) {
 }
 
 func TestS3DB_Refresh(t *testing.T) {
-	refreshInterval := time.Second
-	client := &s3Mock{}
+	refreshInterval := 100 * time.Millisecond
 	ctx := context.Background()
 
-	output, err := getOutputFromFile("get.json")
-	require.NoError(t, err)
-	client.Mock.On("GetObject",
-		mock.Anything,
-		mock.MatchedBy(func(input *s3.GetObjectInput) bool {
-			return input.Bucket != nil && input.Key != nil && *input.Bucket == "bucket" && *input.Key == "key"
-		}),
-		mock.Anything).Return(output, nil).Once()
-
-	output, err = getOutputFromFile("refresh.json")
-	require.NoError(t, err)
-	client.Mock.On("GetObject",
-		mock.Anything,
-		mock.MatchedBy(func(input *s3.GetObjectInput) bool {
-			return input.Bucket != nil && input.Key != nil && *input.Bucket == "bucket" && *input.Key == "key"
-		}),
-		mock.Anything).Return(output, nil).Once()
+	// Mock two calls to see refresh in action
+	client := newMockClient("get.json")
+	client.testFile = "refresh.json"
+	client.OnGetObject()
 
 	s3db, tearDown, err := NewS3DB(ctx, client, "bucket", "key", refreshInterval)
 	require.NoError(t, err)
@@ -167,7 +152,7 @@ func TestS3DB_Refresh(t *testing.T) {
 	assert.Error(t, err)
 
 	// sleep enough to be between two refreshes
-	time.Sleep(refreshInterval + refreshInterval/2)
+	time.Sleep(refreshInterval + refreshInterval/100)
 	_, err = s3db.Get(ctx, "789")
 	assert.NoError(t, err)
 
