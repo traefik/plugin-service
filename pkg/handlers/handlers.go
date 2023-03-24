@@ -20,7 +20,7 @@ import (
 
 const (
 	nextPageHeader = "X-Next-Page"
-	defaultPerPage = 100
+	defaultPerPage = 200 // TODO(ldez): we use 200 because currently the UI doesn't use the pagination. Must be changed.
 )
 
 // PluginStorer is capable of storing plugins.
