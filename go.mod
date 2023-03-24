@@ -4,6 +4,7 @@ go 1.19
 
 require (
 	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.11.59
+	github.com/ettle/strcase v0.1.1
 	github.com/google/go-github/v48 v48.2.0
 	github.com/gorilla/mux v1.8.0
 	github.com/julienschmidt/httprouter v1.3.0

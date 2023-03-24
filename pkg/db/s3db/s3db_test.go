@@ -33,7 +33,7 @@ func (_m *s3Mock) GetObject(ctx context.Context, input *s3.GetObjectInput, opts 
 
 func (_m *s3Mock) OnGetObject() *mock.Call {
 	// By default, empty array of data
-	output := &s3.GetObjectOutput{Body: io.NopCloser(strings.NewReader("[]"))}
+	output, err := getOutputFromFile(_m.testFile)
 	call := _m.Mock.On("GetObject",
 		mock.Anything,
 		mock.MatchedBy(func(input *s3.GetObjectInput) bool {
@@ -41,15 +41,25 @@ func (_m *s3Mock) OnGetObject() *mock.Call {
 		}),
 		mock.Anything).Return(output, nil).Times(_m.getObjectCalls)
 
-	if _m.testFile != "" {
-		data, err := os.Open(path.Join(path.Dir("."), "fixtures", _m.testFile))
+	if err != nil {
+		call.Panic(err.Error())
+	}
+
+	return call
+}
+
+func getOutputFromFile(file string) (*s3.GetObjectOutput, error) {
+	output := &s3.GetObjectOutput{Body: io.NopCloser(strings.NewReader("[]"))}
+
+	if file != "" {
+		data, err := os.Open(path.Join(path.Dir("."), "fixtures", file))
 		if err != nil {
-			call.Panic(err.Error())
+			return output, err
 		}
 		output.Body = data
 	}
 
-	return call
+	return output, nil
 }
 
 func newMockClient(testFile string) *s3Mock {
@@ -81,8 +91,9 @@ func TestS3DB_FileFormatError(t *testing.T) {
 	client := newMockClient("error.json")
 	ctx := context.Background()
 
-	s3db, _, err := NewS3DB(ctx, client, "bucket", "key", defaultRefresh)
+	s3db, tearDown, err := NewS3DB(ctx, client, "bucket", "key", defaultRefresh)
 	require.Error(t, err)
+	defer tearDown()
 
 	_, err = s3db.Create(ctx, db.Plugin{})
 	assert.Error(t, err)
@@ -94,8 +105,9 @@ func TestS3DB_Create(t *testing.T) {
 	client := newMockClient("")
 	ctx := context.Background()
 
-	s3db, _, err := NewS3DB(ctx, client, "bucket", "key", defaultRefresh)
+	s3db, tearDown, err := NewS3DB(ctx, client, "bucket", "key", defaultRefresh)
 	require.NoError(t, err)
+	defer tearDown()
 
 	_, err = s3db.Create(ctx, db.Plugin{})
 	assert.Error(t, err)
@@ -107,9 +119,10 @@ func TestS3DB_Get(t *testing.T) {
 	client := newMockClient("get.json")
 	ctx := context.Background()
 
-	s3db, _, err := NewS3DB(ctx, client, "bucket", "key", defaultRefresh)
+	s3db, tearDown, err := NewS3DB(ctx, client, "bucket", "key", defaultRefresh)
 	require.NoError(t, err)
 	assert.NotNil(t, s3db)
+	defer tearDown()
 
 	plugin, err := s3db.Get(ctx, "don't exist")
 	assert.Error(t, err)
@@ -122,21 +135,39 @@ func TestS3DB_Get(t *testing.T) {
 }
 
 func TestS3DB_Refresh(t *testing.T) {
-	client := newMockClient("get.json")
+	refreshInterval := time.Second
+	client := &s3Mock{}
 	ctx := context.Background()
 
-	s3db, _, err := NewS3DB(ctx, client, "bucket", "key", time.Second)
+	output, err := getOutputFromFile("get.json")
+	require.NoError(t, err)
+	client.Mock.On("GetObject",
+		mock.Anything,
+		mock.MatchedBy(func(input *s3.GetObjectInput) bool {
+			return input.Bucket != nil && input.Key != nil && *input.Bucket == "bucket" && *input.Key == "key"
+		}),
+		mock.Anything).Return(output, nil).Once()
+
+	output, err = getOutputFromFile("refresh.json")
+	require.NoError(t, err)
+	client.Mock.On("GetObject",
+		mock.Anything,
+		mock.MatchedBy(func(input *s3.GetObjectInput) bool {
+			return input.Bucket != nil && input.Key != nil && *input.Bucket == "bucket" && *input.Key == "key"
+		}),
+		mock.Anything).Return(output, nil).Once()
+
+	s3db, tearDown, err := NewS3DB(ctx, client, "bucket", "key", refreshInterval)
 	require.NoError(t, err)
 	assert.NotNil(t, s3db)
+	defer tearDown()
 
 	// present only after refresh, in the other
 	_, err = s3db.Get(ctx, "789")
 	assert.Error(t, err)
 
-	client.testFile = "refresh.json"
-	client.getObjectCalls = 2
-
-	time.Sleep(time.Second)
+	// sleep enough to be between two refreshes
+	time.Sleep(refreshInterval + refreshInterval/2)
 	_, err = s3db.Get(ctx, "789")
 	assert.NoError(t, err)
 
@@ -147,9 +178,10 @@ func TestS3DB_List(t *testing.T) {
 	client := newMockClient("list.json")
 	ctx := context.Background()
 
-	s3db, _, err := NewS3DB(ctx, client, "bucket", "key", defaultRefresh)
+	s3db, tearDown, err := NewS3DB(ctx, client, "bucket", "key", defaultRefresh)
 	require.NoError(t, err)
 	assert.NotNil(t, s3db)
+	defer tearDown()
 
 	plugins, _, err := s3db.List(ctx, db.Pagination{})
 	require.NoError(t, err)
@@ -165,9 +197,10 @@ func TestS3DB_GetByName(t *testing.T) {
 	client := newMockClient("getbyname.json")
 	ctx := context.Background()
 
-	s3db, _, err := NewS3DB(ctx, client, "bucket", "key", defaultRefresh)
+	s3db, tearDown, err := NewS3DB(ctx, client, "bucket", "key", defaultRefresh)
 	require.NoError(t, err)
 	assert.NotNil(t, s3db)
+	defer tearDown()
 
 	plugin, err := s3db.GetByName(ctx, "don't exist", false)
 	assert.Error(t, err)
@@ -199,9 +232,10 @@ func TestS3DB_SearchByDisplayName(t *testing.T) {
 	client := newMockClient("search.json")
 	ctx := context.Background()
 
-	s3db, _, err := NewS3DB(ctx, client, "bucket", "key", defaultRefresh)
+	s3db, tearDown, err := NewS3DB(ctx, client, "bucket", "key", defaultRefresh)
 	require.NoError(t, err)
 	assert.NotNil(t, s3db)
+	defer tearDown()
 
 	plugins, _, err := s3db.SearchByDisplayName(ctx, "bas", db.Pagination{})
 	require.NoError(t, err)
@@ -231,8 +265,9 @@ func TestS3DB_SearchByDisplayName(t *testing.T) {
 func TestS3DB_Unimplemented(t *testing.T) {
 	client := newMockClient("")
 
-	s3db, _, err := NewS3DB(context.Background(), client, "bucket", "key", defaultRefresh)
+	s3db, tearDown, err := NewS3DB(context.Background(), client, "bucket", "key", defaultRefresh)
 	require.NoError(t, err)
+	defer tearDown()
 
 	err = s3db.Bootstrap()
 	assert.NoError(t, err)
