@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -27,7 +28,11 @@ const defaultRefresh = time.Hour
 func (_m *s3Mock) GetObject(ctx context.Context, input *s3.GetObjectInput, opts ...func(*s3.Options)) (*s3.GetObjectOutput, error) {
 	_ret := _m.Called(ctx, input, opts)
 
-	return _ret.Get(0).(*s3.GetObjectOutput), _ret.Error(1)
+	output, ok := _ret.Get(0).(*s3.GetObjectOutput)
+	if !ok {
+		return &s3.GetObjectOutput{}, errors.New("cannot assert type on get object output")
+	}
+	return output, _ret.Error(1)
 }
 
 func (_m *s3Mock) OnGetObject() *mock.Call {
@@ -51,7 +56,7 @@ func getOutputFromFile(file string) (*s3.GetObjectOutput, error) {
 	output := &s3.GetObjectOutput{Body: io.NopCloser(strings.NewReader("[]"))}
 
 	if file != "" {
-		data, err := os.Open(path.Join(path.Dir("."), "fixtures", file))
+		data, err := os.Open(filepath.Clean(path.Join(path.Dir("."), "fixtures", file)))
 		if err != nil {
 			return output, err
 		}
@@ -123,10 +128,10 @@ func TestS3DB_Get(t *testing.T) {
 	assert.NotNil(t, s3db)
 	defer tearDown()
 
-	plugin, err := s3db.Get(ctx, "don't exist")
+	_, err = s3db.Get(ctx, "don't exist")
 	assert.Error(t, err)
 
-	plugin, err = s3db.Get(ctx, "123")
+	plugin, err := s3db.Get(ctx, "123")
 	require.NoError(t, err)
 	assert.Equal(t, "github.com/test/test123", plugin.Name)
 
@@ -187,11 +192,11 @@ func TestS3DB_GetByName(t *testing.T) {
 	assert.NotNil(t, s3db)
 	defer tearDown()
 
-	plugin, err := s3db.GetByName(ctx, "don't exist", false)
+	_, err = s3db.GetByName(ctx, "don't exist", false)
 	assert.Error(t, err)
 
 	// filter disabled
-	plugin, err = s3db.GetByName(ctx, "plugin", true)
+	plugin, err := s3db.GetByName(ctx, "plugin", true)
 	require.NoError(t, err)
 	assert.Equal(t, plugin.ID, "plugin-enabled")
 	assert.Equal(t, plugin.Name, "plugin")

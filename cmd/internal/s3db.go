@@ -15,6 +15,7 @@ const (
 	flagS3Key    = "s3-key"
 )
 
+// S3Flags setup CLI flags for S3 storage.
 func S3Flags() []cli.Flag {
 	return []cli.Flag{
 		&cli.StringFlag{
@@ -33,6 +34,7 @@ func S3Flags() []cli.Flag {
 	}
 }
 
+// CreateS3Client creates a s3.Client.
 func CreateS3Client(ctx context.Context) (*s3.Client, error) {
 	awscfg, err := config.LoadDefaultConfig(ctx)
 	if err != nil {

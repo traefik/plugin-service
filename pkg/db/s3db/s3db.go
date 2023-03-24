@@ -17,7 +17,7 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-// S3DB is a S3DB client.
+// S3DB is a S3DB storage driver.
 type S3DB struct {
 	s3Client S3Client
 	s3Bucket string
@@ -26,10 +26,12 @@ type S3DB struct {
 	tracer   trace.Tracer
 }
 
+// S3Client is used to connect to S3.
 type S3Client interface {
 	manager.DownloadAPIClient
 }
 
+// NewS3DB creates a S3DB.
 func NewS3DB(ctx context.Context, s3Client S3Client, s3Bucket, s3Key string, refreshInterval time.Duration) (*S3DB, func(), error) {
 	s := S3DB{
 		s3Bucket: s3Bucket,
@@ -57,8 +59,10 @@ func NewS3DB(ctx context.Context, s3Client S3Client, s3Bucket, s3Key string, ref
 }
 
 func (s *S3DB) updatePlugins(ctx context.Context) error {
-	s3Object, err := s.s3Client.GetObject(ctx, &s3.GetObjectInput{Key: aws.String(s.s3Key),
-		Bucket: aws.String(s.s3Bucket)})
+	s3Object, err := s.s3Client.GetObject(ctx, &s3.GetObjectInput{
+		Key:    aws.String(s.s3Key),
+		Bucket: aws.String(s.s3Bucket),
+	})
 	if err != nil {
 		return fmt.Errorf("cannot get %s on %s: %w", s.s3Key, s.s3Bucket, err)
 	}
@@ -78,14 +82,17 @@ func (s *S3DB) updatePlugins(ctx context.Context) error {
 	return nil
 }
 
+// Bootstrap is not implemented on S3DB.
 func (s *S3DB) Bootstrap() error {
 	return nil
 }
 
+// Ping is not implemented on S3DB.
 func (s *S3DB) Ping(ctx context.Context) error {
 	return nil
 }
 
+// Get returns the plugin corresponding to the given ID.
 func (s *S3DB) Get(ctx context.Context, id string) (db.Plugin, error) {
 	_, span := s.tracer.Start(ctx, "s3db_get")
 	defer span.End()
@@ -99,14 +106,17 @@ func (s *S3DB) Get(ctx context.Context, id string) (db.Plugin, error) {
 	return db.Plugin{}, fmt.Errorf("unable to retrieve plugin '%s'", id)
 }
 
+// Delete is not implemented on S3DB.
 func (s *S3DB) Delete(ctx context.Context, id string) error {
 	return fmt.Errorf("this is a readonly service")
 }
+
+// Create is not implemented on S3DB.
 func (s *S3DB) Create(ctx context.Context, plugin db.Plugin) (db.Plugin, error) {
 	return db.Plugin{}, fmt.Errorf("this is a readonly service")
 }
 
-// TODO: Put ordered plugins list in the struct
+// List lists all enabled plugins, without pagination, ordered by Stars.
 func (s *S3DB) List(ctx context.Context, pagination db.Pagination) ([]db.Plugin, string, error) {
 	_, span := s.tracer.Start(ctx, "s3db_get")
 	defer span.End()
@@ -114,6 +124,7 @@ func (s *S3DB) List(ctx context.Context, pagination db.Pagination) ([]db.Plugin,
 	return s.plugins, "", nil
 }
 
+// GetByName gets the plugin with the given name.
 func (s *S3DB) GetByName(ctx context.Context, name string, filterDisabled bool) (db.Plugin, error) {
 	_, span := s.tracer.Start(ctx, "s3db_get")
 	defer span.End()
@@ -129,6 +140,8 @@ func (s *S3DB) GetByName(ctx context.Context, name string, filterDisabled bool) 
 
 	return db.Plugin{}, fmt.Errorf("plugin '%s' not found", name)
 }
+
+// SearchByDisplayName searches for plugins matching with the given name.
 func (s *S3DB) SearchByDisplayName(ctx context.Context, name string, pagination db.Pagination) ([]db.Plugin, string, error) {
 	_, span := s.tracer.Start(ctx, "s3db_get")
 	defer span.End()
@@ -142,19 +155,24 @@ func (s *S3DB) SearchByDisplayName(ctx context.Context, name string, pagination 
 		if plugin.Disabled {
 			continue
 		}
-		if matched := r.Match([]byte(plugin.DisplayName)); matched {
+		if matched := r.MatchString(plugin.DisplayName); matched {
 			results = append(results, plugin)
 		}
 	}
 	return results, "", nil
 }
+
+// Update is not implemented on S3DB.
 func (s *S3DB) Update(context.Context, string, db.Plugin) (db.Plugin, error) {
 	return db.Plugin{}, fmt.Errorf("this is a readonly service")
 }
 
+// CreateHash is not implemented on S3DB.
 func (s *S3DB) CreateHash(ctx context.Context, module, version, hash string) (db.PluginHash, error) {
 	return db.PluginHash{}, fmt.Errorf("this is a readonly service")
 }
+
+// GetHashByName is not implemented on S3DB.
 func (s *S3DB) GetHashByName(ctx context.Context, module, version string) (db.PluginHash, error) {
 	return db.PluginHash{}, fmt.Errorf("not implemented on this store")
 }

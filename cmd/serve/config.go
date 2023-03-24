@@ -19,7 +19,7 @@ type Pilot struct {
 	GitHubToken string
 }
 
-// S3 holds s3 configuration
+// S3 holds s3 configuration.
 type S3 struct {
 	Bucket string
 	Key    string
