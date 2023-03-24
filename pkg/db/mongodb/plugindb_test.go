@@ -581,7 +581,7 @@ func TestMongoDB_SearchByName(t *testing.T) {
 		test := test
 
 		t.Run(test.desc, func(t *testing.T) {
-			plugins, nextID, err := store.SearchByName(ctx, test.query, test.pagination)
+			plugins, nextID, err := store.SearchByDisplayName(ctx, test.query, test.pagination)
 			if test.wantErr {
 				require.Error(t, err)
 				return
@@ -619,9 +619,9 @@ func TestMongoDB_Update(t *testing.T) {
 					},
 					Stars:   10,
 					Snippet: nil,
-				},
-				Hashes: []db.PluginHash{
-					{Name: "plugin@v1.1.1", Hash: "123"},
+					Hashes: []db.PluginHash{
+						{Name: "plugin@v1.1.1", Hash: "123"},
+					},
 				},
 			},
 		},
@@ -645,6 +645,9 @@ func TestMongoDB_Update(t *testing.T) {
 		},
 		Stars:   10,
 		Snippet: nil,
+		Hashes: []db.PluginHash{
+			{Name: "plugin@v1.1.1", Hash: "123"},
+		},
 	})
 	require.NoError(t, err)
 
@@ -661,7 +664,7 @@ func TestMongoDB_Update(t *testing.T) {
 		Decode(&pluginWithHashes)
 	require.NoError(t, err)
 
-	assert.Equal(t, fixtures["plugin"].Hashes, pluginWithHashes.Hashes)
+	assert.Equal(t, fixtures["plugin"].Plugin.Hashes, pluginWithHashes.Hashes)
 
 	// Update with same values
 	got, err = store.Update(ctx, "123", got)
@@ -699,9 +702,9 @@ func TestMongoDB_CreateHash(t *testing.T) {
 					},
 					Stars:   10,
 					Snippet: nil,
-				},
-				Hashes: []db.PluginHash{
-					{Name: "plugin@v1.1.1", Hash: "123"},
+					Hashes: []db.PluginHash{
+						{Name: "plugin@v1.1.1", Hash: "123"},
+					},
 				},
 			},
 		},
@@ -756,11 +759,11 @@ func TestMongoDB_GetHashByName(t *testing.T) {
 					},
 					Stars:   10,
 					Snippet: nil,
-				},
-				Hashes: []db.PluginHash{
-					{Name: "plugin@v1.1.2", Hash: "123"},
-					{Name: "plugin@v1.1.3", Hash: "123"},
-					{Name: "plugin@v1.1.1", Hash: "123"},
+					Hashes: []db.PluginHash{
+						{Name: "plugin@v1.1.2", Hash: "123"},
+						{Name: "plugin@v1.1.3", Hash: "123"},
+						{Name: "plugin@v1.1.1", Hash: "123"},
+					},
 				},
 			},
 		},

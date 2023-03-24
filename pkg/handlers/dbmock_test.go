@@ -7,17 +7,25 @@ import (
 )
 
 type mockDB struct {
-	getFn          func(ctx context.Context, id string) (db.Plugin, error)
-	deleteFn       func(ctx context.Context, id string) error
-	createFn       func(context.Context, db.Plugin) (db.Plugin, error)
-	listFn         func(context.Context, db.Pagination) ([]db.Plugin, string, error)
-	getByNameFn    func(context.Context, string) (db.Plugin, error)
-	searchByNameFn func(context.Context, string, db.Pagination) ([]db.Plugin, string, error)
-	updateFn       func(context.Context, string, db.Plugin) (db.Plugin, error)
+	getFn                 func(ctx context.Context, id string) (db.Plugin, error)
+	deleteFn              func(ctx context.Context, id string) error
+	createFn              func(context.Context, db.Plugin) (db.Plugin, error)
+	listFn                func(context.Context, db.Pagination) ([]db.Plugin, string, error)
+	getByNameFn           func(context.Context, string) (db.Plugin, error)
+	searchByDisplayNameFn func(context.Context, string, db.Pagination) ([]db.Plugin, string, error)
+	updateFn              func(context.Context, string, db.Plugin) (db.Plugin, error)
 
 	deleteHashFn    func(ctx context.Context, id string) error
 	createHashFn    func(ctx context.Context, module, version, hash string) (db.PluginHash, error)
 	getHashByNameFn func(ctx context.Context, module, version string) (db.PluginHash, error)
+}
+
+func (m mockDB) Bootstrap() error {
+	return nil
+}
+
+func (m mockDB) Ping(ctx context.Context) error {
+	return nil
 }
 
 func (m mockDB) Get(ctx context.Context, id string) (db.Plugin, error) {
@@ -40,8 +48,8 @@ func (m mockDB) GetByName(ctx context.Context, name string, filterDisabled bool)
 	return m.getByNameFn(ctx, name)
 }
 
-func (m mockDB) SearchByName(ctx context.Context, query string, pagination db.Pagination) ([]db.Plugin, string, error) {
-	return m.searchByNameFn(ctx, query, pagination)
+func (m mockDB) SearchByDisplayName(ctx context.Context, query string, pagination db.Pagination) ([]db.Plugin, string, error) {
+	return m.searchByDisplayNameFn(ctx, query, pagination)
 }
 
 func (m mockDB) Update(ctx context.Context, id string, plugin db.Plugin) (db.Plugin, error) {

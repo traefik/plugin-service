@@ -82,6 +82,7 @@ linters:
     - nosnakecase
     - varnamelen
     - nonamedreturns
+    - interfacebloat
 
 issues:
   exclude-use-default: false

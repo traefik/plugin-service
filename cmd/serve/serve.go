@@ -4,12 +4,15 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"time"
 
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/google/go-github/v48/github"
 	"github.com/gorilla/mux"
 	"github.com/julienschmidt/httprouter"
 	"github.com/ldez/grignotin/goproxy"
 	"github.com/traefik/plugin-service/cmd/internal"
+	"github.com/traefik/plugin-service/pkg/db/s3db"
 	"github.com/traefik/plugin-service/pkg/handlers"
 	"github.com/traefik/plugin-service/pkg/healthcheck"
 	"github.com/traefik/plugin-service/pkg/tracer"
@@ -23,16 +26,27 @@ func run(ctx context.Context, cfg Config) error {
 		return fmt.Errorf("unable to configure exporter: %w", err)
 	}
 
-	defer exporter.Flush()
+	defer func() { _ = exporter.Shutdown(ctx) }()
 
 	bsp := tracer.Setup(exporter, cfg.Tracing.Probability)
 	defer func() { _ = bsp.Shutdown(ctx) }()
 
-	store, tearDown, err := internal.CreateMongoClient(ctx, cfg.MongoDB)
+	var store handlers.PluginStorer
+	var tearDown func()
+	if cfg.S3.Bucket != "" && cfg.S3.Key != "" {
+		var s3Client *s3.Client
+		s3Client, err = internal.CreateS3Client(ctx)
+		if err != nil {
+			return fmt.Errorf("unable to create s3 client: %w", err)
+		}
+		store, tearDown, err = s3db.NewS3DB(ctx, s3Client, cfg.S3.Bucket, cfg.S3.Key, time.Hour)
+	} else {
+		store, tearDown, err = internal.CreateMongoClient(ctx, cfg.MongoDB)
+	}
+	defer tearDown()
 	if err != nil {
 		return fmt.Errorf("unable to create MongoDB client: %w", err)
 	}
-	defer tearDown()
 
 	if err = store.Bootstrap(); err != nil {
 		return fmt.Errorf("unable to bootstrap database: %w", err)
