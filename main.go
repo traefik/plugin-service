@@ -4,6 +4,7 @@ import (
 	"os"
 
 	"github.com/rs/zerolog/log"
+	"github.com/traefik/plugin-service/cmd/generatejson"
 	"github.com/traefik/plugin-service/cmd/serve"
 	"github.com/traefik/plugin-service/pkg/logger"
 	"github.com/urfave/cli/v2"
@@ -17,6 +18,7 @@ func main() {
 		Usage: "Run plugin service",
 		Commands: []*cli.Command{
 			serve.Command(),
+			generatejson.Command(),
 		},
 	}
 

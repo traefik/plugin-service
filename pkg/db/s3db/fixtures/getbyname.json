@@ -1,0 +1,17 @@
+[
+  {
+    "id": "plugin-disabled",
+    "name": "plugin",
+    "disabled": true
+  },
+  {
+    "id": "plugin-enabled",
+    "name": "plugin",
+    "disabled": false
+  },
+  {
+    "id": "plugin-case-sensitive",
+    "name": "PluGin__",
+    "disabled": false
+  }
+]
