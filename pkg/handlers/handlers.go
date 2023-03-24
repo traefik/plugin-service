@@ -20,7 +20,7 @@ import (
 
 const (
 	nextPageHeader = "X-Next-Page"
-	defaultPerPage = 100
+	defaultPerPage = 200
 )
 
 // PluginStorer is capable of storing plugins.
