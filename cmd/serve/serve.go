@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/google/go-github/v48/github"
+	"github.com/google/go-github/v50/github"
 	"github.com/gorilla/mux"
 	"github.com/julienschmidt/httprouter"
 	"github.com/ldez/grignotin/goproxy"
@@ -23,7 +23,7 @@ func run(ctx context.Context, cfg Config) error {
 		return fmt.Errorf("unable to configure exporter: %w", err)
 	}
 
-	defer exporter.Flush()
+	defer func() { _ = exporter.Shutdown(ctx) }()
 
 	bsp := tracer.Setup(exporter, cfg.Tracing.Probability)
 	defer func() { _ = bsp.Shutdown(ctx) }()
