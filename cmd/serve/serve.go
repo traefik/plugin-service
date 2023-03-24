@@ -23,7 +23,7 @@ func run(ctx context.Context, cfg Config) error {
 		return fmt.Errorf("unable to configure exporter: %w", err)
 	}
 
-	defer exporter.Flush()
+	defer func() { _ = exporter.Shutdown(ctx) }()
 
 	bsp := tracer.Setup(exporter, cfg.Tracing.Probability)
 	defer func() { _ = bsp.Shutdown(ctx) }()
