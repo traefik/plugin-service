@@ -36,7 +36,7 @@ func (m mockDB) List(ctx context.Context, pagination db.Pagination) ([]db.Plugin
 	return m.listFn(ctx, pagination)
 }
 
-func (m mockDB) GetByName(ctx context.Context, name string, filterDisabled bool) (db.Plugin, error) {
+func (m mockDB) GetByName(ctx context.Context, name string, _ bool) (db.Plugin, error) {
 	return m.getByNameFn(ctx, name)
 }
 
