@@ -11,7 +11,7 @@ import (
 )
 
 func TestClient_Live(t *testing.T) {
-	req := httptest.NewRequest(http.MethodGet, "/live", nil)
+	req := httptest.NewRequest(http.MethodGet, "/live", http.NoBody)
 	rw := httptest.NewRecorder()
 
 	client := Client{}
@@ -49,7 +49,7 @@ func TestClient_Ready(t *testing.T) {
 				return nil
 			})}
 
-			req := httptest.NewRequest(http.MethodGet, "/ready", nil)
+			req := httptest.NewRequest(http.MethodGet, "/ready", http.NoBody)
 			rw := httptest.NewRecorder()
 
 			client.Ready(rw, req)

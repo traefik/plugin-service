@@ -57,7 +57,7 @@ func TestHandlers_List(t *testing.T) {
 
 	rw := httptest.NewRecorder()
 
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
 
 	New(testDB, nil, nil).List(rw, req)
 
@@ -96,7 +96,7 @@ func TestHandlers_List_GetByName(t *testing.T) {
 
 	rw := httptest.NewRecorder()
 
-	req := httptest.NewRequest(http.MethodGet, "/?name=Demo%20Plugin", nil)
+	req := httptest.NewRequest(http.MethodGet, "/?name=Demo%20Plugin", http.NoBody)
 
 	New(testDB, nil, nil).getByName(rw, req)
 
@@ -134,7 +134,7 @@ func TestHandlers_List_SearchByName(t *testing.T) {
 
 	rw := httptest.NewRecorder()
 
-	req := httptest.NewRequest(http.MethodGet, "/?query=demo", nil)
+	req := httptest.NewRequest(http.MethodGet, "/?query=demo", http.NoBody)
 
 	New(testDB, nil, nil).getByName(rw, req)
 

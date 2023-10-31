@@ -82,6 +82,10 @@ linters:
     - nosnakecase
     - varnamelen
     - nonamedreturns
+    - depguard
+    - perfsprint
+    - inamedparam
+    - tagalign
 
 issues:
   exclude-use-default: false
