@@ -40,7 +40,7 @@ func (h Handlers) Download(rw http.ResponseWriter, req *http.Request) {
 
 	logger := log.With().Str("module_name", moduleName).Str("module_version", version).Logger()
 
-	_, err := h.store.GetByName(ctx, moduleName, false)
+	plugin, err := h.store.GetByName(ctx, moduleName, false)
 	if err != nil {
 		span.RecordError(err)
 		if errors.As(err, &db.NotFoundError{}) {
@@ -88,7 +88,7 @@ func (h Handlers) Download(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	if h.gh != nil && len(modFile.Require) > 0 {
+	if h.gh != nil && (len(modFile.Require) > 0 || plugin.Runtime == "wasm") {
 		h.downloadGitHub(ctx, moduleName, version)(rw, req)
 		return
 	}
