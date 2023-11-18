@@ -7,6 +7,8 @@ type Plugin struct {
 	ID            string                 `json:"id,omitempty" bson:"id"`
 	Name          string                 `json:"name,omitempty" bson:"name"`
 	DisplayName   string                 `json:"displayName,omitempty" bson:"displayName"`
+	Runtime       string                 `json:"runtime,omitempty" bson:"runtime"`
+	WasmPath      string                 `json:"wasmPath,omitempty" bson:"wasmPath"`
 	Author        string                 `json:"author,omitempty" bson:"author"`
 	Type          string                 `json:"type,omitempty" bson:"type"`
 	Import        string                 `json:"import,omitempty" bson:"import"`
