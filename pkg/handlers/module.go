@@ -36,32 +36,32 @@ func (h Handlers) Download(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	moduleName, version := extractModuleInfo(req.URL, "/download/")
+	pluginName, version := extractPluginInfo(req.URL, "/download/")
 
-	logger := log.With().Str("module_name", moduleName).Str("module_version", version).Logger()
+	logger := log.With().Str("plugin_name", pluginName).Str("plugin_version", version).Logger()
 
-	_, err := h.store.GetByName(ctx, moduleName, false)
+	plugin, err := h.store.GetByName(ctx, pluginName, false)
 	if err != nil {
 		span.RecordError(err)
 		if errors.As(err, &db.NotFoundError{}) {
 			logger.Warn().Err(err).Msg("Unknown plugin")
-			JSONErrorf(rw, http.StatusNotFound, "Unknown plugin: %s@%s", moduleName, version)
+			JSONErrorf(rw, http.StatusNotFound, "Unknown plugin: %s@%s", pluginName, version)
 			return
 		}
 
 		logger.Error().Err(err).Msg("Failed to get plugin")
-		JSONErrorf(rw, http.StatusInternalServerError, "Failed to get plugin %s@%s", moduleName, version)
+		JSONErrorf(rw, http.StatusInternalServerError, "Failed to get plugin %s@%s", pluginName, version)
 		return
 	}
 
 	sum := req.Header.Get(hashHeader)
 	if sum != "" {
-		ph, errH := h.store.GetHashByName(ctx, moduleName, version)
+		ph, errH := h.store.GetHashByName(ctx, pluginName, version)
 		if errH != nil {
 			span.RecordError(errH)
 			if !errors.As(errH, &db.NotFoundError{}) {
 				logger.Error().Err(errH).Msg("Failed to get plugin hash")
-				JSONErrorf(rw, http.StatusInternalServerError, "Failed to get plugin %s@%s", moduleName, version)
+				JSONErrorf(rw, http.StatusInternalServerError, "Failed to get plugin %s@%s", pluginName, version)
 				return
 			}
 		} else if ph.Hash == sum {
@@ -71,7 +71,7 @@ func (h Handlers) Download(rw http.ResponseWriter, req *http.Request) {
 
 		attributes := []attribute.KeyValue{
 			{Key: attribute.Key("module.tokenValue"), Value: attribute.StringValue(req.Header.Get(tokenHeader))},
-			{Key: attribute.Key("module.moduleName"), Value: attribute.StringValue(moduleName)},
+			{Key: attribute.Key("module.moduleName"), Value: attribute.StringValue(pluginName)},
 			{Key: attribute.Key("module.version"), Value: attribute.StringValue(version)},
 			{Key: attribute.Key("module.sum"), Value: attribute.StringValue(sum)},
 		}
@@ -80,20 +80,36 @@ func (h Handlers) Download(rw http.ResponseWriter, req *http.Request) {
 		logger.Error().Msgf("Someone is trying to hack the archive: %v", sum)
 	}
 
-	modFile, err := h.goProxy.GetModFile(moduleName, version)
-	if err != nil {
-		span.RecordError(err)
-		logger.Error().Err(err).Msg("Failed to get module file")
-		JSONErrorf(rw, http.StatusInternalServerError, "Failed to get plugin %s@%s", moduleName, version)
-		return
-	}
+	switch strings.ToLower(plugin.Runtime) {
+	case "wasm":
+		// WASM plugins
+		if h.gh == nil {
+			logger.Error().Msg("Failed to get plugin: missing GitHub client.")
+			JSONErrorf(rw, http.StatusInternalServerError, "Failed to get plugin %s@%s", pluginName, version)
+			return
+		}
 
-	if h.gh != nil && len(modFile.Require) > 0 {
-		h.downloadGitHub(ctx, moduleName, version)(rw, req)
+		h.downloadGitHub(ctx, pluginName, version)(rw, req)
 		return
-	}
 
-	h.downloadGoProxy(ctx, moduleName, version)(rw, req)
+	default:
+		// Yaegi plugins
+		modFile, err := h.goProxy.GetModFile(pluginName, version)
+		if err != nil {
+			span.RecordError(err)
+			logger.Error().Err(err).Msg("Failed to get module file")
+			JSONErrorf(rw, http.StatusInternalServerError, "Failed to get plugin %s@%s", pluginName, version)
+			return
+		}
+
+		// Uses GitHub when there are dependencies because Go proxy archives don't contain vendor folder.
+		if h.gh != nil && len(modFile.Require) > 0 {
+			h.downloadGitHub(ctx, pluginName, version)(rw, req)
+			return
+		}
+
+		h.downloadGoProxy(ctx, pluginName, version)(rw, req)
+	}
 }
 
 func (h Handlers) downloadGoProxy(ctx context.Context, moduleName, version string) http.HandlerFunc {
@@ -286,7 +302,7 @@ func (h Handlers) Validate(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	moduleName, version := extractModuleInfo(req.URL, "/validate/")
+	moduleName, version := extractPluginInfo(req.URL, "/validate/")
 
 	logger := log.With().Str("module_name", moduleName).Str("module_version", version).Logger()
 
@@ -314,7 +330,7 @@ func (h Handlers) Validate(rw http.ResponseWriter, req *http.Request) {
 	rw.WriteHeader(http.StatusNotFound)
 }
 
-func extractModuleInfo(endpoint *url.URL, sep string) (string, string) {
+func extractPluginInfo(endpoint *url.URL, sep string) (string, string) {
 	_, after, _ := strings.Cut(strings.TrimSuffix(endpoint.Path, "/"), sep)
 	moduleName, version := path.Split(after)
 
