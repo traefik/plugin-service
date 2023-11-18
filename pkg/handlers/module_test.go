@@ -48,7 +48,7 @@ func Test_cleanModuleName(t *testing.T) {
 	}
 }
 
-func Test_extractModuleInfo(t *testing.T) {
+func Test_extractPluginInfo(t *testing.T) {
 	type expected struct {
 		moduleName string
 		version    string
@@ -97,7 +97,7 @@ func Test_extractModuleInfo(t *testing.T) {
 			endpoint, err := url.Parse(test.url)
 			require.NoError(t, err)
 
-			moduleName, version := extractModuleInfo(endpoint, test.sep)
+			moduleName, version := extractPluginInfo(endpoint, test.sep)
 
 			assert.Equal(t, test.expected.moduleName, moduleName)
 			assert.Equal(t, test.expected.version, version)
