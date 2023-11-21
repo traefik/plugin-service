@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"path"
+	"path/filepath"
 	"strings"
 
 	"github.com/google/go-github/v50/github"
@@ -89,7 +90,7 @@ func (h Handlers) Download(rw http.ResponseWriter, req *http.Request) {
 			return
 		}
 
-		h.downloadGitHub(ctx, pluginName, version)(rw, req)
+		h.downloadGitHub(ctx, pluginName, version, true)(rw, req)
 		return
 
 	default:
@@ -104,7 +105,7 @@ func (h Handlers) Download(rw http.ResponseWriter, req *http.Request) {
 
 		// Uses GitHub when there are dependencies because Go proxy archives don't contain vendor folder.
 		if h.gh != nil && len(modFile.Require) > 0 {
-			h.downloadGitHub(ctx, pluginName, version)(rw, req)
+			h.downloadGitHub(ctx, pluginName, version, false)(rw, req)
 			return
 		}
 
@@ -188,7 +189,7 @@ func (h Handlers) downloadGoProxy(ctx context.Context, moduleName, version strin
 	}
 }
 
-func (h Handlers) downloadGitHub(ctx context.Context, moduleName, version string) http.HandlerFunc {
+func (h Handlers) downloadGitHub(ctx context.Context, moduleName, version string, fromAssets bool) http.HandlerFunc {
 	return func(rw http.ResponseWriter, req *http.Request) {
 		var span trace.Span
 		ctx, span = h.tracer.Start(ctx, "handler_downloadGitHub")
@@ -196,7 +197,13 @@ func (h Handlers) downloadGitHub(ctx context.Context, moduleName, version string
 
 		logger := log.With().Str("module_name", moduleName).Str("module_version", version).Logger()
 
-		request, err := h.getArchiveLinkRequest(ctx, moduleName, version)
+		var request *http.Request
+		var err error
+		if fromAssets {
+			request, err = h.getAssetLinkRequest(ctx, moduleName, version)
+		} else {
+			request, err = h.getArchiveLinkRequest(ctx, moduleName, version)
+		}
 		if err != nil {
 			span.RecordError(err)
 			logger.Error().Err(err).Msg("Failed to get archive link")
@@ -288,6 +295,36 @@ func (h Handlers) getArchiveLinkRequest(ctx context.Context, moduleName, version
 	}
 
 	return http.NewRequestWithContext(ctx, http.MethodGet, link.String(), http.NoBody)
+}
+
+func (h Handlers) getAssetLinkRequest(ctx context.Context, moduleName, version string) (*http.Request, error) {
+	ctx, span := h.tracer.Start(ctx, "handler_getAssetLinkRequest")
+	defer span.End()
+
+	owner, repoName := path.Split(strings.TrimPrefix(moduleName, "github.com/"))
+	owner = strings.TrimSuffix(owner, "/")
+
+	release, _, err := h.gh.Repositories.GetReleaseByTag(ctx, owner, repoName, version)
+	if err != nil {
+		span.RecordError(err)
+		return nil, fmt.Errorf("failed to get release: %w", err)
+	}
+
+	assets := map[*github.ReleaseAsset]struct{}{}
+	for _, asset := range release.Assets {
+		if filepath.Ext(asset.GetName()) == ".zip" {
+			assets[asset] = struct{}{}
+		}
+	}
+
+	if len(assets) > 1 {
+		return nil, fmt.Errorf("too many zip archive (%d)", len(assets))
+	}
+
+	for asset := range assets {
+		return http.NewRequestWithContext(ctx, http.MethodGet, asset.GetBrowserDownloadURL(), http.NoBody)
+	}
+	return nil, errors.New("zip archive not found")
 }
 
 // Validate validates a plugin archive.
