@@ -25,7 +25,7 @@ type Plugin struct {
 	Disabled      bool                   `json:"disabled,omitempty" bson:"disabled"`
 }
 
-// PluginHash The plugin hash tuple..
+// PluginHash The plugin hash tuple.
 type PluginHash struct {
 	Name string `json:"name,omitempty" bson:"name"`
 	Hash string `json:"hash,omitempty" bson:"hash"`
