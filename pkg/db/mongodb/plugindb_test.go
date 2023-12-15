@@ -805,10 +805,7 @@ func createDatabase(t *testing.T, fixtures []fixture) (*MongoDB, map[string]plug
 		Password:   "secret",
 	}
 
-	client, err := mongo.NewClient(clientOptions)
-	require.NoError(t, err)
-
-	err = client.Connect(ctx)
+	client, err := mongo.Connect(ctx, clientOptions)
 	require.NoError(t, err)
 
 	database := client.Database(dbName)
