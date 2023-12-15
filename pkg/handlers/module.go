@@ -13,7 +13,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/google/go-github/v50/github"
+	"github.com/google/go-github/v57/github"
 	"github.com/rs/zerolog/log"
 	"github.com/traefik/plugin-service/pkg/db"
 	"go.opentelemetry.io/otel/attribute"
@@ -288,7 +288,7 @@ func (h Handlers) getArchiveLinkRequest(ctx context.Context, moduleName, version
 	owner, repoName := path.Split(strings.TrimPrefix(moduleName, "github.com/"))
 	owner = strings.TrimSuffix(owner, "/")
 
-	link, _, err := h.gh.Repositories.GetArchiveLink(ctx, owner, repoName, github.Zipball, opts, true)
+	link, _, err := h.gh.Repositories.GetArchiveLink(ctx, owner, repoName, github.Zipball, opts, 3)
 	if err != nil {
 		span.RecordError(err)
 		return nil, fmt.Errorf("failed to get archive link: %w", err)

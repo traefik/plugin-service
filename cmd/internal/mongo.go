@@ -58,12 +58,8 @@ func CreateMongoClient(ctx context.Context, cfg mongodb.Config) (*mongodb.MongoD
 		SetMaxPoolSize(cfg.MaxPool).
 		SetMonitor(otelmongo.NewMonitor())
 
-	mongoClient, err := mongo.NewClient(clientOptions)
+	mongoClient, err := mongo.Connect(ctx, clientOptions)
 	if err != nil {
-		return nil, nil, err
-	}
-
-	if err = mongoClient.Connect(ctx); err != nil {
 		return nil, nil, err
 	}
 
