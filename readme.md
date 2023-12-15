@@ -1,22 +1,29 @@
 # Plugin Service
 
-```bash
+```console
+NAME:
+   Plugin CLI serve - Serve HTTP
+
+USAGE:
+   Plugin CLI serve [command options] [arguments...]
+
+DESCRIPTION:
+   Launch plugin service application
+
+OPTIONS:
+   --addr value                 Addr to listen on. [$ADDR]
+   --github-token value         GitHub Token [$GITHUB_TOKEN]
+   --go-proxy-url value         Go Proxy URL [$GO_PROXY_URL]
+   --go-proxy-username value    Go Proxy Username [$GO_PROXY_USERNAME]
+   --go-proxy-password value    Go Proxy Password [$GO_PROXY_PASSWORD]
+   --tracing-address value      Address to send traces (default: "jaeger.jaeger.svc.cluster.local:4318") [$TRACING_ADDRESS]
+   --tracing-insecure           use HTTP instead of HTTPS (default: true) [$TRACING_INSECURE]
+   --tracing-username value     Username to connect to Jaeger (default: "jaeger") [$TRACING_USERNAME]
+   --tracing-password value     Password to connect to Jaeger (default: "jaeger") [$TRACING_PASSWORD]
+   --tracing-probability value  Probability to send traces (default: 0) [$TRACING_PROBABILITY]
+   --mongodb-uri value          MongoDB connection string (default: "mongodb://mongoadmin:secret@localhost:27017") [$MONGODB_URI]
+   --mongodb-minpool value      MongoDB Min Pool Size (default: 10) [$MONGODB_MIN_POOL]
+   --mongodb-maxpool value      MongoDB Max Pool Size (default: 30) [$MONGODB_MAX_POOL]
+   --help, -h                   show help
 
 ```
-
-- `PILOT_TOKEN_URL`
-- `PILOT_SERVICES_ACCESS_TOKEN`
-- `PILOT_GO_PROXY_URL` (optional)
-- `PILOT_GO_PROXY_USERNAME` (optional)
-- `PILOT_GO_PROXY_PASSWORD` (optional)
-- `PILOT_GITHUB_TOKEN` (require).
-
-# Vercel regions
-
-- pdx1: Portland, West US - AWS us-west-2
-- sfo1: San Francisco, CA, USA - AWS us-west-1
-- gru1: São Paulo, Brazil - AWS sa-east-1
-- cle1: Cleveland, East US - AWS us-east-2
-- iad1: Washington DC, USA - AWS us-east-1
-- dub1: Dublin, Ireland - AWS eu-west-1
-- sin1: Singapore - AWS ap-southeast-1

@@ -10,11 +10,10 @@ import (
 	"regexp"
 	"strconv"
 
-	"github.com/google/go-github/v50/github"
+	"github.com/google/go-github/v57/github"
 	"github.com/ldez/grignotin/goproxy"
 	"github.com/rs/zerolog/log"
 	"github.com/traefik/plugin-service/pkg/db"
-	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -46,12 +45,12 @@ type Handlers struct {
 }
 
 // New creates all HTTP handlers.
-func New(store PluginStorer, goProxy *goproxy.Client, gh *github.Client) Handlers {
+func New(store PluginStorer, goProxy *goproxy.Client, gh *github.Client, tracer trace.Tracer) Handlers {
 	return Handlers{
 		store:   store,
 		goProxy: goProxy,
 		gh:      gh,
-		tracer:  otel.Tracer("handler"),
+		tracer:  tracer,
 	}
 }
 

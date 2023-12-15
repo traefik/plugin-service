@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/google/go-github/v50/github"
+	"github.com/google/go-github/v57/github"
 	"github.com/gorilla/mux"
 	"github.com/julienschmidt/httprouter"
 	"github.com/ldez/grignotin/goproxy"
@@ -18,15 +18,11 @@ import (
 )
 
 func run(ctx context.Context, cfg Config) error {
-	exporter, err := tracer.NewJaegerExporter(cfg.Tracing.Endpoint, cfg.Tracing.Username, cfg.Tracing.Password)
+	tTracer, closer, err := tracer.NewTracer(ctx, cfg.Tracing)
 	if err != nil {
-		return fmt.Errorf("unable to configure exporter: %w", err)
+		return fmt.Errorf("setup tracing provider: %w", err)
 	}
-
-	defer func() { _ = exporter.Shutdown(ctx) }()
-
-	bsp := tracer.Setup(exporter, cfg.Tracing.Probability)
-	defer func() { _ = bsp.Shutdown(ctx) }()
+	defer func() { _ = closer.Close() }()
 
 	store, tearDown, err := internal.CreateMongoClient(ctx, cfg.MongoDB)
 	if err != nil {
@@ -44,14 +40,15 @@ func run(ctx context.Context, cfg Config) error {
 	}
 
 	var ghClient *github.Client
-	if cfg.Pilot.GitHubToken != "" {
-		ghClient = newGitHubClient(context.Background(), cfg.Pilot.GitHubToken)
+	if cfg.GitHubToken != "" {
+		ghClient = newGitHubClient(context.Background(), cfg.GitHubToken)
 	}
 
 	handler := handlers.New(
 		store,
 		gpClient,
 		ghClient,
+		tTracer,
 	)
 
 	healthChecker := healthcheck.Client{DB: store}
@@ -64,7 +61,7 @@ func run(ctx context.Context, cfg Config) error {
 	r.HandleFunc("/live", healthChecker.Live)
 	r.HandleFunc("/ready", healthChecker.Ready)
 
-	return http.ListenAndServe(cfg.Pilot.Host, r)
+	return http.ListenAndServe(cfg.Addr, r)
 }
 
 func buildPublicRouter(handler handlers.Handlers) http.Handler {
