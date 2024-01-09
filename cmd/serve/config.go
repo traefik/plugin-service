@@ -2,28 +2,17 @@ package serve
 
 import (
 	"github.com/traefik/plugin-service/pkg/db/mongodb"
+	"github.com/traefik/plugin-service/pkg/tracer"
 )
 
 // Config holds the serve configuration.
 type Config struct {
-	MongoDB mongodb.Config
-	Pilot   Pilot
-	Tracing Tracing
-	GoProxy GoProxy
-}
-
-// Pilot holds pilots configuration.
-type Pilot struct {
-	Host        string
+	Addr        string
 	GitHubToken string
-}
 
-// Tracing holds tracing configuration.
-type Tracing struct {
-	Endpoint    string
-	Username    string
-	Password    string
-	Probability float64
+	MongoDB mongodb.Config
+	Tracing tracer.Config
+	GoProxy GoProxy
 }
 
 // GoProxy holds the go-proxy configuration.

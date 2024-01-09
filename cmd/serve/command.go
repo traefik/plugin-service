@@ -1,8 +1,25 @@
 package serve
 
 import (
+	"github.com/ettle/strcase"
 	"github.com/traefik/plugin-service/cmd/internal"
+	"github.com/traefik/plugin-service/pkg/tracer"
 	"github.com/urfave/cli/v2"
+)
+
+const (
+	flagAddr    = "addr"
+	flagGHToken = "github-token"
+
+	flagGoProxyURL      = "go-proxy-url"
+	flagGoProxyUsername = "go-proxy-username"
+	flagGoProxyPassword = "go-proxy-password"
+
+	flagTracingAddress     = "tracing-address"
+	flagTracingInsecure    = "tracing-insecure"
+	flagTracingUsername    = "tracing-username"
+	flagTracingPassword    = "tracing-password"
+	flagTracingProbability = "tracing-probability"
 )
 
 // Command creates the command for serving the plugin service.
@@ -13,14 +30,14 @@ func Command() *cli.Command {
 		Description: "Launch plugin service application",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
-				Name:    "host",
-				Usage:   "Host to listen on.",
-				EnvVars: []string{"PILOT_HOST"},
+				Name:    flagAddr,
+				Usage:   "Addr to listen on.",
+				EnvVars: []string{strcase.ToSNAKE(flagAddr)},
 			},
 			&cli.StringFlag{
-				Name:     "github-token",
-				Usage:    "Pilot GitHub Token",
-				EnvVars:  []string{"PILOT_GITHUB_TOKEN"},
+				Name:     flagGHToken,
+				Usage:    "GitHub Token",
+				EnvVars:  []string{strcase.ToSNAKE(flagGHToken)},
 				Required: true,
 			},
 		},
@@ -39,20 +56,20 @@ func Command() *cli.Command {
 func buildConfig(cliCtx *cli.Context) Config {
 	return Config{
 		MongoDB: internal.BuildMongoConfig(cliCtx),
-		Tracing: Tracing{
-			Endpoint:    cliCtx.String("tracing-endpoint"),
-			Username:    cliCtx.String("tracing-username"),
-			Password:    cliCtx.String("tracing-password"),
-			Probability: cliCtx.Float64("tracing-probability"),
+		Tracing: tracer.Config{
+			Address:     cliCtx.String(flagTracingAddress),
+			Insecure:    cliCtx.Bool(flagTracingInsecure),
+			Username:    cliCtx.String(flagTracingUsername),
+			Password:    cliCtx.String(flagTracingPassword),
+			Probability: cliCtx.Float64(flagTracingProbability),
+			ServiceName: "plugin-service",
 		},
-		Pilot: Pilot{
-			Host:        cliCtx.String("host"),
-			GitHubToken: cliCtx.String("github-token"),
-		},
+		Addr:        cliCtx.String(flagAddr),
+		GitHubToken: cliCtx.String(flagGHToken),
 		GoProxy: GoProxy{
-			URL:      cliCtx.String("go-proxy-url"),
-			Username: cliCtx.String("go-proxy-username"),
-			Password: cliCtx.String("go-proxy-password"),
+			URL:      cliCtx.String(flagGoProxyURL),
+			Username: cliCtx.String(flagGoProxyUsername),
+			Password: cliCtx.String(flagGoProxyPassword),
 		},
 	}
 }
@@ -60,21 +77,21 @@ func buildConfig(cliCtx *cli.Context) Config {
 func goProxyFlags() []cli.Flag {
 	return []cli.Flag{
 		&cli.StringFlag{
-			Name:     "go-proxy-url",
-			Usage:    "Pilot Go Proxy URL",
-			EnvVars:  []string{"PILOT_GO_PROXY_URL"},
+			Name:     flagGoProxyURL,
+			Usage:    "Go Proxy URL",
+			EnvVars:  []string{strcase.ToSNAKE(flagGoProxyURL)},
 			Required: true,
 		},
 		&cli.StringFlag{
-			Name:     "go-proxy-username",
-			Usage:    "Pilot Go Proxy Username",
-			EnvVars:  []string{"PILOT_GO_PROXY_USERNAME"},
+			Name:     flagGoProxyUsername,
+			Usage:    "Go Proxy Username",
+			EnvVars:  []string{strcase.ToSNAKE(flagGoProxyUsername)},
 			Required: true,
 		},
 		&cli.StringFlag{
-			Name:     "go-proxy-password",
-			Usage:    "Pilot Go Proxy Password",
-			EnvVars:  []string{"PILOT_GO_PROXY_PASSWORD"},
+			Name:     flagGoProxyPassword,
+			Usage:    "Go Proxy Password",
+			EnvVars:  []string{strcase.ToSNAKE(flagGoProxyPassword)},
 			Required: true,
 		},
 	}
@@ -83,27 +100,33 @@ func goProxyFlags() []cli.Flag {
 func tracingFlags() []cli.Flag {
 	return []cli.Flag{
 		&cli.StringFlag{
-			Name:    "tracing-endpoint",
-			Usage:   "Endpoint to send traces",
-			EnvVars: []string{"TRACING_ENDPOINT"},
-			Value:   "https://collector.infra.traefiklabs.tech",
+			Name:    flagTracingAddress,
+			Usage:   "Address to send traces",
+			EnvVars: []string{strcase.ToSNAKE(flagTracingAddress)},
+			Value:   "jaeger.jaeger.svc.cluster.local:4318",
+		},
+		&cli.BoolFlag{
+			Name:    flagTracingInsecure,
+			Usage:   "use HTTP instead of HTTPS",
+			EnvVars: []string{strcase.ToSNAKE(flagTracingInsecure)},
+			Value:   true,
 		},
 		&cli.StringFlag{
-			Name:    "tracing-username",
+			Name:    flagTracingUsername,
 			Usage:   "Username to connect to Jaeger",
-			EnvVars: []string{"TRACING_USERNAME"},
+			EnvVars: []string{strcase.ToSNAKE(flagTracingUsername)},
 			Value:   "jaeger",
 		},
 		&cli.StringFlag{
-			Name:    "tracing-password",
+			Name:    flagTracingPassword,
 			Usage:   "Password to connect to Jaeger",
-			EnvVars: []string{"TRACING_PASSWORD"},
+			EnvVars: []string{strcase.ToSNAKE(flagTracingPassword)},
 			Value:   "jaeger",
 		},
 		&cli.Float64Flag{
-			Name:    "tracing-probability",
-			Usage:   "Probability to send traces.",
-			EnvVars: []string{"TRACING_PROBABILITY"},
+			Name:    flagTracingProbability,
+			Usage:   "Probability to send traces",
+			EnvVars: []string{strcase.ToSNAKE(flagTracingProbability)},
 			Value:   0,
 		},
 	}
