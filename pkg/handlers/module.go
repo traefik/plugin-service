@@ -114,7 +114,7 @@ func (h Handlers) Download(rw http.ResponseWriter, req *http.Request) {
 }
 
 func (h Handlers) downloadGoProxy(ctx context.Context, moduleName, version string) http.HandlerFunc {
-	return func(rw http.ResponseWriter, req *http.Request) {
+	return func(rw http.ResponseWriter, _ *http.Request) {
 		var span trace.Span
 		ctx, span = h.tracer.Start(ctx, "handler_downloadGoProxy")
 		defer span.End()
@@ -190,7 +190,7 @@ func (h Handlers) downloadGoProxy(ctx context.Context, moduleName, version strin
 }
 
 func (h Handlers) downloadGitHub(ctx context.Context, moduleName, version string, fromAssets bool) http.HandlerFunc {
-	return func(rw http.ResponseWriter, req *http.Request) {
+	return func(rw http.ResponseWriter, _ *http.Request) {
 		var span trace.Span
 		ctx, span = h.tracer.Start(ctx, "handler_downloadGitHub")
 		defer span.End()

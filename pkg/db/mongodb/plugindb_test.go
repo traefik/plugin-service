@@ -578,8 +578,6 @@ func TestMongoDB_SearchByName(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		test := test
-
 		t.Run(test.desc, func(t *testing.T) {
 			plugins, nextID, err := store.SearchByName(ctx, test.query, test.pagination)
 			if test.wantErr {
