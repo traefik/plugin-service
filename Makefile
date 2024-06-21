@@ -4,7 +4,7 @@ TAG_NAME := $(shell git tag -l --contains HEAD)
 SHA := $(shell git rev-parse --short HEAD)
 VERSION := $(if $(TAG_NAME),$(TAG_NAME),$(SHA))
 BUILD_DATE := $(shell date -u '+%Y-%m-%d_%I:%M:%S%p')
-LOCAL_DB_MONGO := $(shell docker ps -f "name=mongodb-plugin-service" --format '{{.Names}}')
+LOCAL_DB := $(shell docker ps -f "name=mongodb-hub" --format '{{.Names}}')
 BIN_NAME := "plugin-service"
 
 # Default build target
@@ -15,18 +15,20 @@ DOCKER_BUILD_PLATFORMS ?= linux/amd64,linux/arm64
 default: clean check test build
 
 start-local-db:
-ifneq ($(LOCAL_DB_MONGO),mongodb-plugin-service)
-	docker run -d -p 27017:27017 --name mongodb-plugin-service \
-        -e MONGO_INITDB_ROOT_USERNAME=mongoadmin \
-        -e MONGO_INITDB_ROOT_PASSWORD=secret \
-        mongo:4.2.11
+ifneq ($(LOCAL_DB),mongodb-hub)
+	docker start mongodb-hub || \
+	docker run -d -p 27017:27017 --name mongodb-hub \
+		-e MONGODB_ROOT_PASSWORD=secret \
+		-e MONGODB_REPLICA_SET_MODE=primary \
+		-e MONGODB_REPLICA_SET_KEY=replicatsetkey \
+		-e MONGODB_INITIAL_PRIMARY_HOST=localhost \
+		-e MONGODB_ADVERTISED_HOSTNAME=localhost \
+		ghcr.io/zcube/bitnami-compat/mongodb:5.0
 endif
 
 stop-local-db:
-ifeq ($(LOCAL_DB_MONGO),mongodb-plugin-service)
-	docker stop mongodb-plugin-service
-	docker rm mongodb-plugin-service
-endif
+	docker stop mongodb-hub
+	docker rm mongodb-hub
 
 clean:
 	rm -rf cover.out

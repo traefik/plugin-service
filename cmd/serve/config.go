@@ -10,6 +10,8 @@ type Config struct {
 	Addr        string
 	GitHubToken string
 
+	TraceURL string
+
 	MongoDB mongodb.Config
 	Tracing tracer.Config
 	GoProxy GoProxy

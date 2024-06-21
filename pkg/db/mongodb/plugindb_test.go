@@ -799,7 +799,7 @@ func createDatabase(t *testing.T, fixtures []fixture) (*MongoDB, map[string]plug
 	clientOptions := options.Client().ApplyURI("mongodb://127.0.0.1:27017/" + dbName)
 	clientOptions.Auth = &options.Credential{
 		AuthSource: "admin",
-		Username:   "mongoadmin",
+		Username:   "root",
 		Password:   "secret",
 	}
 

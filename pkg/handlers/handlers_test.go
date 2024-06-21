@@ -11,7 +11,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/traefik/plugin-service/pkg/db"
-	"go.opentelemetry.io/otel/trace/noop"
 )
 
 func TestHandlers_List(t *testing.T) {
@@ -60,7 +59,7 @@ func TestHandlers_List(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
 
-	New(testDB, nil, nil, noop.NewTracerProvider().Tracer("test")).List(rw, req)
+	New(testDB, nil, nil).List(rw, req)
 
 	assert.Equal(t, http.StatusOK, rw.Code)
 	assert.Equal(t, "next", rw.Header().Get(nextPageHeader))
@@ -99,7 +98,7 @@ func TestHandlers_List_GetByName(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodGet, "/?name=Demo%20Plugin", http.NoBody)
 
-	New(testDB, nil, nil, noop.NewTracerProvider().Tracer("test")).getByName(rw, req)
+	New(testDB, nil, nil).getByName(rw, req)
 
 	assert.Equal(t, http.StatusOK, rw.Code)
 
@@ -137,7 +136,7 @@ func TestHandlers_List_SearchByName(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodGet, "/?query=demo", http.NoBody)
 
-	New(testDB, nil, nil, noop.NewTracerProvider().Tracer("test")).getByName(rw, req)
+	New(testDB, nil, nil).getByName(rw, req)
 
 	assert.Equal(t, http.StatusOK, rw.Code)
 

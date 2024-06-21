@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"path"
@@ -15,20 +16,22 @@ import (
 
 	"github.com/google/go-github/v57/github"
 	"github.com/rs/zerolog/log"
+	ttrace "github.com/traefik/hub-trace-kpi/trace"
 	"github.com/traefik/plugin-service/pkg/db"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 )
 
 const (
-	tokenHeader = "X-Token"
-	hashHeader  = "X-Plugin-Hash"
+	hashHeader = "X-Plugin-Hash"
 )
 
 // Download a plugin archive.
 func (h Handlers) Download(rw http.ResponseWriter, req *http.Request) {
 	ctx, span := h.tracer.Start(req.Context(), "handler_download")
 	defer span.End()
+
+	ttrace.Captured(span)
 
 	if req.Method != http.MethodGet {
 		span.RecordError(fmt.Errorf("unsupported method: %s", req.Method))
@@ -38,6 +41,12 @@ func (h Handlers) Download(rw http.ResponseWriter, req *http.Request) {
 	}
 
 	pluginName, version := extractPluginInfo(req.URL, "/download/")
+
+	attributes := []attribute.KeyValue{
+		attribute.String("module.moduleName", pluginName),
+		attribute.String("module.version", version),
+		attribute.String("module.ip", getUserIP(req)),
+	}
 
 	logger := log.With().Str("plugin_name", pluginName).Str("plugin_version", version).Logger()
 
@@ -57,6 +66,7 @@ func (h Handlers) Download(rw http.ResponseWriter, req *http.Request) {
 
 	sum := req.Header.Get(hashHeader)
 	if sum != "" {
+		attributes = append(attributes, attribute.String("module.sum", sum))
 		ph, errH := h.store.GetHashByName(ctx, pluginName, version)
 		if errH != nil {
 			span.RecordError(errH)
@@ -70,16 +80,11 @@ func (h Handlers) Download(rw http.ResponseWriter, req *http.Request) {
 			return
 		}
 
-		attributes := []attribute.KeyValue{
-			{Key: attribute.Key("module.tokenValue"), Value: attribute.StringValue(req.Header.Get(tokenHeader))},
-			{Key: attribute.Key("module.moduleName"), Value: attribute.StringValue(pluginName)},
-			{Key: attribute.Key("module.version"), Value: attribute.StringValue(version)},
-			{Key: attribute.Key("module.sum"), Value: attribute.StringValue(sum)},
-		}
-
 		span.AddEvent("module.download", trace.WithAttributes(attributes...))
 		logger.Error().Msgf("Someone is trying to hack the archive: %v", sum)
 	}
+
+	span.SetAttributes(attributes...)
 
 	switch strings.ToLower(plugin.Runtime) {
 	case "wasm":
@@ -111,6 +116,19 @@ func (h Handlers) Download(rw http.ResponseWriter, req *http.Request) {
 
 		h.downloadGoProxy(ctx, pluginName, version)(rw, req)
 	}
+}
+
+func getUserIP(req *http.Request) string {
+	ip, _, err := net.SplitHostPort(req.RemoteAddr)
+	if err != nil {
+		ip = req.RemoteAddr
+	}
+
+	xff := req.Header.Get("X-Forwarded-For")
+	if xff != "" {
+		ip = strings.Trim(strings.Split(xff, ",")[0], " ")
+	}
+	return ip
 }
 
 func (h Handlers) downloadGoProxy(ctx context.Context, moduleName, version string) http.HandlerFunc {
