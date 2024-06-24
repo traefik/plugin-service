@@ -10,7 +10,7 @@ require (
 	github.com/ldez/grignotin v0.5.1
 	github.com/rs/zerolog v1.33.0
 	github.com/stretchr/testify v1.9.0
-	github.com/traefik/hub-trace-kpi v0.12.0
+	github.com/traefik/hub-trace-kpi v0.13.0
 	github.com/urfave/cli/v2 v2.27.2
 	go.mongodb.org/mongo-driver v1.15.1
 	go.opentelemetry.io/contrib/instrumentation/go.mongodb.org/mongo-driver/mongo/otelmongo v0.52.0
