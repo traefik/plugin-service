@@ -9,20 +9,23 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/julienschmidt/httprouter"
 	"github.com/ldez/grignotin/goproxy"
+	"github.com/traefik/hub-trace-kpi/trace"
 	"github.com/traefik/plugin-service/cmd/internal"
 	"github.com/traefik/plugin-service/pkg/handlers"
 	"github.com/traefik/plugin-service/pkg/healthcheck"
 	"github.com/traefik/plugin-service/pkg/tracer"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/propagation"
 	"golang.org/x/oauth2"
 )
 
 func run(ctx context.Context, cfg Config) error {
-	tTracer, closer, err := tracer.NewTracer(ctx, cfg.Tracing)
+	stopTracer, err := setupTracing(ctx, cfg.Tracing, cfg.TraceURL)
 	if err != nil {
 		return fmt.Errorf("setup tracing provider: %w", err)
 	}
-	defer func() { _ = closer.Close() }()
+	defer stopTracer()
 
 	store, tearDown, err := internal.CreateMongoClient(ctx, cfg.MongoDB)
 	if err != nil {
@@ -44,12 +47,7 @@ func run(ctx context.Context, cfg Config) error {
 		ghClient = newGitHubClient(context.Background(), cfg.GitHubToken)
 	}
 
-	handler := handlers.New(
-		store,
-		gpClient,
-		ghClient,
-		tTracer,
-	)
+	handler := handlers.New(store, gpClient, ghClient)
 
 	healthChecker := healthcheck.Client{DB: store}
 
@@ -127,4 +125,26 @@ func newGitHubClient(ctx context.Context, tk string) *github.Client {
 		&oauth2.Token{AccessToken: tk},
 	)
 	return github.NewClient(oauth2.NewClient(ctx, ts))
+}
+
+func setupTracing(ctx context.Context, cfg tracer.Config, traceServiceURL string) (func(), error) {
+	tracePropagator := propagation.NewCompositeTextMapPropagator(propagation.TraceContext{})
+	traceProvider, err := tracer.NewOTLPProvider(ctx, cfg)
+	if err != nil {
+		return nil, fmt.Errorf("setup tracing provider: %w", err)
+	}
+
+	otel.SetTracerProvider(traceProvider)
+	otel.SetTextMapPropagator(tracePropagator)
+
+	if traceServiceURL != "" {
+		provider := trace.NewProvider("plugin-service", traceProvider, http.DefaultClient, traceServiceURL, 2)
+		provider.StartWorkers(ctx)
+
+		otel.SetTracerProvider(provider)
+	}
+
+	return func() {
+		_ = traceProvider.Stop(ctx)
+	}, nil
 }

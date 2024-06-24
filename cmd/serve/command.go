@@ -11,6 +11,8 @@ const (
 	flagAddr    = "addr"
 	flagGHToken = "github-token"
 
+	flagTraceServiceURL = "trace-service-url"
+
 	flagGoProxyURL      = "go-proxy-url"
 	flagGoProxyUsername = "go-proxy-username"
 	flagGoProxyPassword = "go-proxy-password"
@@ -40,6 +42,11 @@ func Command() *cli.Command {
 				EnvVars:  []string{strcase.ToSNAKE(flagGHToken)},
 				Required: true,
 			},
+			&cli.StringFlag{
+				Name:    flagTraceServiceURL,
+				Usage:   "URL of the trace service",
+				EnvVars: []string{strcase.ToSNAKE(flagTraceServiceURL)},
+			},
 		},
 		Action: func(cliCtx *cli.Context) error {
 			return run(cliCtx.Context, buildConfig(cliCtx))
@@ -64,6 +71,7 @@ func buildConfig(cliCtx *cli.Context) Config {
 			Probability: cliCtx.Float64(flagTracingProbability),
 			ServiceName: "plugin-service",
 		},
+		TraceURL:    cliCtx.String(flagTraceServiceURL),
 		Addr:        cliCtx.String(flagAddr),
 		GitHubToken: cliCtx.String(flagGHToken),
 		GoProxy: GoProxy{

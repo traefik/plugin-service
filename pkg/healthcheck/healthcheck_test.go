@@ -38,11 +38,10 @@ func TestClient_Ready(t *testing.T) {
 	}
 
 	for _, test := range testCases {
-		test := test
 		t.Run(test.desc, func(t *testing.T) {
 			t.Parallel()
 
-			client := Client{DB: pingerMock(func(ctx context.Context) error {
+			client := Client{DB: pingerMock(func(_ context.Context) error {
 				if test.err {
 					return errors.New("hey ya")
 				}

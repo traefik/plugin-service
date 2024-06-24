@@ -578,8 +578,6 @@ func TestMongoDB_SearchByName(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		test := test
-
 		t.Run(test.desc, func(t *testing.T) {
 			plugins, nextID, err := store.SearchByName(ctx, test.query, test.pagination)
 			if test.wantErr {
@@ -801,7 +799,7 @@ func createDatabase(t *testing.T, fixtures []fixture) (*MongoDB, map[string]plug
 	clientOptions := options.Client().ApplyURI("mongodb://127.0.0.1:27017/" + dbName)
 	clientOptions.Auth = &options.Credential{
 		AuthSource: "admin",
-		Username:   "mongoadmin",
+		Username:   "root",
 		Password:   "secret",
 	}
 
