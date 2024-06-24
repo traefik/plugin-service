@@ -1,7 +1,5 @@
 run:
-  deadline: 5m
-  skip-files: [ ]
-  skip-dirs: [ ]
+  timeout: 5m
 
 linters-settings:
   govet:
@@ -26,11 +24,13 @@ linters-settings:
   gofumpt:
     extra-rules: true
   depguard:
-    list-type: blacklist
-    include-go-root: false
-    packages:
-      - github.com/sirupsen/logrus
-      - github.com/pkg/errors
+    rules:
+      main:
+        deny:
+          - pkg: "github.com/sirupsen/logrus"
+            desc: not allowed
+          - pkg: "github.com/pkg/errors"
+            desc: Should be replaced by standard lib errors package
   gocritic:
     enabled-tags:
       - diagnostic
@@ -47,17 +47,6 @@ linters-settings:
 linters:
   enable-all: true
   disable:
-    - deadcode # deprecated
-    - exhaustivestruct # deprecated
-    - golint # deprecated
-    - ifshort # deprecated
-    - interfacer # deprecated
-    - maligned # deprecated
-    - nosnakecase # deprecated
-    - scopelint # deprecated
-    - scopelint # deprecated
-    - structcheck # deprecated
-    - varcheck # deprecated
     - sqlclosecheck # not relevant (SQL)
     - rowserrcheck # not relevant (SQL)
     - execinquery # not relevant (SQL)
@@ -66,9 +55,10 @@ linters:
     - dupl
     - gomnd
     - tparallel
+    - mnd
     - paralleltest
     - testpackage
-    - goerr113
+    - err113
     - wrapcheck
     - nlreturn
     - wsl
@@ -79,7 +69,6 @@ linters:
     - varnamelen
     - ireturn
     - contextcheck
-    - nosnakecase
     - varnamelen
     - nonamedreturns
     - depguard
@@ -89,7 +78,6 @@ linters:
 
 issues:
   exclude-use-default: false
-  max-per-linter: 0
   max-same-issues: 0
   exclude:
     - 'ST1000: at least one file in a package should have a package comment'
