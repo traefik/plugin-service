@@ -125,7 +125,7 @@ func (m *MongoDB) List(ctx context.Context, page db.Pagination) ([]db.Plugin, st
 
 	criteria := bson.D{{Key: "disabled", Value: bson.D{{Key: "$in", Value: bson.A{false, nil}}}}}
 
-	if len(page.Start) > 0 {
+	if page.Start != "" {
 		// page.Start represents a MongoDB ID and we can't use the $gt operator on a string, it must be done
 		// on an ObjectID. So, we first need to retrieve the corresponding MongoID.
 		var firstPlugin pluginDocument
@@ -214,7 +214,7 @@ func (m *MongoDB) SearchByName(ctx context.Context, name string, page db.Paginat
 		{Key: "disabled", Value: bson.D{{Key: "$in", Value: bson.A{false, nil}}}},
 	}
 
-	if len(page.Start) > 0 {
+	if page.Start != "" {
 		nextPage, err := decodeNextPage(page.Start)
 		if err != nil {
 			span.RecordError(err)
@@ -229,7 +229,6 @@ func (m *MongoDB) SearchByName(ctx context.Context, name string, page db.Paginat
 		err = m.client.Collection(m.collName).
 			FindOne(ctx, bson.D{{Key: "id", Value: nextPage.NextID}}).
 			Decode(&firstPlugin)
-
 		if err != nil {
 			span.RecordError(err)
 

@@ -14,6 +14,7 @@ import (
 	"github.com/ldez/grignotin/goproxy"
 	"github.com/rs/zerolog/log"
 	"github.com/traefik/plugin-service/pkg/db"
+	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -45,12 +46,12 @@ type Handlers struct {
 }
 
 // New creates all HTTP handlers.
-func New(store PluginStorer, goProxy *goproxy.Client, gh *github.Client, tracer trace.Tracer) Handlers {
+func New(store PluginStorer, goProxy *goproxy.Client, gh *github.Client) Handlers {
 	return Handlers{
 		store:   store,
 		goProxy: goProxy,
 		gh:      gh,
-		tracer:  tracer,
+		tracer:  otel.GetTracerProvider().Tracer("handler"),
 	}
 }
 
