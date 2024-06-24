@@ -31,8 +31,6 @@ func (h Handlers) Download(rw http.ResponseWriter, req *http.Request) {
 	ctx, span := h.tracer.Start(req.Context(), "handler_download")
 	defer span.End()
 
-	ttrace.Captured(span)
-
 	if req.Method != http.MethodGet {
 		span.RecordError(fmt.Errorf("unsupported method: %s", req.Method))
 		log.Error().Msgf("Unsupported method: %s", req.Method)
@@ -63,6 +61,8 @@ func (h Handlers) Download(rw http.ResponseWriter, req *http.Request) {
 		JSONErrorf(rw, http.StatusInternalServerError, "Failed to get plugin %s@%s", pluginName, version)
 		return
 	}
+
+	ttrace.Captured(span)
 
 	sum := req.Header.Get(hashHeader)
 	if sum != "" {
