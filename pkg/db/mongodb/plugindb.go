@@ -123,7 +123,10 @@ func (m *MongoDB) List(ctx context.Context, page db.Pagination) ([]db.Plugin, st
 	ctx, span := m.tracer.Start(ctx, "db_create")
 	defer span.End()
 
-	criteria := bson.D{{Key: "disabled", Value: bson.D{{Key: "$in", Value: bson.A{false, nil}}}}}
+	criteria := bson.D{
+		{Key: "disabled", Value: bson.D{{Key: "$in", Value: bson.A{false, nil}}}},
+		{Key: "hidden", Value: bson.D{{Key: "$in", Value: bson.A{false, nil}}}},
+	}
 
 	if page.Start != "" {
 		// page.Start represents a MongoDB ID and we can't use the $gt operator on a string, it must be done
@@ -174,12 +177,16 @@ func (m *MongoDB) List(ctx context.Context, page db.Pagination) ([]db.Plugin, st
 }
 
 // GetByName gets the plugin with the given name.
-func (m *MongoDB) GetByName(ctx context.Context, name string, filterDisabled bool) (db.Plugin, error) {
+func (m *MongoDB) GetByName(ctx context.Context, name string, filterDisabled, hidden bool) (db.Plugin, error) {
 	ctx, span := m.tracer.Start(ctx, "db_get_by_name")
 	defer span.End()
 
 	criteria := bson.D{
 		{Key: "name", Value: name},
+	}
+
+	if !hidden {
+		criteria = append(criteria, bson.E{Key: "hidden", Value: bson.D{{Key: "$in", Value: bson.A{hidden, nil}}}})
 	}
 
 	if filterDisabled {
@@ -212,6 +219,7 @@ func (m *MongoDB) SearchByName(ctx context.Context, name string, page db.Paginat
 	criteria := bson.D{
 		{Key: "displayName", Value: primitive.Regex{Pattern: regexp.QuoteMeta(name), Options: "i"}},
 		{Key: "disabled", Value: bson.D{{Key: "$in", Value: bson.A{false, nil}}}},
+		{Key: "hidden", Value: bson.D{{Key: "$in", Value: bson.A{false, nil}}}},
 	}
 
 	if page.Start != "" {

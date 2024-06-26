@@ -29,7 +29,7 @@ type PluginStorer interface {
 	Delete(ctx context.Context, id string) error
 	Create(context.Context, db.Plugin) (db.Plugin, error)
 	List(context.Context, db.Pagination) ([]db.Plugin, string, error)
-	GetByName(context.Context, string, bool) (db.Plugin, error)
+	GetByName(context.Context, string, bool, bool) (db.Plugin, error)
 	SearchByName(context.Context, string, db.Pagination) ([]db.Plugin, string, error)
 	Update(context.Context, string, db.Plugin) (db.Plugin, error)
 
@@ -292,9 +292,14 @@ func (h Handlers) getByName(rw http.ResponseWriter, req *http.Request) {
 
 	name := unquote(req.FormValue("name"))
 
+	var hidden bool
+	if value := req.FormValue("hidden"); value != "" {
+		hidden = value == "true"
+	}
+
 	logger := log.With().Str("module_name", name).Logger()
 
-	plugin, err := h.store.GetByName(ctx, name, true)
+	plugin, err := h.store.GetByName(ctx, name, true, hidden)
 	if err != nil {
 		span.RecordError(err)
 
