@@ -128,8 +128,8 @@ func TestHandlers_List_GetByName_hidden(t *testing.T) {
 	}
 
 	testDB := mockDB{
-		getByNameFn: func(_ context.Context, _ string, hidden bool) (db.Plugin, error) {
-			if hidden {
+		getByNameFn: func(_ context.Context, _ string, filterHidden bool) (db.Plugin, error) {
+			if filterHidden {
 				return data, nil
 			}
 			return db.Plugin{}, db.NotFoundError{}
@@ -146,7 +146,7 @@ func TestHandlers_List_GetByName_hidden(t *testing.T) {
 
 	rw = httptest.NewRecorder()
 
-	req = httptest.NewRequest(http.MethodGet, "/?name=Demo%20Plugin&hidden=true", http.NoBody)
+	req = httptest.NewRequest(http.MethodGet, "/?name=Demo%20Plugin&filterHidden=true", http.NoBody)
 
 	New(testDB, nil, nil).getByName(rw, req)
 
