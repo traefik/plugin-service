@@ -298,7 +298,7 @@ func (h Handlers) getByName(rw http.ResponseWriter, req *http.Request) {
 	if value := req.FormValue("filterHidden"); value != "" {
 		filterHidden, err = strconv.ParseBool(value)
 		if err != nil {
-			logger.Error().Err(err).Msg("unable to parse filterHidden field")
+			logger.Debug().Err(err).Msg("Unable to parse filterHidden field")
 			JSONInternalServerError(rw)
 			return
 		}
