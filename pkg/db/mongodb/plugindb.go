@@ -177,7 +177,7 @@ func (m *MongoDB) List(ctx context.Context, page db.Pagination) ([]db.Plugin, st
 }
 
 // GetByName gets the plugin with the given name.
-func (m *MongoDB) GetByName(ctx context.Context, name string, filterDisabled, hidden bool) (db.Plugin, error) {
+func (m *MongoDB) GetByName(ctx context.Context, name string, filterDisabled, filterHidden bool) (db.Plugin, error) {
 	ctx, span := m.tracer.Start(ctx, "db_get_by_name")
 	defer span.End()
 
@@ -185,8 +185,8 @@ func (m *MongoDB) GetByName(ctx context.Context, name string, filterDisabled, hi
 		{Key: "name", Value: name},
 	}
 
-	if !hidden {
-		criteria = append(criteria, bson.E{Key: "hidden", Value: bson.D{{Key: "$in", Value: bson.A{hidden, nil}}}})
+	if filterHidden {
+		criteria = append(criteria, bson.E{Key: "hidden", Value: bson.D{{Key: "$in", Value: bson.A{false, nil}}}})
 	}
 
 	if filterDisabled {

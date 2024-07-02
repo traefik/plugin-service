@@ -291,15 +291,20 @@ func (h Handlers) getByName(rw http.ResponseWriter, req *http.Request) {
 	defer span.End()
 
 	name := unquote(req.FormValue("name"))
-
-	var hidden bool
-	if value := req.FormValue("hidden"); value != "" {
-		hidden = value == "true"
-	}
-
 	logger := log.With().Str("module_name", name).Logger()
 
-	plugin, err := h.store.GetByName(ctx, name, true, hidden)
+	var filterHidden bool
+	var err error
+	if value := req.FormValue("filterHidden"); value != "" {
+		filterHidden, err = strconv.ParseBool(value)
+		if err != nil {
+			logger.Error().Err(err).Msg("unable to parse filterHidden field")
+			JSONInternalServerError(rw)
+			return
+		}
+	}
+
+	plugin, err := h.store.GetByName(ctx, name, true, filterHidden)
 	if err != nil {
 		span.RecordError(err)
 

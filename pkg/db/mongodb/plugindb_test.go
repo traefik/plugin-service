@@ -249,11 +249,11 @@ func TestMongoDB_GetByName(t *testing.T) {
 	require.Error(t, err)
 
 	// Make sure we can get an existing hidden plugin.
-	_, err = store.GetByName(ctx, "my-super-hidden-plugin", true, true)
+	_, err = store.GetByName(ctx, "my-super-hidden-plugin", true, false)
 	require.NoError(t, err)
 
 	// Make sure we can't get an existing hidden plugin.
-	_, err = store.GetByName(ctx, "my-super-hidden-plugin", true, false)
+	_, err = store.GetByName(ctx, "my-super-hidden-plugin", true, true)
 	require.Error(t, err)
 
 	// Make sure we receive a NotFound error when the plugin doesn't exist.
