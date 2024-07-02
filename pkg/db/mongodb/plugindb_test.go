@@ -209,20 +209,55 @@ func TestMongoDB_GetByName(t *testing.T) {
 				},
 			},
 		},
+		{
+			key: "my-super--hidden-plugin",
+			plugin: pluginDocument{
+				Plugin: db.Plugin{
+					ID:            "456",
+					Name:          "my-super-hidden-plugin",
+					DisplayName:   "hidden-display-name",
+					Author:        "hidden-author",
+					Type:          "type",
+					Import:        "import",
+					Compatibility: "compatibility",
+					Summary:       "summary",
+					IconURL:       "iconURL",
+					BannerURL:     "bannerURL",
+					Readme:        "readme",
+					LatestVersion: "latestVersion",
+					Versions:      []string{"v1.0.0"},
+					Stars:         10,
+					Snippet: map[string]interface{}{
+						"something": "there",
+					},
+					CreatedAt: time.Now().Add(-2 * time.Hour),
+					Disabled:  false,
+					Hidden:    true,
+				},
+			},
+		},
 	})
 
 	// Make sure we can get an existing plugin.
-	got, err := store.GetByName(ctx, "my-super-plugin", false)
+	got, err := store.GetByName(ctx, "my-super-plugin", false, false)
 	require.NoError(t, err)
 
 	assert.Equal(t, fixtures["my-super-plugin"].Plugin, toUTCPlugin(got))
 
 	// Make sure we can't get an existing disabled plugin.
-	_, err = store.GetByName(ctx, "my-super-plugin", true)
+	_, err = store.GetByName(ctx, "my-super-plugin", true, false)
+	require.Error(t, err)
+
+	// Make sure we can get an existing hidden plugin.
+	_, err = store.GetByName(ctx, "my-super-hidden-plugin", true, false)
+	require.NoError(t, err)
+
+	// Make sure we can't get an existing hidden plugin.
+	_, err = store.GetByName(ctx, "my-super-hidden-plugin", true, true)
 	require.Error(t, err)
 
 	// Make sure we receive a NotFound error when the plugin doesn't exist.
-	_, err = store.GetByName(ctx, "something-else", true)
+	_, err = store.GetByName(ctx, "something-else", true, false)
 	require.ErrorAs(t, err, &db.NotFoundError{})
 }
 

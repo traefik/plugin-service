@@ -11,7 +11,7 @@ type mockDB struct {
 	deleteFn       func(ctx context.Context, id string) error
 	createFn       func(context.Context, db.Plugin) (db.Plugin, error)
 	listFn         func(context.Context, db.Pagination) ([]db.Plugin, string, error)
-	getByNameFn    func(context.Context, string) (db.Plugin, error)
+	getByNameFn    func(context.Context, string, bool) (db.Plugin, error)
 	searchByNameFn func(context.Context, string, db.Pagination) ([]db.Plugin, string, error)
 	updateFn       func(context.Context, string, db.Plugin) (db.Plugin, error)
 
@@ -36,8 +36,8 @@ func (m mockDB) List(ctx context.Context, pagination db.Pagination) ([]db.Plugin
 	return m.listFn(ctx, pagination)
 }
 
-func (m mockDB) GetByName(ctx context.Context, name string, _ bool) (db.Plugin, error) {
-	return m.getByNameFn(ctx, name)
+func (m mockDB) GetByName(ctx context.Context, name string, _, filterHidden bool) (db.Plugin, error) {
+	return m.getByNameFn(ctx, name, filterHidden)
 }
 
 func (m mockDB) SearchByName(ctx context.Context, query string, pagination db.Pagination) ([]db.Plugin, string, error) {
