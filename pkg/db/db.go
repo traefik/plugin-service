@@ -23,6 +23,7 @@ type Plugin struct {
 	Snippet       map[string]interface{} `json:"snippet,omitempty" bson:"snippet"`
 	CreatedAt     time.Time              `json:"createdAt" bson:"createdAt"`
 	Disabled      bool                   `json:"disabled,omitempty" bson:"disabled"`
+	Hidden        bool                   `json:"hidden,omitempty" bson:"hidden"`
 }
 
 // PluginHash The plugin hash tuple.

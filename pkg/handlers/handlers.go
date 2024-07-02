@@ -29,7 +29,7 @@ type PluginStorer interface {
 	Delete(ctx context.Context, id string) error
 	Create(context.Context, db.Plugin) (db.Plugin, error)
 	List(context.Context, db.Pagination) ([]db.Plugin, string, error)
-	GetByName(context.Context, string, bool) (db.Plugin, error)
+	GetByName(context.Context, string, bool, bool) (db.Plugin, error)
 	SearchByName(context.Context, string, db.Pagination) ([]db.Plugin, string, error)
 	Update(context.Context, string, db.Plugin) (db.Plugin, error)
 
@@ -291,10 +291,20 @@ func (h Handlers) getByName(rw http.ResponseWriter, req *http.Request) {
 	defer span.End()
 
 	name := unquote(req.FormValue("name"))
-
 	logger := log.With().Str("module_name", name).Logger()
 
-	plugin, err := h.store.GetByName(ctx, name, true)
+	var filterHidden bool
+	var err error
+	if value := req.FormValue("filterHidden"); value != "" {
+		filterHidden, err = strconv.ParseBool(value)
+		if err != nil {
+			logger.Error().Err(err).Msg("unable to parse filterHidden field")
+			JSONInternalServerError(rw)
+			return
+		}
+	}
+
+	plugin, err := h.store.GetByName(ctx, name, true, filterHidden)
 	if err != nil {
 		span.RecordError(err)
 
