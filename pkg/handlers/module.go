@@ -340,7 +340,13 @@ func (h Handlers) getAssetLinkRequest(ctx context.Context, moduleName, version s
 	}
 
 	for asset := range assets {
-		return http.NewRequestWithContext(ctx, http.MethodGet, asset.GetBrowserDownloadURL(), http.NoBody)
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, asset.GetURL(), http.NoBody)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create request: %w", err)
+		}
+		req.Header.Set("Accept", "application/octet-stream")
+
+		return req, nil
 	}
 	return nil, errors.New("zip archive not found")
 }
