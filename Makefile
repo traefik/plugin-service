@@ -5,7 +5,7 @@ SHA := $(shell git rev-parse --short HEAD)
 VERSION := $(if $(TAG_NAME),$(TAG_NAME),$(SHA))
 BUILD_DATE := $(shell date -u '+%Y-%m-%d_%I:%M:%S%p')
 LOCAL_DB := $(shell docker ps -f "name=mongodb-hub" --format '{{.Names}}')
-BIN_NAME := "plugin-service"
+BIN_NAME := plugin-service
 
 # Default build target
 GOOS := $(shell go env GOOS)
@@ -38,7 +38,7 @@ test: clean start-local-db
 
 build: clean
 	@echo Version: $(VERSION) $(BUILD_DATE)
-	CGO_ENABLED=0 GOOS=${GOOS} GOARCH=${GOARCH} go build -v -ldflags '-X "main.version=${VERSION}" -X "main.commit=${SHA}" -X "main.date=${BUILD_DATE}"' -o "./dist/${GOOS}/${GOARCH}/${BIN_NAME}"
+	CGO_ENABLED=0 GOOS=${GOOS} GOARCH=${GOARCH} go build -v -ldflags '-X "main.version=$(VERSION)" -X "main.commit=$(SHA)" -X "main.date=$(BUILD_DATE)"' -o "./dist/$(GOOS)/$(GOARCH)/$(BIN_NAME)"
 
 build-linux-arm64: export GOOS := linux
 build-linux-arm64: export GOARCH := arm64
