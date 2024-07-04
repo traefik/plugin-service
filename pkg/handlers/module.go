@@ -48,7 +48,7 @@ func (h Handlers) Download(rw http.ResponseWriter, req *http.Request) {
 
 	logger := log.With().Str("plugin_name", pluginName).Str("plugin_version", version).Logger()
 
-	plugin, err := h.store.GetByName(ctx, pluginName, false, true)
+	plugin, err := h.store.GetByName(ctx, pluginName, false, false)
 	if err != nil {
 		span.RecordError(err)
 		if errors.As(err, &db.NotFoundError{}) {
