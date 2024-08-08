@@ -23,7 +23,7 @@ ifneq ($(LOCAL_DB),mongodb-hub)
 		-e MONGODB_REPLICA_SET_KEY=replicatsetkey \
 		-e MONGODB_INITIAL_PRIMARY_HOST=localhost \
 		-e MONGODB_ADVERTISED_HOSTNAME=localhost \
-		ghcr.io/zcube/bitnami-compat/mongodb:6.0
+		ghcr.io/zcube/bitnami-compat/mongodb:7.0
 endif
 
 stop-local-db:
