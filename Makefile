@@ -18,12 +18,9 @@ start-local-db:
 ifneq ($(LOCAL_DB),mongodb-hub)
 	docker start mongodb-hub || \
 	docker run -d -p 27017:27017 --name mongodb-hub \
-		-e MONGODB_ROOT_PASSWORD=secret \
-		-e MONGODB_REPLICA_SET_MODE=primary \
-		-e MONGODB_REPLICA_SET_KEY=replicatsetkey \
-		-e MONGODB_INITIAL_PRIMARY_HOST=localhost \
-		-e MONGODB_ADVERTISED_HOSTNAME=localhost \
-		ghcr.io/zcube/bitnami-compat/mongodb:6.0
+		-e MONGO_INITDB_ROOT_USERNAME=root \
+		-e MONGO_INITDB_ROOT_PASSWORD=secret \
+		mongo:7.0
 endif
 
 stop-local-db:
