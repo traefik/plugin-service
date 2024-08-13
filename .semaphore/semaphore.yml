@@ -80,7 +80,7 @@ blocks:
         - name: Run build
           commands:
             - make
-            - make multi-arch-image-${SEMAPHORE_GIT_PR_NUMBER}
+            - make multi-arch-image-pr-${SEMAPHORE_GIT_PR_NUMBER}
 
   - name: Tag - Build release
     dependencies: ["Warm cache"]
