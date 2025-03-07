@@ -49,11 +49,9 @@ linters:
   disable:
     - sqlclosecheck # not relevant (SQL)
     - rowserrcheck # not relevant (SQL)
-    - execinquery # not relevant (SQL)
     - cyclop # duplicate of gocyclo
     - lll
     - dupl
-    - gomnd
     - tparallel
     - mnd
     - paralleltest
