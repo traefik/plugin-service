@@ -16,7 +16,6 @@ import (
 
 	"github.com/google/go-github/v57/github"
 	"github.com/rs/zerolog/log"
-	ttrace "github.com/traefik/hub-trace-kpi/trace"
 	"github.com/traefik/plugin-service/pkg/db"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
@@ -61,8 +60,6 @@ func (h Handlers) Download(rw http.ResponseWriter, req *http.Request) {
 		JSONErrorf(rw, http.StatusInternalServerError, "Failed to get plugin %s@%s", pluginName, version)
 		return
 	}
-
-	ttrace.Captured(span)
 
 	sum := req.Header.Get(hashHeader)
 	if sum != "" {
@@ -133,8 +130,7 @@ func getUserIP(req *http.Request) string {
 
 func (h Handlers) downloadGoProxy(ctx context.Context, moduleName, version string) http.HandlerFunc {
 	return func(rw http.ResponseWriter, _ *http.Request) {
-		var span trace.Span
-		ctx, span = h.tracer.Start(ctx, "handler_downloadGoProxy")
+		ctxDownload, span := h.tracer.Start(ctx, "handler_downloadGoProxy")
 		defer span.End()
 
 		logger := log.With().Str("module_name", moduleName).Str("module_version", version).Logger()
@@ -149,7 +145,7 @@ func (h Handlers) downloadGoProxy(ctx context.Context, moduleName, version strin
 
 		defer func() { _ = sources.Close() }()
 
-		_, err = h.store.GetHashByName(ctx, moduleName, version)
+		_, err = h.store.GetHashByName(ctxDownload, moduleName, version)
 		if err != nil && !errors.As(err, &db.NotFoundError{}) {
 			span.RecordError(err)
 			logger.Error().Err(err).Msg("Failed to get plugin hash")
@@ -189,7 +185,7 @@ func (h Handlers) downloadGoProxy(ctx context.Context, moduleName, version strin
 
 		sum := fmt.Sprintf("%x", hash.Sum(nil))
 
-		_, err = h.store.CreateHash(ctx, moduleName, version, sum)
+		_, err = h.store.CreateHash(ctxDownload, moduleName, version, sum)
 		if err != nil {
 			span.RecordError(err)
 			logger.Error().Err(err).Msg("Error persisting plugin hash")
@@ -209,8 +205,7 @@ func (h Handlers) downloadGoProxy(ctx context.Context, moduleName, version strin
 
 func (h Handlers) downloadGitHub(ctx context.Context, moduleName, version string, fromAssets bool) http.HandlerFunc {
 	return func(rw http.ResponseWriter, _ *http.Request) {
-		var span trace.Span
-		ctx, span = h.tracer.Start(ctx, "handler_downloadGitHub")
+		ctxDownload, span := h.tracer.Start(ctx, "handler_downloadGitHub")
 		defer span.End()
 
 		logger := log.With().Str("module_name", moduleName).Str("module_version", version).Logger()
@@ -218,9 +213,9 @@ func (h Handlers) downloadGitHub(ctx context.Context, moduleName, version string
 		var request *http.Request
 		var err error
 		if fromAssets {
-			request, err = h.getAssetLinkRequest(ctx, moduleName, version)
+			request, err = h.getAssetLinkRequest(ctxDownload, moduleName, version)
 		} else {
-			request, err = h.getArchiveLinkRequest(ctx, moduleName, version)
+			request, err = h.getArchiveLinkRequest(ctxDownload, moduleName, version)
 		}
 		if err != nil {
 			span.RecordError(err)
@@ -229,7 +224,7 @@ func (h Handlers) downloadGitHub(ctx context.Context, moduleName, version string
 			return
 		}
 
-		_, err = h.store.GetHashByName(ctx, moduleName, version)
+		_, err = h.store.GetHashByName(ctxDownload, moduleName, version)
 		if err != nil && !errors.As(err, &db.NotFoundError{}) {
 			span.RecordError(err)
 			logger.Error().Err(err).Msg("Failed to get plugin hash")
@@ -238,7 +233,7 @@ func (h Handlers) downloadGitHub(ctx context.Context, moduleName, version string
 		}
 
 		if err == nil {
-			_, err = h.gh.Do(ctx, request, rw)
+			_, err = h.gh.Do(ctxDownload, request, rw)
 			if err != nil {
 				span.RecordError(err)
 				logger.Error().Err(err).Msg("Failed to write response body")
@@ -251,7 +246,7 @@ func (h Handlers) downloadGitHub(ctx context.Context, moduleName, version string
 
 		sources := bytes.NewBufferString("")
 
-		_, err = h.gh.Do(ctx, request, sources)
+		_, err = h.gh.Do(ctxDownload, request, sources)
 		if err != nil {
 			span.RecordError(err)
 			logger.Error().Err(err).Msg("Failed to get archive content")
@@ -279,7 +274,7 @@ func (h Handlers) downloadGitHub(ctx context.Context, moduleName, version string
 
 		sum := fmt.Sprintf("%x", hash.Sum(nil))
 
-		_, err = h.store.CreateHash(ctx, moduleName, version, sum)
+		_, err = h.store.CreateHash(ctxDownload, moduleName, version, sum)
 		if err != nil {
 			span.RecordError(err)
 			logger.Error().Err(err).Msg("Error persisting plugin hash")

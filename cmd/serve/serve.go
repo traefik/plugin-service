@@ -9,7 +9,6 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/julienschmidt/httprouter"
 	"github.com/ldez/grignotin/goproxy"
-	"github.com/traefik/hub-trace-kpi/trace"
 	"github.com/traefik/plugin-service/cmd/internal"
 	"github.com/traefik/plugin-service/pkg/handlers"
 	"github.com/traefik/plugin-service/pkg/healthcheck"
@@ -21,7 +20,7 @@ import (
 )
 
 func run(ctx context.Context, cfg Config) error {
-	stopTracer, err := setupTracing(ctx, cfg.Tracing, cfg.TraceURL)
+	stopTracer, err := setupTracing(ctx, cfg.Tracing)
 	if err != nil {
 		return fmt.Errorf("setup tracing provider: %w", err)
 	}
@@ -127,7 +126,7 @@ func newGitHubClient(ctx context.Context, tk string) *github.Client {
 	return github.NewClient(oauth2.NewClient(ctx, ts))
 }
 
-func setupTracing(ctx context.Context, cfg tracer.Config, traceServiceURL string) (func(), error) {
+func setupTracing(ctx context.Context, cfg tracer.Config) (func(), error) {
 	tracePropagator := propagation.NewCompositeTextMapPropagator(propagation.TraceContext{})
 	traceProvider, err := tracer.NewOTLPProvider(ctx, cfg)
 	if err != nil {
@@ -136,13 +135,6 @@ func setupTracing(ctx context.Context, cfg tracer.Config, traceServiceURL string
 
 	otel.SetTracerProvider(traceProvider)
 	otel.SetTextMapPropagator(tracePropagator)
-
-	if traceServiceURL != "" {
-		provider := trace.NewProvider("plugin-service", traceProvider, http.DefaultClient, traceServiceURL, 2)
-		provider.StartWorkers(ctx)
-
-		otel.SetTracerProvider(provider)
-	}
 
 	return func() {
 		_ = traceProvider.Stop(ctx)
