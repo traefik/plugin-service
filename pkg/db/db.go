@@ -24,6 +24,7 @@ type Plugin struct {
 	CreatedAt     time.Time              `json:"createdAt" bson:"createdAt"`
 	Disabled      bool                   `json:"disabled,omitempty" bson:"disabled"`
 	Hidden        bool                   `json:"hidden,omitempty" bson:"hidden"`
+	UseUnsafe     bool                   `json:"useUnsafe,omitempty" bson:"useUnsafe"`
 }
 
 // PluginHash The plugin hash tuple.
