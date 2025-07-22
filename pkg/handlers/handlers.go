@@ -87,8 +87,7 @@ func (h Handlers) Get(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	err = json.NewEncoder(rw).Encode(plugin)
-	if err != nil {
+	if err := json.NewEncoder(rw).Encode(plugin); err != nil {
 		span.RecordError(err)
 		logger.Error().Err(err).Msg("Failed to get plugin")
 		JSONInternalServerError(rw)
@@ -163,8 +162,7 @@ func (h Handlers) Create(rw http.ResponseWriter, req *http.Request) {
 
 	rw.WriteHeader(http.StatusCreated)
 
-	err = json.NewEncoder(rw).Encode(created)
-	if err != nil {
+	if err := json.NewEncoder(rw).Encode(created); err != nil {
 		span.RecordError(err)
 		logger.Error().Err(err).Msg("Error sending create response")
 		JSONInternalServerError(rw)
@@ -222,8 +220,7 @@ func (h Handlers) Update(rw http.ResponseWriter, req *http.Request) {
 
 	rw.WriteHeader(http.StatusOK)
 
-	err = json.NewEncoder(rw).Encode(pg)
-	if err != nil {
+	if err := json.NewEncoder(rw).Encode(pg); err != nil {
 		span.RecordError(err)
 		logger.Error().Err(err).Msg("Failed to marshal plugin")
 		JSONInternalServerError(rw)
@@ -291,8 +288,7 @@ func (h Handlers) searchByName(rw http.ResponseWriter, req *http.Request) {
 	}
 
 	if len(plugins) == 0 {
-		err = json.NewEncoder(rw).Encode(make([]*db.Plugin, 0))
-		if err != nil {
+		if err := json.NewEncoder(rw).Encode(make([]*db.Plugin, 0)); err != nil {
 			span.RecordError(err)
 			logger.Error().Err(err).Msg("Error sending create response")
 			JSONInternalServerError(rw)
@@ -303,8 +299,7 @@ func (h Handlers) searchByName(rw http.ResponseWriter, req *http.Request) {
 
 	rw.Header().Set(nextPageHeader, next)
 
-	err = json.NewEncoder(rw).Encode(plugins)
-	if err != nil {
+	if err := json.NewEncoder(rw).Encode(plugins); err != nil {
 		span.RecordError(err)
 		logger.Error().Err(err).Msg("Error sending create response")
 		JSONInternalServerError(rw)
@@ -352,8 +347,7 @@ func (h Handlers) getByName(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	err = json.NewEncoder(rw).Encode([]*db.Plugin{&plugin})
-	if err != nil {
+	if err := json.NewEncoder(rw).Encode([]*db.Plugin{&plugin}); err != nil {
 		span.RecordError(err)
 		logger.Error().Err(err).Msg("Failed to encode response")
 		JSONInternalServerError(rw)
@@ -394,8 +388,7 @@ func (h Handlers) list(rw http.ResponseWriter, req *http.Request) {
 	}
 
 	if len(cleanPlugins) == 0 {
-		err = json.NewEncoder(rw).Encode(make([]*db.Plugin, 0))
-		if err != nil {
+		if err := json.NewEncoder(rw).Encode(make([]*db.Plugin, 0)); err != nil {
 			span.RecordError(err)
 			logger.Error().Err(err).Msg("Failed to encode response")
 			JSONInternalServerError(rw)
@@ -406,8 +399,7 @@ func (h Handlers) list(rw http.ResponseWriter, req *http.Request) {
 
 	rw.Header().Set(nextPageHeader, next)
 
-	err = json.NewEncoder(rw).Encode(cleanPlugins)
-	if err != nil {
+	if err := json.NewEncoder(rw).Encode(cleanPlugins); err != nil {
 		span.RecordError(err)
 		logger.Error().Err(err).Msg("Failed to encode response")
 		JSONInternalServerError(rw)

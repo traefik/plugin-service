@@ -13,6 +13,7 @@ linters:
     - ireturn
     - lll
     - mnd
+    - noinlineerr
     - nlreturn
     - noctx
     - nonamedreturns
