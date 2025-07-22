@@ -881,8 +881,7 @@ func getPlugin(t *testing.T, store *MongoDB, id string) (pluginDocument, bool) {
 
 	var plugin pluginDocument
 
-	err := store.client.Collection(store.collName).FindOne(ctx, criteria).Decode(&plugin)
-	if err != nil {
+	if err := store.client.Collection(store.collName).FindOne(ctx, criteria).Decode(&plugin); err != nil {
 		if errors.Is(err, mongo.ErrNoDocuments) {
 			return pluginDocument{}, false
 		}

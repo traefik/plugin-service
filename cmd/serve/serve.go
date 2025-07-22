@@ -32,8 +32,7 @@ func run(ctx context.Context, cfg Config) error {
 	}
 	defer tearDown()
 
-	err = store.Bootstrap()
-	if err != nil {
+	if err = store.Bootstrap(); err != nil {
 		return fmt.Errorf("unable to bootstrap database: %w", err)
 	}
 

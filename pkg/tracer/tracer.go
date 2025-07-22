@@ -104,8 +104,7 @@ func (p *OTLPProvider) Tracer(name string, opts ...trace.TracerOption) trace.Tra
 
 // Stop stops the provider once all traces have been uploaded.
 func (p *OTLPProvider) Stop(ctx context.Context) error {
-	err := p.exporter.Shutdown(ctx)
-	if err != nil {
+	if err := p.exporter.Shutdown(ctx); err != nil {
 		return err
 	}
 
@@ -117,8 +116,7 @@ func currentNamespace() string {
 		return ns
 	}
 
-	data, err := os.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
-	if err == nil {
+	if data, err := os.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace"); err == nil {
 		if ns := strings.TrimSpace(string(data)); ns != "" {
 			return ns
 		}
