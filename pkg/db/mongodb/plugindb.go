@@ -57,7 +57,8 @@ func (m *MongoDB) Get(ctx context.Context, id string) (db.Plugin, error) {
 
 	var plugin db.Plugin
 
-	if err := m.client.Collection(m.collName).FindOne(ctx, criteria, opts).Decode(&plugin); err != nil {
+	err := m.client.Collection(m.collName).FindOne(ctx, criteria, opts).Decode(&plugin)
+	if err != nil {
 		span.RecordError(err)
 
 		if errors.Is(err, mongo.ErrNoDocuments) {
@@ -135,7 +136,8 @@ func (m *MongoDB) List(ctx context.Context, page db.Pagination) ([]db.Plugin, st
 
 		pageCriteria := bson.D{{Key: "id", Value: page.Start}}
 
-		if err := m.client.Collection(m.collName).FindOne(ctx, pageCriteria).Decode(&firstPlugin); err != nil {
+		err := m.client.Collection(m.collName).FindOne(ctx, pageCriteria).Decode(&firstPlugin)
+		if err != nil {
 			if errors.Is(err, mongo.ErrNoDocuments) {
 				return nil, "", nil
 			}
@@ -162,7 +164,9 @@ func (m *MongoDB) List(ctx context.Context, page db.Pagination) ([]db.Plugin, st
 	}
 
 	var plugins []db.Plugin
-	if err = cursor.All(ctx, &plugins); err != nil {
+
+	err = cursor.All(ctx, &plugins)
+	if err != nil {
 		return nil, "", fmt.Errorf("unable to unmarshal plugins: %w", err)
 	}
 
@@ -198,7 +202,8 @@ func (m *MongoDB) GetByName(ctx context.Context, name string, filterDisabled, fi
 
 	var plugin db.Plugin
 
-	if err := m.client.Collection(m.collName).FindOne(ctx, criteria, opts).Decode(&plugin); err != nil {
+	err := m.client.Collection(m.collName).FindOne(ctx, criteria, opts).Decode(&plugin)
+	if err != nil {
 		span.RecordError(err)
 
 		if errors.Is(err, mongo.ErrNoDocuments) {
@@ -264,7 +269,9 @@ func (m *MongoDB) SearchByName(ctx context.Context, name string, page db.Paginat
 	}
 
 	var plugins []db.Plugin
-	if err = cursor.All(ctx, &plugins); err != nil {
+
+	err = cursor.All(ctx, &plugins)
+	if err != nil {
 		span.RecordError(err)
 
 		return nil, "", fmt.Errorf("unable to unmarshal plugins: %w", err)
@@ -305,7 +312,8 @@ func (m *MongoDB) Update(ctx context.Context, id string, plugin db.Plugin) (db.P
 	opts := &options.FindOneAndUpdateOptions{}
 	opts.SetReturnDocument(options.After)
 
-	if err := m.client.Collection(collName).FindOneAndUpdate(ctx, filter, update, opts).Decode(&updated); err != nil {
+	err := m.client.Collection(collName).FindOneAndUpdate(ctx, filter, update, opts).Decode(&updated)
+	if err != nil {
 		span.RecordError(err)
 
 		if errors.Is(err, mongo.ErrNoDocuments) {
@@ -345,7 +353,9 @@ func (m *MongoDB) CreateHash(ctx context.Context, module, version, hash string) 
 	opts.SetReturnDocument(options.After)
 
 	var updated pluginDocument
-	if err := m.client.Collection(collName).FindOneAndUpdate(ctx, filter, update, opts).Decode(&updated); err != nil {
+
+	err := m.client.Collection(collName).FindOneAndUpdate(ctx, filter, update, opts).Decode(&updated)
+	if err != nil {
 		span.RecordError(err)
 
 		if errors.Is(err, mongo.ErrNoDocuments) {
@@ -379,7 +389,9 @@ func (m *MongoDB) GetHashByName(ctx context.Context, module, version string) (db
 	})
 
 	var plugin pluginDocument
-	if err := m.client.Collection(collName).FindOne(ctx, filter, opts).Decode(&plugin); err != nil {
+
+	err := m.client.Collection(collName).FindOne(ctx, filter, opts).Decode(&plugin)
+	if err != nil {
 		span.RecordError(err)
 
 		if errors.Is(err, mongo.ErrNoDocuments) {
@@ -420,7 +432,8 @@ func decodeNextPage(cursor string) (db.NextPage, error) {
 
 	var nextPage db.NextPage
 
-	if err = json.Unmarshal(decodeString, &nextPage); err != nil {
+	err = json.Unmarshal(decodeString, &nextPage)
+	if err != nil {
 		return db.NextPage{}, err
 	}
 

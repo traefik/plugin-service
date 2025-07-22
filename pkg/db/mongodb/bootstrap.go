@@ -40,7 +40,8 @@ func (m *MongoDB) Bootstrap() error {
 		},
 	}
 
-	if _, err := m.client.Collection(m.collName).Indexes().CreateMany(context.Background(), models); err != nil {
+	_, err := m.client.Collection(m.collName).Indexes().CreateMany(context.Background(), models)
+	if err != nil {
 		return fmt.Errorf("unable to create indexes: %w", err)
 	}
 
