@@ -123,11 +123,13 @@ func newGitHubClient(ctx context.Context, tk string) *github.Client {
 	ts := oauth2.StaticTokenSource(
 		&oauth2.Token{AccessToken: tk},
 	)
+
 	return github.NewClient(oauth2.NewClient(ctx, ts))
 }
 
 func setupTracing(ctx context.Context, cfg tracer.Config) (func(), error) {
 	tracePropagator := propagation.NewCompositeTextMapPropagator(propagation.TraceContext{})
+
 	traceProvider, err := tracer.NewOTLPProvider(ctx, cfg)
 	if err != nil {
 		return nil, fmt.Errorf("setup tracing provider: %w", err)
