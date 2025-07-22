@@ -27,5 +27,7 @@ func (c *Client) Ready(rw http.ResponseWriter, req *http.Request) {
 	if err := c.DB.Ping(req.Context()); err != nil {
 		log.Error().Err(err).Msg("failed to ping database")
 		http.Error(rw, err.Error(), http.StatusServiceUnavailable)
+
+		return
 	}
 }

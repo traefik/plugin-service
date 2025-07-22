@@ -30,6 +30,9 @@ stop-local-db:
 clean:
 	rm -rf cover.out
 
+lint:
+	golangci-lint run
+
 test: clean start-local-db
 	go test -v -cover ./...
 

@@ -177,7 +177,7 @@ func TestMongoDB_List(t *testing.T) {
 	assert.Equal(t, []db.Plugin{
 		fixtures["8-stars"].Plugin,
 	}, plugins)
-	assert.Zero(t, next)
+	assert.Empty(t, next)
 }
 
 func TestMongoDB_GetByName(t *testing.T) {
@@ -689,6 +689,7 @@ func TestMongoDB_Update(t *testing.T) {
 
 	// Check hashes are not updated
 	var pluginWithHashes pluginDocument
+
 	err = store.client.Collection(store.collName).
 		FindOne(ctx, bson.D{{Key: "id", Value: "123"}}).
 		Decode(&pluginWithHashes)
@@ -744,6 +745,7 @@ func TestMongoDB_CreateHash(t *testing.T) {
 	require.NoError(t, err)
 
 	var pluginWithHashes pluginDocument
+
 	err = store.client.Collection(store.collName).
 		FindOne(ctx, bson.D{{Key: "id", Value: "123"}}).
 		Decode(&pluginWithHashes)
@@ -878,6 +880,7 @@ func getPlugin(t *testing.T, store *MongoDB, id string) (pluginDocument, bool) {
 	criteria := bson.D{{Key: "id", Value: id}}
 
 	var plugin pluginDocument
+
 	if err := store.client.Collection(store.collName).FindOne(ctx, criteria).Decode(&plugin); err != nil {
 		if errors.Is(err, mongo.ErrNoDocuments) {
 			return pluginDocument{}, false

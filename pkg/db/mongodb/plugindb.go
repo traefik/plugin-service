@@ -162,6 +162,7 @@ func (m *MongoDB) List(ctx context.Context, page db.Pagination) ([]db.Plugin, st
 	}
 
 	var plugins []db.Plugin
+
 	if err = cursor.All(ctx, &plugins); err != nil {
 		return nil, "", fmt.Errorf("unable to unmarshal plugins: %w", err)
 	}
@@ -264,6 +265,7 @@ func (m *MongoDB) SearchByName(ctx context.Context, name string, page db.Paginat
 	}
 
 	var plugins []db.Plugin
+
 	if err = cursor.All(ctx, &plugins); err != nil {
 		span.RecordError(err)
 
@@ -345,6 +347,7 @@ func (m *MongoDB) CreateHash(ctx context.Context, module, version, hash string) 
 	opts.SetReturnDocument(options.After)
 
 	var updated pluginDocument
+
 	if err := m.client.Collection(collName).FindOneAndUpdate(ctx, filter, update, opts).Decode(&updated); err != nil {
 		span.RecordError(err)
 
@@ -379,6 +382,7 @@ func (m *MongoDB) GetHashByName(ctx context.Context, module, version string) (db
 	})
 
 	var plugin pluginDocument
+
 	if err := m.client.Collection(collName).FindOne(ctx, filter, opts).Decode(&plugin); err != nil {
 		span.RecordError(err)
 

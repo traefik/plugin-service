@@ -44,6 +44,7 @@ func JSONError(rw http.ResponseWriter, code int, errMsg string) {
 		log.Error().Err(err).Str("func_error", errMsg).Msg("failed to process error")
 
 		_, _ = fmt.Fprintln(rw, `{"error": "internal error"}`)
+
 		return
 	}
 
