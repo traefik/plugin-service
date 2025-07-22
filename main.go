@@ -20,7 +20,8 @@ func main() {
 		},
 	}
 
-	if err := app.Run(os.Args); err != nil {
+	err := app.Run(os.Args)
+	if err != nil {
 		log.Fatal().Err(err).Msg("Error while executing command")
 	}
 }
