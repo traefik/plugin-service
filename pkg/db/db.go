@@ -29,8 +29,9 @@ type Plugin struct {
 
 // PluginHash The plugin hash tuple.
 type PluginHash struct {
-	Name string `json:"name,omitempty" bson:"name"`
-	Hash string `json:"hash,omitempty" bson:"hash"`
+	Name     string `json:"name,omitempty" bson:"name"`
+	Hash     string `json:"hash,omitempty" bson:"hash"`
+	Verified *bool  `json:"verified,omitempty" bson:"verified"`
 }
 
 // Pagination holds information for requesting page.

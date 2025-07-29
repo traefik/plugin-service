@@ -15,9 +15,10 @@ type mockDB struct {
 	searchByNameFn func(context.Context, string, db.Pagination) ([]db.Plugin, string, error)
 	updateFn       func(context.Context, string, db.Plugin) (db.Plugin, error)
 
-	deleteHashFn    func(ctx context.Context, id string) error
-	createHashFn    func(ctx context.Context, module, version, hash string) (db.PluginHash, error)
-	getHashByNameFn func(ctx context.Context, module, version string) (db.PluginHash, error)
+	deleteHashFn         func(ctx context.Context, id string) error
+	createHashFn         func(ctx context.Context, module, version, hash string) (db.PluginHash, error)
+	updateHashVerifiedFn func(ctx context.Context, module, version, hash string, verified bool) (db.PluginHash, error)
+	getHashByNameFn      func(ctx context.Context, module, version string) (db.PluginHash, error)
 }
 
 func (m mockDB) Get(ctx context.Context, id string) (db.Plugin, error) {
@@ -54,6 +55,10 @@ func (m mockDB) DeleteHash(ctx context.Context, id string) error {
 
 func (m mockDB) CreateHash(ctx context.Context, module, version, hash string) (db.PluginHash, error) {
 	return m.createHashFn(ctx, module, version, hash)
+}
+
+func (m mockDB) UpdateHashVerified(ctx context.Context, module, version, hash string, verified bool) (db.PluginHash, error) {
+	return m.updateHashVerifiedFn(ctx, module, version, hash, verified)
 }
 
 func (m mockDB) GetHashByName(ctx context.Context, module, version string) (db.PluginHash, error) {
