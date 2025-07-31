@@ -4,7 +4,7 @@ go 1.23.0
 
 require (
 	github.com/ettle/strcase v0.2.0
-	github.com/google/go-github/v57 v57.0.0
+	github.com/google/go-github/v74 v74.0.0
 	github.com/gorilla/mux v1.8.1
 	github.com/julienschmidt/httprouter v1.3.0
 	github.com/ldez/grignotin v0.9.0

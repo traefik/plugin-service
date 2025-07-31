@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/go-github/v74/github"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/traefik/plugin-service/pkg/db"
@@ -764,6 +765,84 @@ func TestMongoDB_CreateHash(t *testing.T) {
 	// With embedded hashes, creating a new one doesn't works if the plugin doesn't exists.
 	_, err = store.CreateHash(ctx, "toto", "v1.2.3", "hash")
 	require.ErrorAs(t, err, &db.NotFoundError{})
+}
+
+func TestMongoDB_UpdateHashVerified(t *testing.T) {
+	ctx := context.Background()
+
+	store, fixtures := createDatabase(t, []fixture{
+		{
+			key: "plugin",
+			plugin: pluginDocument{
+				Plugin: db.Plugin{
+					ID:            "123",
+					Name:          "plugin",
+					DisplayName:   "plugin",
+					Author:        "author",
+					Type:          "type",
+					Import:        "import",
+					Compatibility: "compatibility",
+					Summary:       "summary",
+					IconURL:       "icon",
+					BannerURL:     "banner",
+					Readme:        "readme",
+					LatestVersion: "v1.1.1",
+					Versions: []string{
+						"v1.1.1",
+					},
+					Stars:   10,
+					Snippet: nil,
+				},
+				Hashes: []db.PluginHash{
+					{Name: "plugin@v1.1.1", Hash: "123"},
+					{Name: "plugin@v1.1.2", Hash: "123", Verified: github.Ptr(false)},
+					{Name: "plugin@v1.1.3", Hash: "123", Verified: github.Ptr(true)},
+				},
+			},
+		},
+	})
+
+	got, err := store.UpdateHashVerified(ctx, "plugin", "v1.1.1", "non-existing", true)
+	require.Error(t, err)
+	assert.Nil(t, got)
+
+	got, err = store.UpdateHashVerified(ctx, "plugin", "v1.1.1", "123", true)
+	require.NoError(t, err)
+
+	want := fixtures["plugin"].Hashes[0]
+	want.Verified = github.Ptr(true)
+
+	assert.Equal(t, want, got)
+
+	got, err = store.UpdateHashVerified(ctx, "plugin", "v1.1.2", "123", true)
+	require.NoError(t, err)
+
+	want = fixtures["plugin"].Hashes[1]
+	want.Verified = github.Ptr(true)
+
+	assert.Equal(t, want, got)
+
+	got, err = store.UpdateHashVerified(ctx, "plugin", "v1.1.3", "123", false)
+	require.NoError(t, err)
+
+	want = fixtures["plugin"].Hashes[2]
+	want.Verified = github.Ptr(false)
+
+	assert.Equal(t, want, got)
+
+	var pluginWithHashes pluginDocument
+
+	err = store.client.Collection(store.collName).
+		FindOne(ctx, bson.D{{Key: "id", Value: "123"}}).
+		Decode(&pluginWithHashes)
+	require.NoError(t, err)
+
+	wantHashes := []db.PluginHash{
+		{Name: "plugin@v1.1.1", Hash: "123", Verified: github.Ptr(true)},
+		{Name: "plugin@v1.1.2", Hash: "123", Verified: github.Ptr(true)},
+		{Name: "plugin@v1.1.3", Hash: "123", Verified: github.Ptr(false)},
+	}
+	assert.Equal(t, wantHashes, pluginWithHashes.Hashes)
 }
 
 func TestMongoDB_GetHashByName(t *testing.T) {

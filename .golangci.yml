@@ -88,6 +88,10 @@ linters:
         text: Function 'serveCommand' is too long (.*)
       - path: pkg/handlers/module.go
         text: Function 'Download' has too many statements (.*)
+      - path: pkg/handlers/module.go
+        text: cognitive complexity [0-9]+ of func `\(Handlers\).downloadGitHubFromAssets` is high (.*)
+      - path: pkg/handlers/module.go
+        text: cyclomatic complexity [0-9]+ of func `\(Handlers\).downloadGitHubFromAssets` is high (.*)
       - path: cmd/serve/serve.go
         text: cyclomatic complexity [0-9]* of func `setupEnvVars` is high (.*)
       - path: pkg/db/mongodb/plugindb.go
