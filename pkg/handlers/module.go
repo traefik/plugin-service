@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"archive/zip"
 	"bytes"
 	"context"
 	"crypto/sha256"
@@ -14,7 +15,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/google/go-github/v57/github"
+	"github.com/google/go-github/v74/github"
 	"github.com/rs/zerolog/log"
 	"github.com/traefik/plugin-service/pkg/db"
 	"go.opentelemetry.io/otel/attribute"
@@ -101,7 +102,7 @@ func (h Handlers) Download(rw http.ResponseWriter, req *http.Request) {
 			return
 		}
 
-		h.downloadGitHub(ctx, pluginName, version, true)(rw, req)
+		h.downloadGitHubFromAssets(ctx, pluginName, version)(rw, req)
 
 		return
 
@@ -118,7 +119,7 @@ func (h Handlers) Download(rw http.ResponseWriter, req *http.Request) {
 
 		// Uses GitHub when there are dependencies because Go proxy archives don't contain vendor folder.
 		if h.gh != nil && len(modFile.Require) > 0 {
-			h.downloadGitHub(ctx, pluginName, version, false)(rw, req)
+			h.downloadGitHub(ctx, pluginName, version)(rw, req)
 
 			return
 		}
@@ -223,24 +224,14 @@ func (h Handlers) downloadGoProxy(ctx context.Context, moduleName, version strin
 	}
 }
 
-func (h Handlers) downloadGitHub(ctx context.Context, moduleName, version string, fromAssets bool) http.HandlerFunc {
+func (h Handlers) downloadGitHub(ctx context.Context, moduleName, version string) http.HandlerFunc {
 	return func(rw http.ResponseWriter, _ *http.Request) {
 		ctxDownload, span := h.tracer.Start(ctx, "handler_downloadGitHub")
 		defer span.End()
 
 		logger := log.With().Str("module_name", moduleName).Str("module_version", version).Logger()
 
-		var (
-			request *http.Request
-			err     error
-		)
-
-		if fromAssets {
-			request, err = h.getAssetLinkRequest(ctxDownload, moduleName, version)
-		} else {
-			request, err = h.getArchiveLinkRequest(ctxDownload, moduleName, version)
-		}
-
+		request, err := h.getArchiveLinkRequest(ctxDownload, moduleName, version)
 		if err != nil {
 			span.RecordError(err)
 			logger.Error().Err(err).Msg("Failed to get archive link")
@@ -324,6 +315,131 @@ func (h Handlers) downloadGitHub(ctx context.Context, moduleName, version string
 	}
 }
 
+func (h Handlers) downloadGitHubFromAssets(ctx context.Context, moduleName, version string) http.HandlerFunc {
+	return func(rw http.ResponseWriter, _ *http.Request) {
+		ctxDownload, span := h.tracer.Start(ctx, "handler_downloadGitHubFromAssets")
+		defer span.End()
+
+		logger := log.With().Str("module_name", moduleName).Str("module_version", version).Logger()
+
+		request, digest, err := h.getAssetLinkRequest(ctxDownload, moduleName, version)
+		if err != nil {
+			span.RecordError(err)
+			logger.Error().Err(err).Msg("Failed to get archive link")
+			JSONErrorf(rw, http.StatusInternalServerError, "Failed to get plugin %s@%s", moduleName, version)
+
+			return
+		}
+
+		pluginHash, err := h.store.GetHashByName(ctxDownload, moduleName, version)
+		if err != nil && !errors.As(err, &db.NotFoundError{}) {
+			span.RecordError(err)
+			logger.Error().Err(err).Msg("Failed to get plugin hash")
+			JSONErrorf(rw, http.StatusInternalServerError, "Failed to get plugin %s@%s", moduleName, version)
+
+			return
+		}
+
+		// The plugin hash does not exist, we create it.
+		if err != nil {
+			pluginHash, err = h.store.CreateHash(ctxDownload, moduleName, version, digest)
+			if err != nil {
+				span.RecordError(err)
+				logger.Error().Err(err).Msg("Error persisting plugin hash")
+				JSONErrorf(rw, http.StatusInternalServerError, "Failed to get plugin %s@%s", moduleName, version)
+
+				return
+			}
+		}
+
+		// We reject the request if the archive has been modified.
+		if pluginHash.Hash != digest || (pluginHash.Verified != nil && !*pluginHash.Verified) {
+			JSONErrorf(rw, http.StatusNotFound, "Plugin archive %s@%s has been modified or is not verified.", moduleName, version)
+
+			return
+		}
+
+		// The plugin hash exists, it is verified, and the digest matches.
+		// We can return the archive.
+		if pluginHash.Verified != nil && *pluginHash.Verified {
+			_, err = h.gh.Do(ctxDownload, request, rw)
+			if err != nil {
+				span.RecordError(err)
+				logger.Error().Err(err).Msg("Failed to write response body")
+				JSONErrorf(rw, http.StatusInternalServerError, "Failed to get plugin %s@%s", moduleName, version)
+
+				return
+			}
+		}
+
+		// If the plugin hash is not verified, we download the archive and verify it.
+		sources := bytes.NewBufferString("")
+
+		_, err = h.gh.Do(ctxDownload, request, sources)
+		if err != nil {
+			span.RecordError(err)
+			logger.Error().Err(err).Msg("Failed to get archive content")
+			JSONErrorf(rw, http.StatusInternalServerError, "Failed to get plugin %s@%s", moduleName, version)
+
+			return
+		}
+
+		raw, err := io.ReadAll(sources)
+		if err != nil {
+			span.RecordError(err)
+			logger.Error().Err(err).Msg("Failed to read response body")
+			JSONErrorf(rw, http.StatusInternalServerError, "Failed to get plugin %s@%s", moduleName, version)
+
+			return
+		}
+
+		verified := true
+
+		reader, err := zip.NewReader(bytes.NewReader(raw), int64(len(raw)))
+		if err != nil {
+			verified = false
+
+			logger.Error().Err(err).Msg("Failed to unzip archive")
+		} else {
+			// Reject path traversal attacks
+			for _, file := range reader.File {
+				if strings.Contains(file.Name, "..") {
+					verified = false
+
+					logger.Error().Err(err).Msg("Invalid archive containing dotdot")
+
+					break
+				}
+			}
+		}
+
+		_, err = h.store.UpdateHashVerified(ctxDownload, moduleName, version, digest, verified)
+		if err != nil {
+			span.RecordError(err)
+			logger.Error().Err(err).Msg("Error persisting plugin hash")
+			JSONErrorf(rw, http.StatusInternalServerError, "Failed to get plugin %s@%s", moduleName, version)
+
+			return
+		}
+
+		// We reject the request.
+		if !verified {
+			JSONErrorf(rw, http.StatusNotFound, "Plugin archive %s@%s is not verified.", moduleName, version)
+
+			return
+		}
+
+		_, err = rw.Write(raw)
+		if err != nil {
+			span.RecordError(err)
+			logger.Error().Err(err).Msg("Failed to write response body")
+			JSONErrorf(rw, http.StatusInternalServerError, "Failed to get plugin %s@%s", moduleName, version)
+
+			return
+		}
+	}
+}
+
 func (h Handlers) getArchiveLinkRequest(ctx context.Context, moduleName, version string) (*http.Request, error) {
 	ctx, span := h.tracer.Start(ctx, "handler_getArchiveLinkRequest")
 	defer span.End()
@@ -343,7 +459,7 @@ func (h Handlers) getArchiveLinkRequest(ctx context.Context, moduleName, version
 	return http.NewRequestWithContext(ctx, http.MethodGet, link.String(), http.NoBody)
 }
 
-func (h Handlers) getAssetLinkRequest(ctx context.Context, moduleName, version string) (*http.Request, error) {
+func (h Handlers) getAssetLinkRequest(ctx context.Context, moduleName, version string) (*http.Request, string, error) {
 	ctx, span := h.tracer.Start(ctx, "handler_getAssetLinkRequest")
 	defer span.End()
 
@@ -354,11 +470,11 @@ func (h Handlers) getAssetLinkRequest(ctx context.Context, moduleName, version s
 	if err != nil {
 		span.RecordError(err)
 
-		return nil, fmt.Errorf("failed to get release: %w", err)
+		return nil, "", fmt.Errorf("failed to get release: %w", err)
 	}
 
 	assets := map[*github.ReleaseAsset]struct{}{}
-
+	// Find the zip archive in the release assets.
 	for _, asset := range release.Assets {
 		if filepath.Ext(asset.GetName()) == ".zip" {
 			assets[asset] = struct{}{}
@@ -366,21 +482,21 @@ func (h Handlers) getAssetLinkRequest(ctx context.Context, moduleName, version s
 	}
 
 	if len(assets) > 1 {
-		return nil, fmt.Errorf("too many zip archive (%d)", len(assets))
+		return nil, "", fmt.Errorf("too many zip archive (%d)", len(assets))
 	}
 
 	for asset := range assets {
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, asset.GetURL(), http.NoBody)
 		if err != nil {
-			return nil, fmt.Errorf("failed to create request: %w", err)
+			return nil, asset.GetDigest(), fmt.Errorf("failed to create request: %w", err)
 		}
 
 		req.Header.Set("Accept", "application/octet-stream")
 
-		return req, nil
+		return req, "", nil
 	}
 
-	return nil, errors.New("zip archive not found")
+	return nil, "", errors.New("zip archive not found")
 }
 
 // Validate validates a plugin archive.
