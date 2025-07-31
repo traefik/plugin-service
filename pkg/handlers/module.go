@@ -232,7 +232,6 @@ func (h Handlers) downloadGitHub(ctx context.Context, moduleName, version string
 		logger := log.With().Str("module_name", moduleName).Str("module_version", version).Logger()
 
 		request, err := h.getArchiveLinkRequest(ctxDownload, moduleName, version)
-
 		if err != nil {
 			span.RecordError(err)
 			logger.Error().Err(err).Msg("Failed to get archive link")
@@ -395,22 +394,26 @@ func (h Handlers) downloadGitHubFromAssets(ctx context.Context, moduleName, vers
 		}
 
 		verified := true
+
 		reader, err := zip.NewReader(bytes.NewReader(raw), int64(len(raw)))
 		if err != nil {
 			verified = false
+
 			logger.Error().Err(err).Msg("Failed to unzip archive")
 		} else {
 			// Reject path traversal attacks
 			for _, file := range reader.File {
 				if strings.Contains(file.Name, "..") {
 					verified = false
-					logger.Error().Err(err).Msg("Invalid archive containing dot dot")
+
+					logger.Error().Err(err).Msg("Invalid archive containing dotdot")
+
 					break
 				}
 			}
 		}
 
-		pluginHash, err = h.store.UpdateHashVerified(ctxDownload, moduleName, version, digest, verified)
+		_, err = h.store.UpdateHashVerified(ctxDownload, moduleName, version, digest, verified)
 		if err != nil {
 			span.RecordError(err)
 			logger.Error().Err(err).Msg("Error persisting plugin hash")
@@ -471,6 +474,7 @@ func (h Handlers) getAssetLinkRequest(ctx context.Context, moduleName, version s
 	}
 
 	assets := map[*github.ReleaseAsset]struct{}{}
+	// Find the zip archive in the release assets.
 	for _, asset := range release.Assets {
 		if filepath.Ext(asset.GetName()) == ".zip" {
 			assets[asset] = struct{}{}
