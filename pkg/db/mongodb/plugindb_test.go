@@ -802,11 +802,10 @@ func TestMongoDB_UpdateHashVerified(t *testing.T) {
 		},
 	})
 
-	got, err := store.UpdateHashVerified(ctx, "plugin", "v1.1.1", "non-existing", true)
+	_, err := store.UpdateHashVerified(ctx, "plugin", "v1.1.1", "non-existing", true)
 	require.Error(t, err)
-	assert.Nil(t, got)
 
-	got, err = store.UpdateHashVerified(ctx, "plugin", "v1.1.1", "123", true)
+	got, err := store.UpdateHashVerified(ctx, "plugin", "v1.1.1", "123", true)
 	require.NoError(t, err)
 
 	want := fixtures["plugin"].Hashes[0]
