@@ -10,7 +10,7 @@ import (
 	"regexp"
 	"strconv"
 
-	"github.com/google/go-github/v57/github"
+	"github.com/google/go-github/v74/github"
 	"github.com/ldez/grignotin/goproxy"
 	"github.com/rs/zerolog/log"
 	"github.com/traefik/plugin-service/pkg/db"
@@ -34,6 +34,7 @@ type PluginStorer interface {
 	Update(context.Context, string, db.Plugin) (db.Plugin, error)
 
 	CreateHash(ctx context.Context, module, version, hash string) (db.PluginHash, error)
+	UpdateHashVerified(ctx context.Context, module, version, hash string, verified bool) (db.PluginHash, error)
 	GetHashByName(ctx context.Context, module, version string) (db.PluginHash, error)
 }
 

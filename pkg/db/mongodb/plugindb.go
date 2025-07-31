@@ -361,6 +361,49 @@ func (m *MongoDB) CreateHash(ctx context.Context, module, version, hash string) 
 	return newHash, nil
 }
 
+// UpdateHashVerified updates the verified value for a plugin hash.
+func (m *MongoDB) UpdateHashVerified(ctx context.Context, module, version, hash string, verified bool) (db.PluginHash, error) {
+	ctx, span := m.tracer.Start(ctx, "db_update_hash")
+	defer span.End()
+
+	filter := bson.D{
+		{Key: "name", Value: module},
+		{Key: "hashes.name", Value: module + "@" + version},
+		{Key: "hashes.hash", Value: hash},
+	}
+
+	updatedHash := db.PluginHash{
+		Name:     module + "@" + version,
+		Hash:     hash,
+		Verified: &verified,
+	}
+
+	update := bson.D{
+		{
+			Key: "$set",
+			Value: bson.D{
+				{Key: "hashes.$.verified", Value: &verified},
+			},
+		},
+	}
+
+	opts := &options.FindOneAndUpdateOptions{}
+	opts.SetReturnDocument(options.After)
+
+	var updated pluginDocument
+	if err := m.client.Collection(collName).FindOneAndUpdate(ctx, filter, update, opts).Decode(&updated); err != nil {
+		span.RecordError(err)
+
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return db.PluginHash{}, db.NotFoundError{Err: err}
+		}
+
+		return db.PluginHash{}, fmt.Errorf("unable to update plugin hash: %w", err)
+	}
+
+	return updatedHash, nil
+}
+
 // GetHashByName returns the hash corresponding the given name.
 func (m *MongoDB) GetHashByName(ctx context.Context, module, version string) (db.PluginHash, error) {
 	ctx, span := m.tracer.Start(ctx, "db_create_hash")
