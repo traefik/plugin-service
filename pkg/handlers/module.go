@@ -400,6 +400,8 @@ func (h Handlers) downloadGitHubFromAssets(ctx context.Context, moduleName, vers
 
 				return
 			}
+
+			return
 		}
 
 		if assetBytes == nil {
