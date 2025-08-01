@@ -331,6 +331,36 @@ func (h Handlers) downloadGitHubFromAssets(ctx context.Context, moduleName, vers
 			return
 		}
 
+		var assetBytes []byte
+
+		// If the asset has no digest, we need to download it to compute the digest.
+		if digest == "" {
+			sources := bytes.NewBufferString("")
+
+			_, err = h.gh.Do(ctxDownload, request, sources)
+			if err != nil {
+				span.RecordError(err)
+				logger.Error().Err(err).Msg("Failed to get archive content")
+				JSONErrorf(rw, http.StatusInternalServerError, "Failed to get plugin %s@%s", moduleName, version)
+
+				return
+			}
+
+			assetBytes, err = io.ReadAll(sources)
+			if err != nil {
+				span.RecordError(err)
+				logger.Error().Err(err).Msg("Failed to read response body")
+				JSONErrorf(rw, http.StatusInternalServerError, "Failed to get plugin %s@%s", moduleName, version)
+
+				return
+			}
+
+			// Compute the digest of the archive.
+			hash := sha256.New()
+			_, _ = hash.Write(assetBytes)
+			digest = fmt.Sprintf("%x", hash.Sum(nil))
+		}
+
 		pluginHash, err := h.store.GetHashByName(ctxDownload, moduleName, version)
 		if err != nil && !errors.As(err, &db.NotFoundError{}) {
 			span.RecordError(err)
@@ -372,30 +402,32 @@ func (h Handlers) downloadGitHubFromAssets(ctx context.Context, moduleName, vers
 			}
 		}
 
-		// If the plugin hash is not verified, we download the archive and verify it.
-		sources := bytes.NewBufferString("")
+		if assetBytes == nil {
+			// If the plugin hash is not verified, we download the archive and verify it.
+			sources := bytes.NewBufferString("")
 
-		_, err = h.gh.Do(ctxDownload, request, sources)
-		if err != nil {
-			span.RecordError(err)
-			logger.Error().Err(err).Msg("Failed to get archive content")
-			JSONErrorf(rw, http.StatusInternalServerError, "Failed to get plugin %s@%s", moduleName, version)
+			_, err = h.gh.Do(ctxDownload, request, sources)
+			if err != nil {
+				span.RecordError(err)
+				logger.Error().Err(err).Msg("Failed to get archive content")
+				JSONErrorf(rw, http.StatusInternalServerError, "Failed to get plugin %s@%s", moduleName, version)
 
-			return
-		}
+				return
+			}
 
-		raw, err := io.ReadAll(sources)
-		if err != nil {
-			span.RecordError(err)
-			logger.Error().Err(err).Msg("Failed to read response body")
-			JSONErrorf(rw, http.StatusInternalServerError, "Failed to get plugin %s@%s", moduleName, version)
+			assetBytes, err = io.ReadAll(sources)
+			if err != nil {
+				span.RecordError(err)
+				logger.Error().Err(err).Msg("Failed to read response body")
+				JSONErrorf(rw, http.StatusInternalServerError, "Failed to get plugin %s@%s", moduleName, version)
 
-			return
+				return
+			}
 		}
 
 		verified := true
 
-		reader, err := zip.NewReader(bytes.NewReader(raw), int64(len(raw)))
+		reader, err := zip.NewReader(bytes.NewReader(assetBytes), int64(len(assetBytes)))
 		if err != nil {
 			verified = false
 
@@ -429,7 +461,7 @@ func (h Handlers) downloadGitHubFromAssets(ctx context.Context, moduleName, vers
 			return
 		}
 
-		_, err = rw.Write(raw)
+		_, err = rw.Write(assetBytes)
 		if err != nil {
 			span.RecordError(err)
 			logger.Error().Err(err).Msg("Failed to write response body")
@@ -488,12 +520,15 @@ func (h Handlers) getAssetLinkRequest(ctx context.Context, moduleName, version s
 	for asset := range assets {
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, asset.GetURL(), http.NoBody)
 		if err != nil {
-			return nil, asset.GetDigest(), fmt.Errorf("failed to create request: %w", err)
+			return nil, "", fmt.Errorf("failed to create request: %w", err)
 		}
 
 		req.Header.Set("Accept", "application/octet-stream")
 
-		return req, "", nil
+		digest := asset.GetDigest()
+		digest = strings.ReplaceAll(digest, "sha256:", "")
+
+		return req, digest, nil
 	}
 
 	return nil, "", errors.New("zip archive not found")
