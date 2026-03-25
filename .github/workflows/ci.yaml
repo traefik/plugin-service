@@ -52,13 +52,6 @@ jobs:
         with:
           go-version-file: 'go.mod'
 
-      # To avoid R/L when launching mongodb
-      - name: docker login on docker.io
-        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
-        with:
-          username: traefiker
-          password: ${{ secrets.TRAEFIKER_DOCKER_IO_PASSWORD }}
-
       - name: Test
         if: ${{ github.event_name == 'pull_request' }}
         run: make test
