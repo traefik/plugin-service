@@ -36,6 +36,10 @@ type PluginStorer interface {
 	CreateHash(ctx context.Context, module, version, hash string) (db.PluginHash, error)
 	UpdateHashVerified(ctx context.Context, module, version, hash string, verified bool) (db.PluginHash, error)
 	GetHashByName(ctx context.Context, module, version string) (db.PluginHash, error)
+
+	ListBlacklist(ctx context.Context) ([]db.BlacklistEntry, error)
+	UpsertBlacklist(ctx context.Context, entry db.BlacklistEntry) (db.BlacklistEntry, error)
+	DeleteBlacklist(ctx context.Context, repository string) error
 }
 
 // Handlers a set of handlers.
