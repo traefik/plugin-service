@@ -44,6 +44,20 @@ func (m *MongoDB) Bootstrap() error {
 		return fmt.Errorf("unable to create indexes: %w", err)
 	}
 
+	blacklistModels := []mongo.IndexModel{
+		{
+			Options: &options.IndexOptions{
+				Name:   stringPtr("_uniq_repository"),
+				Unique: boolPtr(true),
+			},
+			Keys: bson.D{{Key: "repository", Value: 1}},
+		},
+	}
+
+	if _, err := m.client.Collection(blacklistCollName).Indexes().CreateMany(context.Background(), blacklistModels); err != nil {
+		return fmt.Errorf("unable to create blacklist indexes: %w", err)
+	}
+
 	return nil
 }
 

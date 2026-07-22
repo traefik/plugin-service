@@ -54,6 +54,7 @@ func run(ctx context.Context, cfg Config) error {
 
 	r.Handle("/public/", buildPublicRouter(handler))
 	r.Handle("/internal/", buildInternalRouter(handler))
+	r.Handle("/internal/blacklist", buildInternalBlacklistRouter(handler))
 	r.Handle("/external/", buildExternalRouter(handler))
 	r.HandleFunc("/live", healthChecker.Live)
 	r.HandleFunc("/ready", healthChecker.Ready)
@@ -86,6 +87,27 @@ func buildInternalRouter(handler handlers.Handlers) http.Handler {
 	r.PanicHandler = handlers.PanicHandler
 
 	return http.StripPrefix("/internal", r)
+}
+
+// buildInternalBlacklistRouter serves the blacklist endpoints on a dedicated
+// handler mounted at /internal/blacklist. It is kept separate from the internal
+// httprouter to avoid a route conflict between the static "/blacklist" segment
+// and the existing "/:uuid" wildcard.
+func buildInternalBlacklistRouter(handler handlers.Handlers) http.Handler {
+	next := http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+		switch req.Method {
+		case http.MethodGet:
+			handler.ListBlacklist(rw, req)
+		case http.MethodPost:
+			handler.AddToBlacklist(rw, req)
+		case http.MethodDelete:
+			handler.DeleteFromBlacklist(rw, req)
+		default:
+			handlers.JSONError(rw, http.StatusMethodNotAllowed, http.StatusText(http.StatusMethodNotAllowed))
+		}
+	})
+
+	return otelhttp.NewHandler(next, "internal_blacklist")
 }
 
 func buildExternalRouter(handler handlers.Handlers) http.Handler {
