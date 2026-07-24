@@ -2,7 +2,6 @@ package mongodb
 
 import (
 	"context"
-	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -51,7 +50,7 @@ func TestMongoDB_Blacklist(t *testing.T) {
 
 	// Delete missing returns NotFoundError.
 	err = store.DeleteBlacklist(ctx, "deas/teectl")
-	assert.True(t, errors.As(err, &db.NotFoundError{}))
+	require.ErrorAs(t, err, &db.NotFoundError{})
 
 	entries, err = store.ListBlacklist(ctx)
 	require.NoError(t, err)

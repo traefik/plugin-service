@@ -54,8 +54,9 @@ func run(ctx context.Context, cfg Config) error {
 
 	r.Handle("/public/", buildPublicRouter(handler))
 	r.Handle("/internal/", buildInternalRouter(handler))
-	r.Handle("/internal/blacklist", buildInternalBlacklistRouter(handler))
 	r.Handle("/external/", buildExternalRouter(handler))
+
+	registerInternalBlacklistRoutes(r, handler)
 	r.HandleFunc("/live", healthChecker.Live)
 	r.HandleFunc("/ready", healthChecker.Ready)
 
@@ -89,25 +90,13 @@ func buildInternalRouter(handler handlers.Handlers) http.Handler {
 	return http.StripPrefix("/internal", r)
 }
 
-// buildInternalBlacklistRouter serves the blacklist endpoints on a dedicated
-// handler mounted at /internal/blacklist. It is kept separate from the internal
-// httprouter to avoid a route conflict between the static "/blacklist" segment
-// and the existing "/:uuid" wildcard.
-func buildInternalBlacklistRouter(handler handlers.Handlers) http.Handler {
-	next := http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-		switch req.Method {
-		case http.MethodGet:
-			handler.ListBlacklist(rw, req)
-		case http.MethodPost:
-			handler.AddToBlacklist(rw, req)
-		case http.MethodDelete:
-			handler.DeleteFromBlacklist(rw, req)
-		default:
-			handlers.JSONError(rw, http.StatusMethodNotAllowed, http.StatusText(http.StatusMethodNotAllowed))
-		}
-	})
-
-	return otelhttp.NewHandler(next, "internal_blacklist")
+// registerInternalBlacklistRoutes registers the blacklist endpoints directly on
+// the ServeMux: they cannot live in the internal httprouter because the static
+// "blacklist" segment conflicts with its "/:uuid" wildcard routes.
+func registerInternalBlacklistRoutes(r *http.ServeMux, handler handlers.Handlers) {
+	r.Handle("GET /internal/blacklist", otelhttp.NewHandler(http.HandlerFunc(handler.ListBlacklist), "internal_list_blacklist"))
+	r.Handle("POST /internal/blacklist", otelhttp.NewHandler(http.HandlerFunc(handler.AddToBlacklist), "internal_add_to_blacklist"))
+	r.Handle("DELETE /internal/blacklist/{owner}/{repo}", otelhttp.NewHandler(http.HandlerFunc(handler.DeleteFromBlacklist), "internal_delete_from_blacklist"))
 }
 
 func buildExternalRouter(handler handlers.Handlers) http.Handler {

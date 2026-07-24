@@ -55,7 +55,7 @@ func (m *MongoDB) Bootstrap() error {
 	}
 
 	if _, err := m.client.Collection(blacklistCollName).Indexes().CreateMany(context.Background(), blacklistModels); err != nil {
-		return fmt.Errorf("unable to create blacklist indexes: %w", err)
+		return fmt.Errorf("creating blacklist indexes: %w", err)
 	}
 
 	return nil
