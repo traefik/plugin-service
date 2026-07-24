@@ -19,6 +19,10 @@ type mockDB struct {
 	createHashFn         func(ctx context.Context, module, version, hash string) (db.PluginHash, error)
 	updateHashVerifiedFn func(ctx context.Context, module, version, hash string, verified bool) (db.PluginHash, error)
 	getHashByNameFn      func(ctx context.Context, module, version string) (db.PluginHash, error)
+
+	listBlacklistFn   func(ctx context.Context) ([]db.BlacklistEntry, error)
+	upsertBlacklistFn func(ctx context.Context, entry db.BlacklistEntry) (db.BlacklistEntry, error)
+	deleteBlacklistFn func(ctx context.Context, repository string) error
 }
 
 func (m mockDB) Get(ctx context.Context, id string) (db.Plugin, error) {
@@ -63,4 +67,16 @@ func (m mockDB) UpdateHashVerified(ctx context.Context, module, version, hash st
 
 func (m mockDB) GetHashByName(ctx context.Context, module, version string) (db.PluginHash, error) {
 	return m.getHashByNameFn(ctx, module, version)
+}
+
+func (m mockDB) ListBlacklist(ctx context.Context) ([]db.BlacklistEntry, error) {
+	return m.listBlacklistFn(ctx)
+}
+
+func (m mockDB) UpsertBlacklist(ctx context.Context, entry db.BlacklistEntry) (db.BlacklistEntry, error) {
+	return m.upsertBlacklistFn(ctx, entry)
+}
+
+func (m mockDB) DeleteBlacklist(ctx context.Context, repository string) error {
+	return m.deleteBlacklistFn(ctx, repository)
 }

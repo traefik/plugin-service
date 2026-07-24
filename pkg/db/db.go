@@ -27,6 +27,15 @@ type Plugin struct {
 	UseUnsafe     bool                   `json:"useUnsafe,omitempty" bson:"useUnsafe"`
 }
 
+// BlacklistEntry represents a repository excluded from the plugin scraping.
+// The Repository is the GitHub full name (owner/repo) and is the unique key.
+type BlacklistEntry struct {
+	Repository string    `json:"repository" bson:"repository"`
+	Reason     string    `json:"reason,omitempty" bson:"reason"`
+	Author     string    `json:"author,omitempty" bson:"author"`
+	CreatedAt  time.Time `json:"createdAt" bson:"createdAt"`
+}
+
 // PluginHash The plugin hash tuple.
 type PluginHash struct {
 	Name     string `json:"name,omitempty" bson:"name"`
