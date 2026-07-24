@@ -90,28 +90,14 @@ func TestHandlers_DeleteFromBlacklist(t *testing.T) {
 	}
 
 	rw := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodDelete, "/internal/blacklist?repository=deas/teectl", http.NoBody)
+	req := httptest.NewRequest(http.MethodDelete, "/internal/blacklist/deas/teectl", http.NoBody)
+	req.SetPathValue("owner", "deas")
+	req.SetPathValue("repo", "teectl")
 
 	New(testDB, nil, nil).DeleteFromBlacklist(rw, req)
 
 	require.Equal(t, http.StatusNoContent, rw.Code)
 	assert.Equal(t, "deas/teectl", deleted)
-}
-
-func TestHandlers_DeleteFromBlacklist_missingRepository(t *testing.T) {
-	testDB := mockDB{
-		deleteBlacklistFn: func(_ context.Context, _ string) error {
-			t.Fatal("store should not be called without a repository")
-			return nil
-		},
-	}
-
-	rw := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodDelete, "/internal/blacklist", http.NoBody)
-
-	New(testDB, nil, nil).DeleteFromBlacklist(rw, req)
-
-	assert.Equal(t, http.StatusBadRequest, rw.Code)
 }
 
 func TestHandlers_DeleteFromBlacklist_notFound(t *testing.T) {
@@ -122,9 +108,11 @@ func TestHandlers_DeleteFromBlacklist_notFound(t *testing.T) {
 	}
 
 	rw := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodDelete, "/internal/blacklist?repository=deas/teectl", http.NoBody)
+	req := httptest.NewRequest(http.MethodDelete, "/internal/blacklist/deas/teectl", http.NoBody)
+	req.SetPathValue("owner", "deas")
+	req.SetPathValue("repo", "teectl")
 
 	New(testDB, nil, nil).DeleteFromBlacklist(rw, req)
 
-	assert.Equal(t, http.StatusNotFound, rw.Code)
+	assert.Equal(t, http.StatusNoContent, rw.Code)
 }

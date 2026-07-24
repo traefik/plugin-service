@@ -36,22 +36,24 @@ type PluginStorer interface {
 	CreateHash(ctx context.Context, module, version, hash string) (db.PluginHash, error)
 	UpdateHashVerified(ctx context.Context, module, version, hash string, verified bool) (db.PluginHash, error)
 	GetHashByName(ctx context.Context, module, version string) (db.PluginHash, error)
+}
 
-	ListBlacklist(ctx context.Context) ([]db.BlacklistEntry, error)
-	UpsertBlacklist(ctx context.Context, entry db.BlacklistEntry) (db.BlacklistEntry, error)
-	DeleteBlacklist(ctx context.Context, repository string) error
+// Storer is capable of storing plugins and the plugin blacklist.
+type Storer interface {
+	PluginStorer
+	BlacklistStorer
 }
 
 // Handlers a set of handlers.
 type Handlers struct {
-	store   PluginStorer
+	store   Storer
 	goProxy *goproxy.Client
 	gh      *github.Client
 	tracer  trace.Tracer
 }
 
 // New creates all HTTP handlers.
-func New(store PluginStorer, goProxy *goproxy.Client, gh *github.Client) Handlers {
+func New(store Storer, goProxy *goproxy.Client, gh *github.Client) Handlers {
 	return Handlers{
 		store:   store,
 		goProxy: goProxy,

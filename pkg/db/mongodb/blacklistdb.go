@@ -25,7 +25,7 @@ func (m *MongoDB) ListBlacklist(ctx context.Context) ([]db.BlacklistEntry, error
 	if err != nil {
 		span.RecordError(err)
 
-		return nil, fmt.Errorf("unable to find blacklist entries: %w", err)
+		return nil, fmt.Errorf("finding blacklist entries: %w", err)
 	}
 
 	entries := []db.BlacklistEntry{}
@@ -33,7 +33,7 @@ func (m *MongoDB) ListBlacklist(ctx context.Context) ([]db.BlacklistEntry, error
 	if err = cursor.All(ctx, &entries); err != nil {
 		span.RecordError(err)
 
-		return nil, fmt.Errorf("unable to unmarshal blacklist entries: %w", err)
+		return nil, fmt.Errorf("unmarshalling blacklist entries: %w", err)
 	}
 
 	return entries, nil
@@ -53,7 +53,6 @@ func (m *MongoDB) UpsertBlacklist(ctx context.Context, entry db.BlacklistEntry) 
 			{Key: "author", Value: entry.Author},
 		}},
 		{Key: "$setOnInsert", Value: bson.D{
-			{Key: "repository", Value: entry.Repository},
 			{Key: "createdAt", Value: time.Now().Truncate(time.Millisecond)},
 		}},
 	}
@@ -66,7 +65,7 @@ func (m *MongoDB) UpsertBlacklist(ctx context.Context, entry db.BlacklistEntry) 
 	if err := m.client.Collection(blacklistCollName).FindOneAndUpdate(ctx, filter, update, opts).Decode(&updated); err != nil {
 		span.RecordError(err)
 
-		return db.BlacklistEntry{}, fmt.Errorf("unable to upsert blacklist entry: %w", err)
+		return db.BlacklistEntry{}, fmt.Errorf("upserting blacklist entry: %w", err)
 	}
 
 	return updated, nil
@@ -83,7 +82,7 @@ func (m *MongoDB) DeleteBlacklist(ctx context.Context, repository string) error 
 	if err != nil {
 		span.RecordError(err)
 
-		return err
+		return fmt.Errorf("deleting blacklist entry: %w", err)
 	}
 
 	if res.DeletedCount == 0 {

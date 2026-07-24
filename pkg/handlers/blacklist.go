@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -13,6 +14,13 @@ import (
 
 // repositoryRegexp matches a GitHub full name: owner/repo (exactly one slash, no spaces).
 var repositoryRegexp = regexp.MustCompile(`^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$`)
+
+// BlacklistStorer is capable of storing the plugin blacklist.
+type BlacklistStorer interface {
+	ListBlacklist(ctx context.Context) ([]db.BlacklistEntry, error)
+	UpsertBlacklist(ctx context.Context, entry db.BlacklistEntry) (db.BlacklistEntry, error)
+	DeleteBlacklist(ctx context.Context, repository string) error
+}
 
 // ListBlacklist lists the blacklisted repositories.
 func (h Handlers) ListBlacklist(rw http.ResponseWriter, req *http.Request) {
@@ -49,16 +57,16 @@ func (h Handlers) AddToBlacklist(rw http.ResponseWriter, req *http.Request) {
 	body, err := io.ReadAll(req.Body)
 	if err != nil {
 		span.RecordError(err)
-		log.Error().Err(err).Msg("Error reading body for blacklist creation")
+		log.Error().Err(err).Msg("Unable to read body for adding entry in the blacklist")
 		JSONError(rw, http.StatusBadRequest, err.Error())
 
 		return
 	}
 
-	entry := db.BlacklistEntry{}
+	var entry db.BlacklistEntry
 	if err = json.Unmarshal(body, &entry); err != nil {
 		span.RecordError(err)
-		log.Error().Err(err).Msg("Error decoding blacklist entry")
+		log.Error().Err(err).Msg("Unable to decode blacklist entry")
 		JSONError(rw, http.StatusBadRequest, err.Error())
 
 		return
@@ -75,17 +83,15 @@ func (h Handlers) AddToBlacklist(rw http.ResponseWriter, req *http.Request) {
 	created, err := h.store.UpsertBlacklist(ctx, entry)
 	if err != nil {
 		span.RecordError(err)
-		logger.Error().Err(err).Msg("Error persisting blacklist entry")
+		logger.Error().Err(err).Msg("Unable to persist blacklist entry")
 		JSONInternalServerError(rw)
 
 		return
 	}
 
-	rw.WriteHeader(http.StatusOK)
-
 	if err := json.NewEncoder(rw).Encode(created); err != nil {
 		span.RecordError(err)
-		logger.Error().Err(err).Msg("Error sending blacklist response")
+		logger.Error().Err(err).Msg("Unable to send blacklist response")
 		JSONInternalServerError(rw)
 
 		return
@@ -93,32 +99,18 @@ func (h Handlers) AddToBlacklist(rw http.ResponseWriter, req *http.Request) {
 }
 
 // DeleteFromBlacklist removes a repository from the blacklist.
-// The repository is passed as a query parameter: ?repository=owner/repo.
+// The repository is passed in the path: DELETE /internal/blacklist/{owner}/{repo}.
 func (h Handlers) DeleteFromBlacklist(rw http.ResponseWriter, req *http.Request) {
 	ctx, span := h.tracer.Start(req.Context(), "handler_delete_from_blacklist")
 	defer span.End()
 
-	rw.Header().Set("Content-Type", "application/json")
-
-	repository := req.URL.Query().Get("repository")
-	if repository == "" {
-		JSONError(rw, http.StatusBadRequest, "missing repository query parameter")
-
-		return
-	}
+	repository := req.PathValue("owner") + "/" + req.PathValue("repo")
 
 	logger := log.With().Str("repository", repository).Logger()
 
 	err := h.store.DeleteBlacklist(ctx, repository)
-	if err != nil {
+	if err != nil && !errors.As(err, &db.NotFoundError{}) {
 		span.RecordError(err)
-
-		if errors.As(err, &db.NotFoundError{}) {
-			NotFound(rw, req)
-
-			return
-		}
-
 		logger.Error().Err(err).Msg("Failed to delete blacklist entry")
 		JSONInternalServerError(rw)
 
