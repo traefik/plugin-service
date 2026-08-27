@@ -71,7 +71,9 @@ func (h Handlers) Download(rw http.ResponseWriter, req *http.Request) {
 		attributes = append(attributes, attribute.String("module.sum", sum))
 
 		ph, errH := h.store.GetHashByName(ctx, pluginName, version)
-		if errH != nil {
+
+		switch {
+		case errH != nil:
 			span.RecordError(errH)
 
 			if !errors.As(errH, &db.NotFoundError{}) {
@@ -80,14 +82,17 @@ func (h Handlers) Download(rw http.ResponseWriter, req *http.Request) {
 
 				return
 			}
-		} else if ph.Hash == sum {
+
+		case ph.Hash == sum:
 			rw.WriteHeader(http.StatusNotModified)
 
 			return
+
+		default:
+			logger.Warn().Str("recorded_hash", ph.Hash).Str("client_hash", sum).Msg("Plugin archive hash mismatch")
 		}
 
 		span.AddEvent("module.download", trace.WithAttributes(attributes...))
-		logger.Error().Msgf("Someone is trying to hack the archive: %v", sum)
 	}
 
 	span.SetAttributes(attributes...)
@@ -577,6 +582,8 @@ func (h Handlers) Validate(rw http.ResponseWriter, req *http.Request) {
 
 		return
 	}
+
+	logger.Warn().Str("recorded_hash", ph.Hash).Str("client_hash", headerSum).Msg("Plugin archive hash mismatch")
 
 	rw.WriteHeader(http.StatusNotFound)
 }
