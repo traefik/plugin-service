@@ -21,20 +21,20 @@ func (m *MongoDB) Bootstrap() error {
 	models := []mongo.IndexModel{
 		{
 			Options: &options.IndexOptions{
-				Name:   stringPtr("_uniq_id"),
-				Unique: boolPtr(true),
+				Name:   new("_uniq_id"),
+				Unique: new(true),
 			},
 			Keys: bson.D{{Key: "id", Value: 1}},
 		},
 		{
 			Options: &options.IndexOptions{
-				Name: stringPtr("_by_stars"),
+				Name: new("_by_stars"),
 			},
 			Keys: bson.D{{Key: "stars", Value: 1}},
 		},
 		{
 			Options: &options.IndexOptions{
-				Name: stringPtr("_by_name"),
+				Name: new("_by_name"),
 			},
 			Keys: bson.D{{Key: "name", Value: 1}},
 		},
@@ -45,12 +45,4 @@ func (m *MongoDB) Bootstrap() error {
 	}
 
 	return nil
-}
-
-func stringPtr(val string) *string {
-	return &val
-}
-
-func boolPtr(val bool) *bool {
-	return &val
 }

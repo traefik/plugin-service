@@ -16,6 +16,7 @@ import (
 // MongoFlags setup CLI flags for MongoDB.
 func MongoFlags() []cli.Flag {
 	return []cli.Flag{
+		//nolint:gosec // G101: local development default, overridden by MONGODB_URI in every real environment.
 		&cli.StringFlag{
 			Name:    "mongodb-uri",
 			Usage:   "MongoDB connection string",
