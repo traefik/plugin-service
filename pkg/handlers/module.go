@@ -490,6 +490,7 @@ func (h Handlers) getArchiveLinkRequest(ctx context.Context, moduleName, version
 		return nil, fmt.Errorf("failed to get archive link: %w", err)
 	}
 
+	//nolint:gosec // G704: the URL is issued by the GitHub API, not by the caller.
 	return http.NewRequestWithContext(ctx, http.MethodGet, link.String(), http.NoBody)
 }
 
