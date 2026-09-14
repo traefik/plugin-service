@@ -13,7 +13,7 @@ type apiError struct {
 }
 
 // PanicHandler handles panics.
-func PanicHandler(rw http.ResponseWriter, req *http.Request, err interface{}) {
+func PanicHandler(rw http.ResponseWriter, req *http.Request, err any) {
 	log.Error().Str("method", req.Method).Interface("url", req.URL).Interface("err", err).
 		Msg("Panic error executing request")
 	JSONError(rw, http.StatusInternalServerError, "panic")
@@ -25,7 +25,7 @@ func JSONInternalServerError(rw http.ResponseWriter) {
 }
 
 // JSONErrorf handles an JSON error.
-func JSONErrorf(rw http.ResponseWriter, code int, errMsg string, args ...interface{}) {
+func JSONErrorf(rw http.ResponseWriter, code int, errMsg string, args ...any) {
 	JSONError(rw, code, fmt.Sprintf(errMsg, args...))
 }
 

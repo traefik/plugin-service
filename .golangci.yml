@@ -9,6 +9,8 @@ linters:
     - err113
     - exhaustive
     - exhaustruct
+    - exhaustruct_v5
+    - gomodguard # deprecated, replaced by gomodguard_v2
     - inamedparam
     - ireturn
     - lll
@@ -28,6 +30,7 @@ linters:
     - varnamelen
     - wrapcheck
     - wsl
+    - wsl_v5
   settings:
     depguard:
       rules:
@@ -73,6 +76,7 @@ linters:
         text: '`(version|date|commit)` is a global variable'
       - linters:
           - funlen
+          - goconst
           - maintidx
           - unused
         path: .*_test.go
@@ -118,7 +122,10 @@ formatters:
     - goimports
   settings:
     gofumpt:
-      extra-rules: true
+      extra:
+        group-params: true
+        clothe-returns: true
+        balance-calls: true
   exclusions:
     generated: lax
     paths:

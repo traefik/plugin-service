@@ -20,6 +20,12 @@ import (
 
 const collName = "plugin"
 
+const (
+	fieldHashes   = "hashes"
+	fieldDisabled = "disabled"
+	fieldHidden   = "hidden"
+)
+
 // MongoDB is a mongoDB client.
 type MongoDB struct {
 	client   *mongo.Database
@@ -53,7 +59,7 @@ func (m *MongoDB) Get(ctx context.Context, id string) (db.Plugin, error) {
 	}
 
 	opts := &options.FindOneOptions{}
-	opts.SetProjection(bson.D{{Key: "hashes", Value: 0}})
+	opts.SetProjection(bson.D{{Key: fieldHashes, Value: 0}})
 
 	var plugin db.Plugin
 
@@ -124,8 +130,8 @@ func (m *MongoDB) List(ctx context.Context, page db.Pagination) ([]db.Plugin, st
 	defer span.End()
 
 	criteria := bson.D{
-		{Key: "disabled", Value: bson.D{{Key: "$in", Value: bson.A{false, nil}}}},
-		{Key: "hidden", Value: bson.D{{Key: "$in", Value: bson.A{false, nil}}}},
+		{Key: fieldDisabled, Value: bson.D{{Key: "$in", Value: bson.A{false, nil}}}},
+		{Key: fieldHidden, Value: bson.D{{Key: "$in", Value: bson.A{false, nil}}}},
 	}
 
 	if page.Start != "" {
@@ -153,7 +159,7 @@ func (m *MongoDB) List(ctx context.Context, page db.Pagination) ([]db.Plugin, st
 
 	opts := &options.FindOptions{}
 	opts.SetLimit(int64(page.Size + 1))
-	opts.SetProjection(bson.D{{Key: "hashes", Value: 0}})
+	opts.SetProjection(bson.D{{Key: fieldHashes, Value: 0}})
 	opts.SetSort(bson.D{{Key: "stars", Value: -1}})
 
 	cursor, err := m.client.Collection(m.collName).Find(ctx, criteria, opts)
@@ -187,15 +193,15 @@ func (m *MongoDB) GetByName(ctx context.Context, name string, filterDisabled, fi
 	}
 
 	if filterHidden {
-		criteria = append(criteria, bson.E{Key: "hidden", Value: bson.D{{Key: "$in", Value: bson.A{false, nil}}}})
+		criteria = append(criteria, bson.E{Key: fieldHidden, Value: bson.D{{Key: "$in", Value: bson.A{false, nil}}}})
 	}
 
 	if filterDisabled {
-		criteria = append(criteria, bson.E{Key: "disabled", Value: bson.D{{Key: "$in", Value: bson.A{false, nil}}}})
+		criteria = append(criteria, bson.E{Key: fieldDisabled, Value: bson.D{{Key: "$in", Value: bson.A{false, nil}}}})
 	}
 
 	opts := &options.FindOneOptions{}
-	opts.SetProjection(bson.D{{Key: "hashes", Value: 0}})
+	opts.SetProjection(bson.D{{Key: fieldHashes, Value: 0}})
 
 	var plugin db.Plugin
 
@@ -219,8 +225,8 @@ func (m *MongoDB) SearchByName(ctx context.Context, name string, page db.Paginat
 
 	criteria := bson.D{
 		{Key: "displayName", Value: primitive.Regex{Pattern: regexp.QuoteMeta(name), Options: "i"}},
-		{Key: "disabled", Value: bson.D{{Key: "$in", Value: bson.A{false, nil}}}},
-		{Key: "hidden", Value: bson.D{{Key: "$in", Value: bson.A{false, nil}}}},
+		{Key: fieldDisabled, Value: bson.D{{Key: "$in", Value: bson.A{false, nil}}}},
+		{Key: fieldHidden, Value: bson.D{{Key: "$in", Value: bson.A{false, nil}}}},
 	}
 
 	if page.Start != "" {
@@ -338,7 +344,7 @@ func (m *MongoDB) CreateHash(ctx context.Context, module, version, hash string) 
 		{
 			Key: "$push",
 			Value: bson.D{
-				{Key: "hashes", Value: newHash},
+				{Key: fieldHashes, Value: newHash},
 			},
 		},
 	}
@@ -411,7 +417,7 @@ func (m *MongoDB) GetHashByName(ctx context.Context, module, version string) (db
 
 	filter := bson.D{
 		{Key: "name", Value: module},
-		{Key: "hashes", Value: bson.D{
+		{Key: fieldHashes, Value: bson.D{
 			{Key: "$elemMatch", Value: bson.D{
 				{Key: "name", Value: module + "@" + version},
 			}},
@@ -420,7 +426,7 @@ func (m *MongoDB) GetHashByName(ctx context.Context, module, version string) (db
 
 	opts := &options.FindOneOptions{}
 	opts.SetProjection(bson.D{
-		{Key: "hashes", Value: 1},
+		{Key: fieldHashes, Value: 1},
 		{Key: "_id", Value: 0},
 	})
 

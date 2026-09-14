@@ -11,7 +11,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/go-github/v74/github"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/traefik/plugin-service/pkg/db"
@@ -40,7 +39,7 @@ func TestMongoDB_Create(t *testing.T) {
 		LatestVersion: "latestVersion",
 		Versions:      []string{"v1.0.0"},
 		Stars:         10,
-		Snippet: map[string]interface{}{
+		Snippet: map[string]any{
 			"something": "there",
 		},
 		CreatedAt: time.Now().Add(-2 * time.Hour),
@@ -90,7 +89,7 @@ func TestMongoDB_Get(t *testing.T) {
 					LatestVersion: "latestVersion",
 					Versions:      []string{"v1.0.0"},
 					Stars:         10,
-					Snippet: map[string]interface{}{
+					Snippet: map[string]any{
 						"something": "there",
 					},
 					CreatedAt: time.Now().Add(-2 * time.Hour),
@@ -202,7 +201,7 @@ func TestMongoDB_GetByName(t *testing.T) {
 					LatestVersion: "latestVersion",
 					Versions:      []string{"v1.0.0"},
 					Stars:         10,
-					Snippet: map[string]interface{}{
+					Snippet: map[string]any{
 						"something": "there",
 					},
 					CreatedAt: time.Now().Add(-2 * time.Hour),
@@ -228,7 +227,7 @@ func TestMongoDB_GetByName(t *testing.T) {
 					LatestVersion: "latestVersion",
 					Versions:      []string{"v1.0.0"},
 					Stars:         10,
-					Snippet: map[string]interface{}{
+					Snippet: map[string]any{
 						"something": "there",
 					},
 					CreatedAt: time.Now().Add(-2 * time.Hour),
@@ -283,7 +282,7 @@ func TestMongoDB_SearchByName(t *testing.T) {
 					LatestVersion: "latestVersion",
 					Versions:      []string{"v1.0.0"},
 					Stars:         10,
-					Snippet: map[string]interface{}{
+					Snippet: map[string]any{
 						"something": "there",
 					},
 					CreatedAt: time.Now().Add(-2 * time.Hour),
@@ -308,7 +307,7 @@ func TestMongoDB_SearchByName(t *testing.T) {
 					LatestVersion: "latestVersion",
 					Versions:      []string{"v1.0.0"},
 					Stars:         10,
-					Snippet: map[string]interface{}{
+					Snippet: map[string]any{
 						"something": "there",
 					},
 					CreatedAt: time.Now().Add(-2 * time.Hour),
@@ -333,7 +332,7 @@ func TestMongoDB_SearchByName(t *testing.T) {
 					LatestVersion: "latestVersion",
 					Versions:      []string{"v1.0.0"},
 					Stars:         10,
-					Snippet: map[string]interface{}{
+					Snippet: map[string]any{
 						"something": "there",
 					},
 					CreatedAt: time.Now().Add(-2 * time.Hour),
@@ -358,7 +357,7 @@ func TestMongoDB_SearchByName(t *testing.T) {
 					LatestVersion: "latestVersion",
 					Versions:      []string{"v1.0.0"},
 					Stars:         10,
-					Snippet: map[string]interface{}{
+					Snippet: map[string]any{
 						"something": "there",
 					},
 					CreatedAt: time.Now().Add(-2 * time.Hour),
@@ -383,7 +382,7 @@ func TestMongoDB_SearchByName(t *testing.T) {
 					LatestVersion: "latestVersion",
 					Versions:      []string{"v1.0.0"},
 					Stars:         10,
-					Snippet: map[string]interface{}{
+					Snippet: map[string]any{
 						"something": "there",
 					},
 					CreatedAt: time.Now().Add(-2 * time.Hour),
@@ -408,7 +407,7 @@ func TestMongoDB_SearchByName(t *testing.T) {
 					LatestVersion: "latestVersion",
 					Versions:      []string{"v1.0.0"},
 					Stars:         10,
-					Snippet: map[string]interface{}{
+					Snippet: map[string]any{
 						"something": "there",
 					},
 					CreatedAt: time.Now().Add(-2 * time.Hour),
@@ -433,7 +432,7 @@ func TestMongoDB_SearchByName(t *testing.T) {
 					LatestVersion: "latestVersion",
 					Versions:      []string{"v1.0.0"},
 					Stars:         10,
-					Snippet: map[string]interface{}{
+					Snippet: map[string]any{
 						"something": "there",
 					},
 					CreatedAt: time.Now().Add(-2 * time.Hour),
@@ -458,7 +457,7 @@ func TestMongoDB_SearchByName(t *testing.T) {
 					LatestVersion: "latestVersion",
 					Versions:      []string{"v1.0.0"},
 					Stars:         10,
-					Snippet: map[string]interface{}{
+					Snippet: map[string]any{
 						"something": "there",
 					},
 					CreatedAt: time.Now().Add(-2 * time.Hour),
@@ -483,7 +482,7 @@ func TestMongoDB_SearchByName(t *testing.T) {
 					LatestVersion: "latestVersion",
 					Versions:      []string{"v1.0.0"},
 					Stars:         10,
-					Snippet: map[string]interface{}{
+					Snippet: map[string]any{
 						"something": "there",
 					},
 					CreatedAt: time.Now().Add(-2 * time.Hour),
@@ -508,7 +507,7 @@ func TestMongoDB_SearchByName(t *testing.T) {
 					LatestVersion: "latestVersion",
 					Versions:      []string{"v1.0.0"},
 					Stars:         10,
-					Snippet: map[string]interface{}{
+					Snippet: map[string]any{
 						"something": "there",
 					},
 					CreatedAt: time.Now().Add(-2 * time.Hour),
@@ -533,7 +532,7 @@ func TestMongoDB_SearchByName(t *testing.T) {
 					LatestVersion: "latestVersion",
 					Versions:      []string{"v1.0.0"},
 					Stars:         10,
-					Snippet: map[string]interface{}{
+					Snippet: map[string]any{
 						"something": "there",
 					},
 					CreatedAt: time.Now().Add(-2 * time.Hour),
@@ -795,8 +794,8 @@ func TestMongoDB_UpdateHashVerified(t *testing.T) {
 				},
 				Hashes: []db.PluginHash{
 					{Name: "plugin@v1.1.1", Hash: "123"},
-					{Name: "plugin@v1.1.2", Hash: "123", Verified: github.Ptr(false)},
-					{Name: "plugin@v1.1.3", Hash: "123", Verified: github.Ptr(true)},
+					{Name: "plugin@v1.1.2", Hash: "123", Verified: new(false)},
+					{Name: "plugin@v1.1.3", Hash: "123", Verified: new(true)},
 				},
 			},
 		},
@@ -809,7 +808,7 @@ func TestMongoDB_UpdateHashVerified(t *testing.T) {
 	require.NoError(t, err)
 
 	want := fixtures["plugin"].Hashes[0]
-	want.Verified = github.Ptr(true)
+	want.Verified = new(true)
 
 	assert.Equal(t, want, got)
 
@@ -817,7 +816,7 @@ func TestMongoDB_UpdateHashVerified(t *testing.T) {
 	require.NoError(t, err)
 
 	want = fixtures["plugin"].Hashes[1]
-	want.Verified = github.Ptr(true)
+	want.Verified = new(true)
 
 	assert.Equal(t, want, got)
 
@@ -825,7 +824,7 @@ func TestMongoDB_UpdateHashVerified(t *testing.T) {
 	require.NoError(t, err)
 
 	want = fixtures["plugin"].Hashes[2]
-	want.Verified = github.Ptr(false)
+	want.Verified = new(false)
 
 	assert.Equal(t, want, got)
 
@@ -837,9 +836,9 @@ func TestMongoDB_UpdateHashVerified(t *testing.T) {
 	require.NoError(t, err)
 
 	wantHashes := []db.PluginHash{
-		{Name: "plugin@v1.1.1", Hash: "123", Verified: github.Ptr(true)},
-		{Name: "plugin@v1.1.2", Hash: "123", Verified: github.Ptr(true)},
-		{Name: "plugin@v1.1.3", Hash: "123", Verified: github.Ptr(false)},
+		{Name: "plugin@v1.1.1", Hash: "123", Verified: new(true)},
+		{Name: "plugin@v1.1.2", Hash: "123", Verified: new(true)},
+		{Name: "plugin@v1.1.3", Hash: "123", Verified: new(false)},
 	}
 	assert.Equal(t, wantHashes, pluginWithHashes.Hashes)
 }
