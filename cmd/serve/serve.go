@@ -55,6 +55,8 @@ func run(ctx context.Context, cfg Config) error {
 	r.Handle("/public/", buildPublicRouter(handler))
 	r.Handle("/internal/", buildInternalRouter(handler))
 	r.Handle("/external/", buildExternalRouter(handler))
+
+	registerInternalBlacklistRoutes(r, handler)
 	r.HandleFunc("/live", healthChecker.Live)
 	r.HandleFunc("/ready", healthChecker.Ready)
 
@@ -86,6 +88,15 @@ func buildInternalRouter(handler handlers.Handlers) http.Handler {
 	r.PanicHandler = handlers.PanicHandler
 
 	return http.StripPrefix("/internal", r)
+}
+
+// registerInternalBlacklistRoutes registers the blacklist endpoints directly on
+// the ServeMux: they cannot live in the internal httprouter because the static
+// "blacklist" segment conflicts with its "/:uuid" wildcard routes.
+func registerInternalBlacklistRoutes(r *http.ServeMux, handler handlers.Handlers) {
+	r.Handle("GET /internal/blacklist", otelhttp.NewHandler(http.HandlerFunc(handler.ListBlacklist), "internal_list_blacklist"))
+	r.Handle("POST /internal/blacklist", otelhttp.NewHandler(http.HandlerFunc(handler.AddToBlacklist), "internal_add_to_blacklist"))
+	r.Handle("DELETE /internal/blacklist/{owner}/{repo}", otelhttp.NewHandler(http.HandlerFunc(handler.DeleteFromBlacklist), "internal_delete_from_blacklist"))
 }
 
 func buildExternalRouter(handler handlers.Handlers) http.Handler {
