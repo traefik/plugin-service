@@ -98,7 +98,7 @@ func goProxyFlags() []cli.Flag {
 		},
 		&cli.StringFlag{
 			Name:    flagPinProxyURL,
-			Usage:   "Go module proxy pinning the commit each version was published from",
+			Usage:   "Go module proxy pinning the commit each version was published from, empty to serve tags",
 			EnvVars: []string{strcase.ToSNAKE(flagPinProxyURL)},
 			Value:   "https://proxy.golang.org",
 		},

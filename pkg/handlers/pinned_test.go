@@ -74,7 +74,8 @@ func TestArchiveRef(t *testing.T) {
 		{repo: "moved", ref: "pinned"},
 		{repo: "deleted", ref: "pinned"},
 		{repo: "ghdown", wantErr: true},
-		{repo: "proxydown", wantErr: true},
+		{repo: "proxydown", ref: "v1.0.0"},
+		{repo: "Bad!Path", ref: "v1.0.0"},
 	}
 
 	for _, test := range testCases {
@@ -90,4 +91,13 @@ func TestArchiveRef(t *testing.T) {
 			assert.Equal(t, test.ref, ref)
 		})
 	}
+}
+
+func TestArchiveRef_noPinProxy(t *testing.T) {
+	h := New(nil, nil, github.NewClient(nil), "")
+
+	ref, err := h.archiveRef(t.Context(), "o", "moved", "github.com/o/moved", "v1.0.0")
+	require.NoError(t, err)
+
+	assert.Equal(t, "v1.0.0", ref)
 }

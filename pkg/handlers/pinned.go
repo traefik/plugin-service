@@ -21,14 +21,23 @@ var errNotPinned = errors.New("no pinned commit")
 // It is the tag while the tag still points at the commit pinned by the Go module proxy at publication,
 // and the pinned commit once the tag moved or was deleted.
 // Requesting the tag keeps the archive bytes: the zipball of an annotated tag is named after the tag object, not the commit.
+// The pinned commit of a moved annotated tag cannot give those bytes back, its hash is realigned instead.
+// Without an answer from the Go module proxy, it falls back to the tag, as before pinning.
 func (h Handlers) archiveRef(ctx context.Context, owner, repoName, moduleName, version string) (string, error) {
+	if h.pinProxyURL == "" {
+		return version, nil
+	}
+
 	pinned, err := h.pinnedCommit(ctx, moduleName, version)
 	if errors.Is(err, errNotPinned) {
 		return version, nil
 	}
 
 	if err != nil {
-		return "", err
+		log.Warn().Err(err).Str("module_name", moduleName).Str("module_version", version).
+			Msg("Failed to get the pinned commit, serving the tag")
+
+		return version, nil
 	}
 
 	// A conditional request answered 304 is not counted in the GitHub rate limit.
@@ -41,10 +50,16 @@ func (h Handlers) archiveRef(ctx context.Context, owner, repoName, moduleName, v
 	switch {
 	case unchanged:
 		return version, nil
-	case moved, deleted:
+	case moved:
 		log.Info().Str("module_name", moduleName).Str("module_version", version).
 			Str("tag_commit", sha).Str("pinned_commit", pinned).
 			Msg("Tag moved after publication, serving the pinned commit")
+
+		return pinned, nil
+	case deleted:
+		log.Info().Str("module_name", moduleName).Str("module_version", version).
+			Str("pinned_commit", pinned).Int("status", resp.StatusCode).
+			Msg("Tag not found, serving the pinned commit")
 
 		return pinned, nil
 	default:
