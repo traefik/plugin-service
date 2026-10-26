@@ -22,6 +22,7 @@ OPTIONS:
    --tracing-password value     Password to connect to Jaeger (default: "jaeger") [$TRACING_PASSWORD]
    --tracing-probability value  Probability to send traces (default: 0) [$TRACING_PROBABILITY]
    --mongodb-uri value          MongoDB connection string (default: "mongodb://mongoadmin:secret@localhost:27017") [$MONGODB_URI]
+   --mongodb-database value     MongoDB database (default: "plugin") [$MONGODB_DATABASE]
    --mongodb-minpool value      MongoDB Min Pool Size (default: 10) [$MONGODB_MIN_POOL]
    --mongodb-maxpool value      MongoDB Max Pool Size (default: 30) [$MONGODB_MAX_POOL]
    --help, -h                   show help
