@@ -23,6 +23,12 @@ func MongoFlags() []cli.Flag {
 			EnvVars: []string{"MONGODB_URI"},
 			Value:   "mongodb://mongoadmin:secret@localhost:27017",
 		},
+		&cli.StringFlag{
+			Name:    "mongodb-database",
+			Usage:   "MongoDB database",
+			EnvVars: []string{"MONGODB_DATABASE"},
+			Value:   "plugin",
+		},
 		&cli.Uint64Flag{
 			Name:    "mongodb-minpool",
 			Usage:   "MongoDB Min Pool Size",
@@ -42,7 +48,7 @@ func MongoFlags() []cli.Flag {
 func BuildMongoConfig(cliCtx *cli.Context) mongodb.Config {
 	return mongodb.Config{
 		URI:      cliCtx.String("mongodb-uri"),
-		Database: "plugin",
+		Database: cliCtx.String("mongodb-database"),
 		MinPool:  cliCtx.Uint64("mongodb-minpool"),
 		MaxPool:  cliCtx.Uint64("mongodb-maxpool"),
 	}
