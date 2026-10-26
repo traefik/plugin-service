@@ -483,10 +483,17 @@ func (h Handlers) getArchiveLinkRequest(ctx context.Context, moduleName, version
 	ctx, span := h.tracer.Start(ctx, "handler_getArchiveLinkRequest")
 	defer span.End()
 
-	opts := &github.RepositoryContentGetOptions{Ref: version}
-
 	owner, repoName := path.Split(strings.TrimPrefix(moduleName, "github.com/"))
 	owner = strings.TrimSuffix(owner, "/")
+
+	ref, err := h.archiveRef(ctx, owner, repoName, moduleName, version)
+	if err != nil {
+		span.RecordError(err)
+
+		return nil, fmt.Errorf("failed to get archive ref: %w", err)
+	}
+
+	opts := &github.RepositoryContentGetOptions{Ref: ref}
 
 	link, _, err := h.gh.Repositories.GetArchiveLink(ctx, owner, repoName, github.Zipball, opts, 3)
 	if err != nil {

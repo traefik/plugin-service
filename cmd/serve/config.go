@@ -13,6 +13,8 @@ type Config struct {
 	MongoDB mongodb.Config
 	Tracing tracer.Config
 	GoProxy GoProxy
+
+	PinProxyURL string
 }
 
 // GoProxy holds the go-proxy configuration.

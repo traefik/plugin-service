@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"regexp"
 	"strconv"
+	"time"
 
 	"github.com/google/go-github/v74/github"
 	"github.com/ldez/grignotin/goproxy"
@@ -46,19 +47,24 @@ type Storer interface {
 
 // Handlers a set of handlers.
 type Handlers struct {
-	store   Storer
-	goProxy *goproxy.Client
-	gh      *github.Client
-	tracer  trace.Tracer
+	store       Storer
+	goProxy     *goproxy.Client
+	gh          *github.Client
+	pinProxyURL string
+	httpClient  *http.Client
+	tracer      trace.Tracer
 }
 
 // New creates all HTTP handlers.
-func New(store Storer, goProxy *goproxy.Client, gh *github.Client) Handlers {
+// pinProxyURL is the Go module proxy whose version info pins the commit each version was published from.
+func New(store Storer, goProxy *goproxy.Client, gh *github.Client, pinProxyURL string) Handlers {
 	return Handlers{
-		store:   store,
-		goProxy: goProxy,
-		gh:      gh,
-		tracer:  otel.GetTracerProvider().Tracer("handler"),
+		store:       store,
+		goProxy:     goProxy,
+		gh:          gh,
+		pinProxyURL: pinProxyURL,
+		httpClient:  &http.Client{Timeout: 10 * time.Second},
+		tracer:      otel.GetTracerProvider().Tracer("handler"),
 	}
 }
 

@@ -14,6 +14,7 @@ const (
 	flagGoProxyURL      = "go-proxy-url"
 	flagGoProxyUsername = "go-proxy-username"
 	flagGoProxyPassword = "go-proxy-password"
+	flagPinProxyURL     = "pin-proxy-url"
 
 	flagTracingAddress     = "tracing-address"
 	flagTracingInsecure    = "tracing-insecure"
@@ -71,6 +72,7 @@ func buildConfig(cliCtx *cli.Context) Config {
 			Username: cliCtx.String(flagGoProxyUsername),
 			Password: cliCtx.String(flagGoProxyPassword),
 		},
+		PinProxyURL: cliCtx.String(flagPinProxyURL),
 	}
 }
 
@@ -93,6 +95,12 @@ func goProxyFlags() []cli.Flag {
 			Usage:    "Go Proxy Password",
 			EnvVars:  []string{strcase.ToSNAKE(flagGoProxyPassword)},
 			Required: true,
+		},
+		&cli.StringFlag{
+			Name:    flagPinProxyURL,
+			Usage:   "Go module proxy pinning the commit each version was published from",
+			EnvVars: []string{strcase.ToSNAKE(flagPinProxyURL)},
+			Value:   "https://proxy.golang.org",
 		},
 	}
 }
