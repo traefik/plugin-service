@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"regexp"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/google/go-github/v74/github"
@@ -51,8 +52,10 @@ type Handlers struct {
 	goProxy     *goproxy.Client
 	gh          *github.Client
 	pinProxyURL string
-	httpClient  *http.Client
-	tracer      trace.Tracer
+	// pins caches the pinned commit by module@version: the proxy never changes it.
+	pins       *sync.Map
+	httpClient *http.Client
+	tracer     trace.Tracer
 }
 
 // New creates all HTTP handlers.
@@ -63,6 +66,7 @@ func New(store Storer, goProxy *goproxy.Client, gh *github.Client, pinProxyURL s
 		goProxy:     goProxy,
 		gh:          gh,
 		pinProxyURL: pinProxyURL,
+		pins:        &sync.Map{},
 		httpClient:  &http.Client{Timeout: 10 * time.Second},
 		tracer:      otel.GetTracerProvider().Tracer("handler"),
 	}

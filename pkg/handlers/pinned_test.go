@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"sync/atomic"
 	"testing"
 
 	"github.com/google/go-github/v74/github"
@@ -23,8 +24,11 @@ func TestArchiveRef(t *testing.T) {
 	proxy.HandleFunc("/github.com/o/proxydown/@v/v1.0.0.info", func(rw http.ResponseWriter, _ *http.Request) {
 		rw.WriteHeader(http.StatusBadGateway)
 	})
+	proxy.HandleFunc("/github.com/o/proxygone/@v/v1.0.0.info", func(rw http.ResponseWriter, _ *http.Request) {
+		rw.WriteHeader(http.StatusGone)
+	})
 
-	for _, repo := range []string{"stable", "moved", "deleted", "ghdown"} {
+	for _, repo := range []string{"stable", "moved", "deleted", "notfound", "ghdown"} {
 		proxy.HandleFunc("/github.com/o/"+repo+"/@v/v1.0.0.info", func(rw http.ResponseWriter, _ *http.Request) {
 			_, _ = fmt.Fprint(rw, `{"Version":"v1.0.0","Origin":{"VCS":"git","Hash":"pinned"}}`)
 		})
@@ -51,6 +55,9 @@ func TestArchiveRef(t *testing.T) {
 	gh.HandleFunc("/repos/o/deleted/commits/v1.0.0", func(rw http.ResponseWriter, _ *http.Request) {
 		rw.WriteHeader(http.StatusUnprocessableEntity)
 	})
+	gh.HandleFunc("/repos/o/notfound/commits/v1.0.0", func(rw http.ResponseWriter, _ *http.Request) {
+		rw.WriteHeader(http.StatusNotFound)
+	})
 	gh.HandleFunc("/repos/o/ghdown/commits/v1.0.0", func(rw http.ResponseWriter, _ *http.Request) {
 		rw.WriteHeader(http.StatusServiceUnavailable)
 	})
@@ -73,8 +80,10 @@ func TestArchiveRef(t *testing.T) {
 		{repo: "stable", ref: "v1.0.0"},
 		{repo: "moved", ref: "pinned"},
 		{repo: "deleted", ref: "pinned"},
+		{repo: "notfound", ref: "pinned"},
 		{repo: "ghdown", wantErr: true},
 		{repo: "proxydown", ref: "v1.0.0"},
+		{repo: "proxygone", ref: "v1.0.0"},
 		{repo: "Bad!Path", ref: "v1.0.0"},
 	}
 
@@ -91,6 +100,26 @@ func TestArchiveRef(t *testing.T) {
 			assert.Equal(t, test.ref, ref)
 		})
 	}
+}
+
+func TestPinnedCommit_cached(t *testing.T) {
+	var calls atomic.Int32
+
+	proxySrv := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, _ *http.Request) {
+		calls.Add(1)
+		_, _ = fmt.Fprint(rw, `{"Version":"v1.0.0","Origin":{"VCS":"git","Hash":"pinned"}}`)
+	}))
+	t.Cleanup(proxySrv.Close)
+
+	h := New(nil, nil, nil, proxySrv.URL)
+
+	for range 2 {
+		pinned, err := h.pinnedCommit(t.Context(), "github.com/o/r", "v1.0.0")
+		require.NoError(t, err)
+		assert.Equal(t, "pinned", pinned)
+	}
+
+	assert.Equal(t, int32(1), calls.Load())
 }
 
 func TestArchiveRef_noPinProxy(t *testing.T) {

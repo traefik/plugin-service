@@ -21,7 +21,8 @@ var errNotPinned = errors.New("no pinned commit")
 // It is the tag while the tag still points at the commit pinned by the Go module proxy at publication,
 // and the pinned commit once the tag moved or was deleted.
 // Requesting the tag keeps the archive bytes: the zipball of an annotated tag is named after the tag object, not the commit.
-// The pinned commit of a moved annotated tag cannot give those bytes back, its hash is realigned instead.
+// The pinned commit of a moved annotated tag cannot give those bytes back, nor match a hash recorded after the move:
+// those hashes are realigned with `piceus realign --only`, reviewed one by one.
 // Without an answer from the Go module proxy, it falls back to the tag, as before pinning.
 func (h Handlers) archiveRef(ctx context.Context, owner, repoName, moduleName, version string) (string, error) {
 	if h.pinProxyURL == "" {
@@ -69,6 +70,25 @@ func (h Handlers) archiveRef(ctx context.Context, owner, repoName, moduleName, v
 
 // pinnedCommit returns the commit the Go module proxy pinned when moduleName@version was published.
 func (h Handlers) pinnedCommit(ctx context.Context, moduleName, version string) (string, error) {
+	key := moduleName + "@" + version
+
+	if cached, ok := h.pins.Load(key); ok {
+		if pinned, ok := cached.(string); ok {
+			return pinned, nil
+		}
+	}
+
+	pinned, err := h.fetchPinnedCommit(ctx, moduleName, version)
+	if err != nil {
+		return "", err
+	}
+
+	h.pins.Store(key, pinned)
+
+	return pinned, nil
+}
+
+func (h Handlers) fetchPinnedCommit(ctx context.Context, moduleName, version string) (string, error) {
 	escModule, err := module.EscapePath(moduleName)
 	if err != nil {
 		return "", err
