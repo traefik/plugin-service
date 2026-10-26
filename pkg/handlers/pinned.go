@@ -39,7 +39,9 @@ func (h Handlers) archiveRef(ctx context.Context, owner, repoName, moduleName, v
 		return version, nil
 	case err == nil && sha == pinned:
 		return version, nil
-	case err == nil, resp != nil && (resp.StatusCode == http.StatusNotFound || resp.StatusCode == http.StatusUnprocessableEntity):
+	case err == nil:
+		fallthrough
+	case resp != nil && (resp.StatusCode == http.StatusNotFound || resp.StatusCode == http.StatusUnprocessableEntity):
 		log.Info().Str("module_name", moduleName).Str("module_version", version).
 			Str("tag_commit", sha).Str("pinned_commit", pinned).
 			Msg("Tag moved after publication, serving the pinned commit")
