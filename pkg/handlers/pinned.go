@@ -34,14 +34,14 @@ func (h Handlers) archiveRef(ctx context.Context, owner, repoName, moduleName, v
 	// A conditional request answered 304 is not counted in the GitHub rate limit.
 	sha, resp, err := h.gh.Repositories.GetCommitSHA1(ctx, owner, repoName, version, pinned)
 
+	unchanged := (resp != nil && resp.StatusCode == http.StatusNotModified) || (err == nil && sha == pinned)
+	moved := err == nil
+	deleted := resp != nil && (resp.StatusCode == http.StatusNotFound || resp.StatusCode == http.StatusUnprocessableEntity)
+
 	switch {
-	case resp != nil && resp.StatusCode == http.StatusNotModified:
+	case unchanged:
 		return version, nil
-	case err == nil && sha == pinned:
-		return version, nil
-	case err == nil:
-		fallthrough
-	case resp != nil && (resp.StatusCode == http.StatusNotFound || resp.StatusCode == http.StatusUnprocessableEntity):
+	case moved, deleted:
 		log.Info().Str("module_name", moduleName).Str("module_version", version).
 			Str("tag_commit", sha).Str("pinned_commit", pinned).
 			Msg("Tag moved after publication, serving the pinned commit")
