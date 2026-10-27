@@ -24,7 +24,9 @@ var errNotPinned = errors.New("no pinned commit")
 // The pinned commit of a moved annotated tag cannot give those bytes back, nor match a hash recorded after the move:
 // those hashes are realigned with `piceus realign --only`, reviewed one by one.
 // Without an answer from the Go module proxy, it falls back to the tag, as before pinning.
-func (h Handlers) archiveRef(ctx context.Context, owner, repoName, moduleName, version string) (string, error) {
+// When GitHub no longer has the pinned commit, the moved tag is served only if a hash is recorded:
+// validate then rejects any other bytes, and no hash is ever recorded from code the proxy did not pin.
+func (h Handlers) archiveRef(ctx context.Context, owner, repoName, moduleName, version string, recorded bool) (string, error) {
 	if h.pinProxyURL == "" {
 		return version, nil
 	}
@@ -52,19 +54,53 @@ func (h Handlers) archiveRef(ctx context.Context, owner, repoName, moduleName, v
 	case unchanged:
 		return version, nil
 	case moved:
-		log.Info().Str("module_name", moduleName).Str("module_version", version).
-			Str("tag_commit", sha).Str("pinned_commit", pinned).
-			Msg("Tag moved after publication, serving the pinned commit")
-
-		return pinned, nil
+		return h.refAfterTagChange(ctx, owner, repoName, moduleName, version, pinned, sha, recorded)
 	case deleted:
-		log.Info().Str("module_name", moduleName).Str("module_version", version).
-			Str("pinned_commit", pinned).Int("status", resp.StatusCode).
-			Msg("Tag not found, serving the pinned commit")
-
-		return pinned, nil
+		return h.refAfterTagChange(ctx, owner, repoName, moduleName, version, pinned, "", recorded)
 	default:
 		return "", fmt.Errorf("resolve tag %s: %w", version, err)
+	}
+}
+
+// refAfterTagChange returns the ref to serve once the tag moved to tagCommit, or was deleted when tagCommit is empty.
+func (h Handlers) refAfterTagChange(ctx context.Context, owner, repoName, moduleName, version, pinned, tagCommit string, recorded bool) (string, error) {
+	logger := log.With().Str("module_name", moduleName).Str("module_version", version).Str("pinned_commit", pinned).Logger()
+
+	gone, err := h.commitGone(ctx, owner, repoName, pinned)
+	if err != nil {
+		return "", err
+	}
+
+	switch {
+	case !gone && tagCommit != "":
+		logger.Info().Str("tag_commit", tagCommit).Msg("Tag moved after publication, serving the pinned commit")
+
+		return pinned, nil
+	case !gone:
+		logger.Info().Msg("Tag not found, serving the pinned commit")
+
+		return pinned, nil
+	case tagCommit != "" && recorded:
+		logger.Warn().Str("tag_commit", tagCommit).Msg("Pinned commit gone from GitHub, serving the moved tag, checked against the recorded hash")
+
+		return version, nil
+	default:
+		return "", fmt.Errorf("pinned commit %s of %s@%s is gone from GitHub", pinned, moduleName, version)
+	}
+}
+
+// commitGone reports whether GitHub no longer has the commit sha.
+func (h Handlers) commitGone(ctx context.Context, owner, repoName, sha string) (bool, error) {
+	// A conditional request answered 304 is not counted in the GitHub rate limit.
+	_, resp, err := h.gh.Repositories.GetCommitSHA1(ctx, owner, repoName, sha, sha)
+
+	switch {
+	case err == nil, resp != nil && resp.StatusCode == http.StatusNotModified:
+		return false, nil
+	case resp != nil && (resp.StatusCode == http.StatusNotFound || resp.StatusCode == http.StatusUnprocessableEntity):
+		return true, nil
+	default:
+		return false, fmt.Errorf("check commit %s: %w", sha, err)
 	}
 }
 

@@ -28,7 +28,7 @@ func TestArchiveRef(t *testing.T) {
 		rw.WriteHeader(http.StatusGone)
 	})
 
-	for _, repo := range []string{"stable", "moved", "deleted", "notfound", "ghdown"} {
+	for _, repo := range []string{"stable", "moved", "deleted", "notfound", "ghdown", "movedgone", "deletedgone", "checkdown"} {
 		proxy.HandleFunc("/github.com/o/"+repo+"/@v/v1.0.0.info", func(rw http.ResponseWriter, _ *http.Request) {
 			_, _ = fmt.Fprint(rw, `{"Version":"v1.0.0","Origin":{"VCS":"git","Hash":"pinned"}}`)
 		})
@@ -49,18 +49,30 @@ func TestArchiveRef(t *testing.T) {
 		}
 	}
 
+	status := func(code int) http.HandlerFunc {
+		return func(rw http.ResponseWriter, _ *http.Request) {
+			rw.WriteHeader(code)
+		}
+	}
+
 	gh := http.NewServeMux()
 	gh.HandleFunc("/repos/o/stable/commits/v1.0.0", commit("pinned"))
 	gh.HandleFunc("/repos/o/moved/commits/v1.0.0", commit("other"))
-	gh.HandleFunc("/repos/o/deleted/commits/v1.0.0", func(rw http.ResponseWriter, _ *http.Request) {
-		rw.WriteHeader(http.StatusUnprocessableEntity)
-	})
-	gh.HandleFunc("/repos/o/notfound/commits/v1.0.0", func(rw http.ResponseWriter, _ *http.Request) {
-		rw.WriteHeader(http.StatusNotFound)
-	})
-	gh.HandleFunc("/repos/o/ghdown/commits/v1.0.0", func(rw http.ResponseWriter, _ *http.Request) {
-		rw.WriteHeader(http.StatusServiceUnavailable)
-	})
+	gh.HandleFunc("/repos/o/deleted/commits/v1.0.0", status(http.StatusUnprocessableEntity))
+	gh.HandleFunc("/repos/o/notfound/commits/v1.0.0", status(http.StatusNotFound))
+	gh.HandleFunc("/repos/o/ghdown/commits/v1.0.0", status(http.StatusServiceUnavailable))
+	gh.HandleFunc("/repos/o/movedgone/commits/v1.0.0", commit("other"))
+	gh.HandleFunc("/repos/o/deletedgone/commits/v1.0.0", status(http.StatusUnprocessableEntity))
+	gh.HandleFunc("/repos/o/checkdown/commits/v1.0.0", commit("other"))
+
+	// The pinned commit, still on GitHub or gone.
+	for _, repo := range []string{"moved", "deleted", "notfound"} {
+		gh.HandleFunc("/repos/o/"+repo+"/commits/pinned", commit("pinned"))
+	}
+
+	gh.HandleFunc("/repos/o/movedgone/commits/pinned", status(http.StatusUnprocessableEntity))
+	gh.HandleFunc("/repos/o/deletedgone/commits/pinned", status(http.StatusUnprocessableEntity))
+	gh.HandleFunc("/repos/o/checkdown/commits/pinned", status(http.StatusServiceUnavailable))
 
 	ghSrv := httptest.NewServer(gh)
 	t.Cleanup(ghSrv.Close)
@@ -71,9 +83,11 @@ func TestArchiveRef(t *testing.T) {
 	h := New(nil, nil, ghClient, proxySrv.URL)
 
 	testCases := []struct {
-		repo    string
-		ref     string
-		wantErr bool
+		desc     string
+		repo     string
+		recorded bool
+		ref      string
+		wantErr  bool
 	}{
 		{repo: "unknown", ref: "v1.0.0"},
 		{repo: "noorigin", ref: "v1.0.0"},
@@ -85,11 +99,22 @@ func TestArchiveRef(t *testing.T) {
 		{repo: "proxydown", ref: "v1.0.0"},
 		{repo: "proxygone", ref: "v1.0.0"},
 		{repo: "Bad!Path", ref: "v1.0.0"},
+		// validate checks the moved tag against the recorded hash.
+		{desc: "movedgone recorded", repo: "movedgone", recorded: true, ref: "v1.0.0"},
+		// Serving the moved tag would record a hash from code the proxy did not pin.
+		{desc: "movedgone not recorded", repo: "movedgone", wantErr: true},
+		{desc: "deletedgone recorded", repo: "deletedgone", recorded: true, wantErr: true},
+		{repo: "checkdown", recorded: true, wantErr: true},
 	}
 
 	for _, test := range testCases {
-		t.Run(test.repo, func(t *testing.T) {
-			ref, err := h.archiveRef(t.Context(), "o", test.repo, "github.com/o/"+test.repo, "v1.0.0")
+		desc := test.desc
+		if desc == "" {
+			desc = test.repo
+		}
+
+		t.Run(desc, func(t *testing.T) {
+			ref, err := h.archiveRef(t.Context(), "o", test.repo, "github.com/o/"+test.repo, "v1.0.0", test.recorded)
 
 			if test.wantErr {
 				require.Error(t, err)
@@ -125,7 +150,7 @@ func TestPinnedCommit_cached(t *testing.T) {
 func TestArchiveRef_noPinProxy(t *testing.T) {
 	h := New(nil, nil, github.NewClient(nil), "")
 
-	ref, err := h.archiveRef(t.Context(), "o", "moved", "github.com/o/moved", "v1.0.0")
+	ref, err := h.archiveRef(t.Context(), "o", "moved", "github.com/o/moved", "v1.0.0", false)
 	require.NoError(t, err)
 
 	assert.Equal(t, "v1.0.0", ref)
