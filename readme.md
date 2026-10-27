@@ -16,6 +16,7 @@ OPTIONS:
    --go-proxy-url value         Go Proxy URL [$GO_PROXY_URL]
    --go-proxy-username value    Go Proxy Username [$GO_PROXY_USERNAME]
    --go-proxy-password value    Go Proxy Password [$GO_PROXY_PASSWORD]
+   --pin-proxy-url value        Go module proxy pinning the commit each version was published from, empty to serve tags (default: "https://proxy.golang.org") [$PIN_PROXY_URL]
    --tracing-address value      Address to send traces (default: "jaeger.jaeger.svc.cluster.local:4318") [$TRACING_ADDRESS]
    --tracing-insecure           use HTTP instead of HTTPS (default: true) [$TRACING_INSECURE]
    --tracing-username value     Username to connect to Jaeger (default: "jaeger") [$TRACING_USERNAME]

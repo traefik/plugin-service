@@ -28,7 +28,7 @@ func TestHandlers_ListBlacklist(t *testing.T) {
 	rw := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/internal/blacklist", http.NoBody)
 
-	New(testDB, nil, nil).ListBlacklist(rw, req)
+	New(testDB, nil, nil, "").ListBlacklist(rw, req)
 
 	require.Equal(t, http.StatusOK, rw.Code)
 	assert.JSONEq(t, `[
@@ -52,7 +52,7 @@ func TestHandlers_AddToBlacklist(t *testing.T) {
 	body := `{"repository":"deas/teectl","reason":"Not a plugin","author":"alice"}`
 	req := httptest.NewRequest(http.MethodPost, "/internal/blacklist", strings.NewReader(body))
 
-	New(testDB, nil, nil).AddToBlacklist(rw, req)
+	New(testDB, nil, nil, "").AddToBlacklist(rw, req)
 
 	require.Equal(t, http.StatusOK, rw.Code)
 	assert.Equal(t, "deas/teectl", got.Repository)
@@ -73,7 +73,7 @@ func TestHandlers_AddToBlacklist_invalidRepository(t *testing.T) {
 		body := `{"repository":"` + repository + `"}`
 		req := httptest.NewRequest(http.MethodPost, "/internal/blacklist", strings.NewReader(body))
 
-		New(testDB, nil, nil).AddToBlacklist(rw, req)
+		New(testDB, nil, nil, "").AddToBlacklist(rw, req)
 
 		assert.Equalf(t, http.StatusBadRequest, rw.Code, "repository %q", repository)
 	}
@@ -94,7 +94,7 @@ func TestHandlers_DeleteFromBlacklist(t *testing.T) {
 	req.SetPathValue("owner", "deas")
 	req.SetPathValue("repo", "teectl")
 
-	New(testDB, nil, nil).DeleteFromBlacklist(rw, req)
+	New(testDB, nil, nil, "").DeleteFromBlacklist(rw, req)
 
 	require.Equal(t, http.StatusNoContent, rw.Code)
 	assert.Equal(t, "deas/teectl", deleted)
@@ -112,7 +112,7 @@ func TestHandlers_DeleteFromBlacklist_notFound(t *testing.T) {
 	req.SetPathValue("owner", "deas")
 	req.SetPathValue("repo", "teectl")
 
-	New(testDB, nil, nil).DeleteFromBlacklist(rw, req)
+	New(testDB, nil, nil, "").DeleteFromBlacklist(rw, req)
 
 	assert.Equal(t, http.StatusNoContent, rw.Code)
 }

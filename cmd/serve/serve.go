@@ -46,7 +46,7 @@ func run(ctx context.Context, cfg Config) error {
 		ghClient = newGitHubClient(context.Background(), cfg.GitHubToken)
 	}
 
-	handler := handlers.New(store, gpClient, ghClient)
+	handler := handlers.New(store, gpClient, ghClient, cfg.PinProxyURL)
 
 	healthChecker := healthcheck.Client{DB: store}
 
