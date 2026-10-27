@@ -236,7 +236,18 @@ func (h Handlers) downloadGitHub(ctx context.Context, moduleName, version string
 
 		logger := log.With().Str("module_name", moduleName).Str("module_version", version).Logger()
 
-		request, err := h.getArchiveLinkRequest(ctxDownload, moduleName, version)
+		_, errHash := h.store.GetHashByName(ctxDownload, moduleName, version)
+		if errHash != nil && !errors.As(errHash, &db.NotFoundError{}) {
+			span.RecordError(errHash)
+			logger.Error().Err(errHash).Msg("Failed to get plugin hash")
+			JSONErrorf(rw, http.StatusInternalServerError, "Failed to get plugin %s@%s", moduleName, version)
+
+			return
+		}
+
+		recorded := errHash == nil
+
+		request, err := h.getArchiveLinkRequest(ctxDownload, moduleName, version, recorded)
 		if err != nil {
 			span.RecordError(err)
 			logger.Error().Err(err).Msg("Failed to get archive link")
@@ -245,16 +256,7 @@ func (h Handlers) downloadGitHub(ctx context.Context, moduleName, version string
 			return
 		}
 
-		_, err = h.store.GetHashByName(ctxDownload, moduleName, version)
-		if err != nil && !errors.As(err, &db.NotFoundError{}) {
-			span.RecordError(err)
-			logger.Error().Err(err).Msg("Failed to get plugin hash")
-			JSONErrorf(rw, http.StatusInternalServerError, "Failed to get plugin %s@%s", moduleName, version)
-
-			return
-		}
-
-		if err == nil {
+		if recorded {
 			_, err = h.gh.Do(ctxDownload, request, rw)
 			if err != nil {
 				span.RecordError(err)
@@ -479,14 +481,14 @@ func (h Handlers) downloadGitHubFromAssets(ctx context.Context, moduleName, vers
 	}
 }
 
-func (h Handlers) getArchiveLinkRequest(ctx context.Context, moduleName, version string) (*http.Request, error) {
+func (h Handlers) getArchiveLinkRequest(ctx context.Context, moduleName, version string, recorded bool) (*http.Request, error) {
 	ctx, span := h.tracer.Start(ctx, "handler_getArchiveLinkRequest")
 	defer span.End()
 
 	owner, repoName := path.Split(strings.TrimPrefix(moduleName, "github.com/"))
 	owner = strings.TrimSuffix(owner, "/")
 
-	ref, err := h.archiveRef(ctx, owner, repoName, moduleName, version)
+	ref, err := h.archiveRef(ctx, owner, repoName, moduleName, version, recorded)
 	if err != nil {
 		span.RecordError(err)
 
