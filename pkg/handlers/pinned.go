@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -22,11 +23,12 @@ var errNotPinned = errors.New("no pinned commit")
 // and the pinned commit once the tag moved or was deleted.
 // Requesting the tag keeps the archive bytes: the zipball of an annotated tag is named after the tag object, not the commit.
 // The pinned commit of a moved annotated tag cannot give those bytes back, nor match a hash recorded after the move:
-// those hashes are realigned with `piceus realign --only`, reviewed one by one.
+// a moved tag whose archive still matches the recorded hash is served, since validate accepts exactly those bytes.
 // Without an answer from the Go module proxy, it falls back to the tag, as before pinning.
 // When GitHub no longer has the pinned commit, the moved tag is served only if a hash is recorded:
 // validate then rejects any other bytes, and no hash is ever recorded from code the proxy did not pin.
-func (h Handlers) archiveRef(ctx context.Context, owner, repoName, moduleName, version string, recorded bool) (string, error) {
+// recordedHash is the hash recorded for this version, empty if none.
+func (h Handlers) archiveRef(ctx context.Context, owner, repoName, moduleName, version, recordedHash string) (string, error) {
 	if h.pinProxyURL == "" {
 		return version, nil
 	}
@@ -54,17 +56,30 @@ func (h Handlers) archiveRef(ctx context.Context, owner, repoName, moduleName, v
 	case unchanged:
 		return version, nil
 	case moved:
-		return h.refAfterTagChange(ctx, owner, repoName, moduleName, version, pinned, sha, recorded)
+		return h.refAfterTagChange(ctx, owner, repoName, moduleName, version, pinned, sha, recordedHash)
 	case deleted:
-		return h.refAfterTagChange(ctx, owner, repoName, moduleName, version, pinned, "", recorded)
+		return h.refAfterTagChange(ctx, owner, repoName, moduleName, version, pinned, "", recordedHash)
 	default:
 		return "", fmt.Errorf("resolve tag %s: %w", version, err)
 	}
 }
 
 // refAfterTagChange returns the ref to serve once the tag moved to tagCommit, or was deleted when tagCommit is empty.
-func (h Handlers) refAfterTagChange(ctx context.Context, owner, repoName, moduleName, version, pinned, tagCommit string, recorded bool) (string, error) {
+func (h Handlers) refAfterTagChange(ctx context.Context, owner, repoName, moduleName, version, pinned, tagCommit, recordedHash string) (string, error) {
 	logger := log.With().Str("module_name", moduleName).Str("module_version", version).Str("pinned_commit", pinned).Logger()
+
+	if tagCommit != "" && recordedHash != "" {
+		matches, err := h.tagMatchesRecorded(ctx, owner, repoName, version, tagCommit, recordedHash)
+		if err != nil {
+			return "", err
+		}
+
+		if matches {
+			logger.Info().Str("tag_commit", tagCommit).Msg("Tag moved after publication, serving the tag: its archive matches the recorded hash")
+
+			return version, nil
+		}
+	}
 
 	gone, err := h.commitGone(ctx, owner, repoName, pinned)
 	if err != nil {
@@ -80,13 +95,42 @@ func (h Handlers) refAfterTagChange(ctx context.Context, owner, repoName, module
 		logger.Info().Msg("Tag not found, serving the pinned commit")
 
 		return pinned, nil
-	case tagCommit != "" && recorded:
+	case tagCommit != "" && recordedHash != "":
 		logger.Warn().Str("tag_commit", tagCommit).Msg("Pinned commit gone from GitHub, serving the moved tag, checked against the recorded hash")
 
 		return version, nil
 	default:
 		return "", fmt.Errorf("pinned commit %s of %s@%s is gone from GitHub", pinned, moduleName, version)
 	}
+}
+
+// tagMatchesRecorded reports whether the zipball of the tag version, pointing at tagCommit, has the recorded hash.
+func (h Handlers) tagMatchesRecorded(ctx context.Context, owner, repoName, version, tagCommit, recordedHash string) (bool, error) {
+	// Cache the hash, not the answer: the recorded hash can be realigned.
+	key := owner + "/" + repoName + "@" + tagCommit
+
+	if cached, ok := h.tagHashes.Load(key); ok {
+		if sum, ok := cached.(string); ok {
+			return sum == recordedHash, nil
+		}
+	}
+
+	req, err := h.zipballRequest(ctx, owner, repoName, version)
+	if err != nil {
+		return false, fmt.Errorf("tag %s: %w", version, err)
+	}
+
+	hash := sha256.New()
+
+	if _, err = h.gh.Do(ctx, req, hash); err != nil {
+		return false, fmt.Errorf("download tag %s: %w", version, err)
+	}
+
+	sum := fmt.Sprintf("%x", hash.Sum(nil))
+
+	h.tagHashes.Store(key, sum)
+
+	return sum == recordedHash, nil
 }
 
 // commitGone reports whether GitHub no longer has the commit sha.
