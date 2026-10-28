@@ -71,7 +71,7 @@ func (h Handlers) refAfterTagChange(ctx context.Context, owner, repoName, module
 	if tagCommit != "" && recordedHash != "" {
 		matches, err := h.tagMatchesRecorded(ctx, owner, repoName, version, tagCommit, recordedHash)
 		if err != nil {
-			return "", err
+			logger.Warn().Err(err).Str("tag_commit", tagCommit).Msg("Failed to check the moved tag against the recorded hash, serving as if it does not match")
 		}
 
 		if matches {
@@ -107,7 +107,8 @@ func (h Handlers) refAfterTagChange(ctx context.Context, owner, repoName, module
 // tagMatchesRecorded reports whether the zipball of the tag version, pointing at tagCommit, has the recorded hash.
 func (h Handlers) tagMatchesRecorded(ctx context.Context, owner, repoName, version, tagCommit, recordedHash string) (bool, error) {
 	// Cache the hash, not the answer: the recorded hash can be realigned.
-	key := owner + "/" + repoName + "@" + tagCommit
+	// The zipball of an annotated tag names the tag object, so two tags on one commit differ.
+	key := owner + "/" + repoName + "@" + version + "@" + tagCommit
 
 	if cached, ok := h.tagHashes.Load(key); ok {
 		if sum, ok := cached.(string); ok {

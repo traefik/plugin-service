@@ -29,7 +29,7 @@ func TestArchiveRef(t *testing.T) {
 		rw.WriteHeader(http.StatusGone)
 	})
 
-	for _, repo := range []string{"stable", "moved", "deleted", "notfound", "ghdown", "movedgone", "deletedgone", "checkdown", "movedmatch", "archivedown"} {
+	for _, repo := range []string{"stable", "moved", "deleted", "notfound", "ghdown", "movedgone", "deletedgone", "checkdown", "movedmatch", "archivedown", "archivedowngone"} {
 		proxy.HandleFunc("/github.com/o/"+repo+"/@v/v1.0.0.info", func(rw http.ResponseWriter, _ *http.Request) {
 			_, _ = fmt.Fprint(rw, `{"Version":"v1.0.0","Origin":{"VCS":"git","Hash":"pinned"}}`)
 		})
@@ -70,6 +70,7 @@ func TestArchiveRef(t *testing.T) {
 	gh.HandleFunc("/repos/o/checkdown/commits/v1.0.0", commit("other"))
 	gh.HandleFunc("/repos/o/movedmatch/commits/v1.0.0", commit("other"))
 	gh.HandleFunc("/repos/o/archivedown/commits/v1.0.0", commit("other"))
+	gh.HandleFunc("/repos/o/archivedowngone/commits/v1.0.0", commit("other"))
 
 	// The pinned commit, still on GitHub or gone.
 	for _, repo := range []string{"moved", "deleted", "notfound", "movedmatch", "archivedown"} {
@@ -88,8 +89,10 @@ func TestArchiveRef(t *testing.T) {
 		_, _ = fmt.Fprint(rw, "tag archive")
 	})
 	gh.HandleFunc("/repos/o/archivedown/zipball/v1.0.0", status(http.StatusServiceUnavailable))
+	gh.HandleFunc("/repos/o/archivedowngone/zipball/v1.0.0", status(http.StatusServiceUnavailable))
 
 	gh.HandleFunc("/repos/o/movedgone/commits/pinned", status(http.StatusUnprocessableEntity))
+	gh.HandleFunc("/repos/o/archivedowngone/commits/pinned", status(http.StatusUnprocessableEntity))
 	gh.HandleFunc("/repos/o/deletedgone/commits/pinned", status(http.StatusUnprocessableEntity))
 	gh.HandleFunc("/repos/o/checkdown/commits/pinned", status(http.StatusServiceUnavailable))
 
@@ -127,7 +130,9 @@ func TestArchiveRef(t *testing.T) {
 		// validate accepts exactly the bytes of the moved tag.
 		{desc: "moved recorded from the tag", repo: "movedmatch", recorded: tagArchive, ref: "v1.0.0"},
 		{desc: "moved not recorded", repo: "movedmatch", ref: "pinned"},
-		{desc: "tag archive down", repo: "archivedown", recorded: tagArchive, wantErr: true},
+		// The check failed: served as if the tag does not match.
+		{desc: "tag archive down", repo: "archivedown", recorded: tagArchive, ref: "pinned"},
+		{desc: "tag archive down, pinned commit gone", repo: "archivedowngone", recorded: tagArchive, ref: "v1.0.0"},
 		// validate checks the moved tag against the recorded hash.
 		{desc: "movedgone recorded", repo: "movedgone", recorded: "other", ref: "v1.0.0"},
 		// Serving the moved tag would record a hash from code the proxy did not pin.
@@ -195,9 +200,18 @@ func TestTagMatchesRecorded_cached(t *testing.T) {
 		rw.Header().Set("Location", ghURL+"/archive")
 		rw.WriteHeader(http.StatusFound)
 	})
+	gh.HandleFunc("/repos/o/r/zipball/v1.0.1", func(rw http.ResponseWriter, _ *http.Request) {
+		rw.Header().Set("Location", ghURL+"/archive-v1.0.1")
+		rw.WriteHeader(http.StatusFound)
+	})
 	gh.HandleFunc("/archive", func(rw http.ResponseWriter, _ *http.Request) {
 		downloads.Add(1)
 		_, _ = fmt.Fprint(rw, "tag archive")
+	})
+	// An annotated tag on the same commit: its zipball names another tag object.
+	gh.HandleFunc("/archive-v1.0.1", func(rw http.ResponseWriter, _ *http.Request) {
+		downloads.Add(1)
+		_, _ = fmt.Fprint(rw, "other tag archive")
 	})
 
 	ghSrv := httptest.NewServer(gh)
@@ -221,5 +235,9 @@ func TestTagMatchesRecorded_cached(t *testing.T) {
 	require.NoError(t, err)
 	assert.False(t, matches)
 
-	assert.Equal(t, int32(1), downloads.Load())
+	matches, err = h.tagMatchesRecorded(t.Context(), "o", "r", "v1.0.1", "tagcommit", fmt.Sprintf("%x", sha256.Sum256([]byte("other tag archive"))))
+	require.NoError(t, err)
+	assert.True(t, matches)
+
+	assert.Equal(t, int32(2), downloads.Load())
 }
