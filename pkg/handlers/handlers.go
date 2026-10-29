@@ -53,7 +53,9 @@ type Handlers struct {
 	gh          *github.Client
 	pinProxyURL string
 	// pins caches the pinned commit by module@version: the proxy never changes it.
-	pins       *sync.Map
+	pins *sync.Map
+	// tagHashes caches the hash of moved tag archives by owner/repo@commit.
+	tagHashes  *sync.Map
 	httpClient *http.Client
 	tracer     trace.Tracer
 }
@@ -67,6 +69,7 @@ func New(store Storer, goProxy *goproxy.Client, gh *github.Client, pinProxyURL s
 		gh:          gh,
 		pinProxyURL: pinProxyURL,
 		pins:        &sync.Map{},
+		tagHashes:   &sync.Map{},
 		httpClient:  &http.Client{Timeout: 10 * time.Second},
 		tracer:      otel.GetTracerProvider().Tracer("handler"),
 	}

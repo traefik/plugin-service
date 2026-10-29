@@ -236,7 +236,7 @@ func (h Handlers) downloadGitHub(ctx context.Context, moduleName, version string
 
 		logger := log.With().Str("module_name", moduleName).Str("module_version", version).Logger()
 
-		_, errHash := h.store.GetHashByName(ctxDownload, moduleName, version)
+		ph, errHash := h.store.GetHashByName(ctxDownload, moduleName, version)
 		if errHash != nil && !errors.As(errHash, &db.NotFoundError{}) {
 			span.RecordError(errHash)
 			logger.Error().Err(errHash).Msg("Failed to get plugin hash")
@@ -247,7 +247,12 @@ func (h Handlers) downloadGitHub(ctx context.Context, moduleName, version string
 
 		recorded := errHash == nil
 
-		request, err := h.getArchiveLinkRequest(ctxDownload, moduleName, version, recorded)
+		var recordedHash string
+		if recorded {
+			recordedHash = ph.Hash
+		}
+
+		request, err := h.getArchiveLinkRequest(ctxDownload, moduleName, version, recordedHash)
 		if err != nil {
 			span.RecordError(err)
 			logger.Error().Err(err).Msg("Failed to get archive link")
@@ -481,26 +486,37 @@ func (h Handlers) downloadGitHubFromAssets(ctx context.Context, moduleName, vers
 	}
 }
 
-func (h Handlers) getArchiveLinkRequest(ctx context.Context, moduleName, version string, recorded bool) (*http.Request, error) {
+// getArchiveLinkRequest builds the request downloading the GitHub zipball to serve for moduleName@version.
+// recordedHash is the hash recorded for this version, empty if none.
+func (h Handlers) getArchiveLinkRequest(ctx context.Context, moduleName, version, recordedHash string) (*http.Request, error) {
 	ctx, span := h.tracer.Start(ctx, "handler_getArchiveLinkRequest")
 	defer span.End()
 
 	owner, repoName := path.Split(strings.TrimPrefix(moduleName, "github.com/"))
 	owner = strings.TrimSuffix(owner, "/")
 
-	ref, err := h.archiveRef(ctx, owner, repoName, moduleName, version, recorded)
+	ref, err := h.archiveRef(ctx, owner, repoName, moduleName, version, recordedHash)
 	if err != nil {
 		span.RecordError(err)
 
 		return nil, fmt.Errorf("failed to get archive ref: %w", err)
 	}
 
+	req, err := h.zipballRequest(ctx, owner, repoName, ref)
+	if err != nil {
+		span.RecordError(err)
+
+		return nil, err
+	}
+
+	return req, nil
+}
+
+func (h Handlers) zipballRequest(ctx context.Context, owner, repoName, ref string) (*http.Request, error) {
 	opts := &github.RepositoryContentGetOptions{Ref: ref}
 
 	link, _, err := h.gh.Repositories.GetArchiveLink(ctx, owner, repoName, github.Zipball, opts, 3)
 	if err != nil {
-		span.RecordError(err)
-
 		return nil, fmt.Errorf("failed to get archive link: %w", err)
 	}
 
