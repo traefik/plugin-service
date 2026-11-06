@@ -24,6 +24,8 @@ const (
 	fieldHashes   = "hashes"
 	fieldDisabled = "disabled"
 	fieldHidden   = "hidden"
+	fieldTagsETag = "tagsETag"
+	fieldStars    = "stars"
 )
 
 // MongoDB is a mongoDB client.
@@ -160,7 +162,7 @@ func (m *MongoDB) List(ctx context.Context, page db.Pagination) ([]db.Plugin, st
 	opts := &options.FindOptions{}
 	opts.SetLimit(int64(page.Size + 1))
 	opts.SetProjection(bson.D{{Key: fieldHashes, Value: 0}})
-	opts.SetSort(bson.D{{Key: "stars", Value: -1}})
+	opts.SetSort(bson.D{{Key: fieldStars, Value: -1}})
 
 	cursor, err := m.client.Collection(m.collName).Find(ctx, criteria, opts)
 	if err != nil {
@@ -321,6 +323,86 @@ func (m *MongoDB) Update(ctx context.Context, id string, plugin db.Plugin) (db.P
 		}
 
 		return db.Plugin{}, fmt.Errorf("unable to update plugin: %w", err)
+	}
+
+	return updated, nil
+}
+
+// ListStates returns the state of all plugins, hidden and disabled plugins included.
+func (m *MongoDB) ListStates(ctx context.Context) ([]db.PluginState, error) {
+	ctx, span := m.tracer.Start(ctx, "db_list_states")
+	defer span.End()
+
+	opts := &options.FindOptions{}
+	opts.SetProjection(bson.D{
+		{Key: "_id", Value: 0},
+		{Key: "id", Value: 1},
+		{Key: "name", Value: 1},
+		{Key: "latestVersion", Value: 1},
+		{Key: fieldStars, Value: 1},
+		{Key: fieldHidden, Value: 1},
+		{Key: fieldDisabled, Value: 1},
+		{Key: fieldTagsETag, Value: 1},
+	})
+
+	cursor, err := m.client.Collection(m.collName).Find(ctx, bson.D{}, opts)
+	if err != nil {
+		span.RecordError(err)
+
+		return nil, fmt.Errorf("unable to find plugin states: %w", err)
+	}
+
+	states := make([]db.PluginState, 0)
+
+	if err = cursor.All(ctx, &states); err != nil {
+		span.RecordError(err)
+
+		return nil, fmt.Errorf("unable to unmarshal plugin states: %w", err)
+	}
+
+	return states, nil
+}
+
+// Patch updates only the non-nil fields of the patch.
+func (m *MongoDB) Patch(ctx context.Context, id string, patch db.PluginPatch) (db.Plugin, error) {
+	ctx, span := m.tracer.Start(ctx, "db_patch")
+	defer span.End()
+
+	set := bson.D{}
+
+	if patch.Stars != nil {
+		set = append(set, bson.E{Key: fieldStars, Value: *patch.Stars})
+	}
+
+	if patch.Hidden != nil {
+		set = append(set, bson.E{Key: fieldHidden, Value: *patch.Hidden})
+	}
+
+	if patch.TagsETag != nil {
+		set = append(set, bson.E{Key: fieldTagsETag, Value: *patch.TagsETag})
+	}
+
+	if len(set) == 0 {
+		return db.Plugin{}, errors.New("nothing to update")
+	}
+
+	filter := bson.D{{Key: "id", Value: id}}
+	update := bson.D{{Key: "$set", Value: set}}
+
+	opts := &options.FindOneAndUpdateOptions{}
+	opts.SetReturnDocument(options.After)
+	opts.SetProjection(bson.D{{Key: fieldHashes, Value: 0}})
+
+	var updated db.Plugin
+
+	if err := m.client.Collection(m.collName).FindOneAndUpdate(ctx, filter, update, opts).Decode(&updated); err != nil {
+		span.RecordError(err)
+
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return db.Plugin{}, db.NotFoundError{Err: err}
+		}
+
+		return db.Plugin{}, fmt.Errorf("unable to patch plugin: %w", err)
 	}
 
 	return updated, nil

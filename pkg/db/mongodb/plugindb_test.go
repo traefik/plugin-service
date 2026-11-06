@@ -43,6 +43,7 @@ func TestMongoDB_Create(t *testing.T) {
 			"something": "there",
 		},
 		CreatedAt: time.Now().Add(-2 * time.Hour),
+		TagsETag:  `W/"abc"`,
 	}
 
 	got, err := store.Create(ctx, plugin)
@@ -650,8 +651,9 @@ func TestMongoDB_Update(t *testing.T) {
 					Versions: []string{
 						"v1.1.1",
 					},
-					Stars:   10,
-					Snippet: nil,
+					Stars:    10,
+					Snippet:  nil,
+					TagsETag: `W/"old"`,
 				},
 				Hashes: []db.PluginHash{
 					{Name: "plugin@v1.1.1", Hash: "123"},
@@ -676,14 +678,16 @@ func TestMongoDB_Update(t *testing.T) {
 		Versions: []string{
 			"v1.1.1",
 		},
-		Stars:   10,
-		Snippet: nil,
+		Stars:    10,
+		Snippet:  nil,
+		TagsETag: `W/"new"`,
 	})
 	require.NoError(t, err)
 
 	want := fixtures["plugin"].Plugin
 	want.Name = "New Name"
 	want.Author = "New Author"
+	want.TagsETag = `W/"new"`
 
 	assert.Equal(t, want, got)
 
@@ -986,4 +990,124 @@ func buildNextID(t *testing.T, next db.Plugin) string {
 	require.NoError(t, err)
 
 	return base64.RawStdEncoding.EncodeToString(b)
+}
+
+func TestMongoDB_ListStates(t *testing.T) {
+	ctx := context.Background()
+
+	store, _ := createDatabase(t, []fixture{
+		{
+			key: "active",
+			plugin: pluginDocument{
+				Plugin: db.Plugin{
+					ID:            "123",
+					Name:          "active",
+					Readme:        "readme",
+					LatestVersion: "v1.0.0",
+					Stars:         10,
+					Snippet:       map[string]any{"something": "there"},
+					TagsETag:      `W/"abc"`,
+				},
+				Hashes: []db.PluginHash{{Name: "active@v1.0.0", Hash: "123"}},
+			},
+		},
+		{
+			key: "hidden",
+			plugin: pluginDocument{
+				Plugin: db.Plugin{ID: "234", Name: "hidden", LatestVersion: "v2.0.0", Stars: 3, Hidden: true},
+			},
+		},
+		{
+			key: "disabled",
+			plugin: pluginDocument{
+				Plugin: db.Plugin{ID: "345", Name: "disabled", LatestVersion: "v3.0.0", Disabled: true},
+			},
+		},
+	})
+
+	states, err := store.ListStates(ctx)
+	require.NoError(t, err)
+
+	assert.ElementsMatch(t, []db.PluginState{
+		{ID: "123", Name: "active", LatestVersion: "v1.0.0", Stars: 10, TagsETag: `W/"abc"`},
+		{ID: "234", Name: "hidden", LatestVersion: "v2.0.0", Stars: 3, Hidden: true},
+		{ID: "345", Name: "disabled", LatestVersion: "v3.0.0", Disabled: true},
+	}, states)
+}
+
+func TestMongoDB_ListStates_empty(t *testing.T) {
+	store, _ := createDatabase(t, nil)
+
+	states, err := store.ListStates(context.Background())
+	require.NoError(t, err)
+
+	assert.NotNil(t, states)
+	assert.Empty(t, states)
+}
+
+func TestMongoDB_Patch(t *testing.T) {
+	ctx := context.Background()
+
+	store, fixtures := createDatabase(t, []fixture{
+		{
+			key: "plugin",
+			plugin: pluginDocument{
+				Plugin: db.Plugin{
+					ID:            "123",
+					Name:          "plugin",
+					DisplayName:   "plugin",
+					Author:        "author",
+					Readme:        "readme",
+					LatestVersion: "v1.1.1",
+					Versions:      []string{"v1.1.1"},
+					Stars:         10,
+					Snippet:       map[string]any{"something": "there"},
+					Disabled:      true,
+					TagsETag:      `W/"old"`,
+				},
+				Hashes: []db.PluginHash{
+					{Name: "plugin@v1.1.1", Hash: "123"},
+				},
+			},
+		},
+	})
+
+	want := fixtures["plugin"].Plugin
+
+	// Only stars.
+	got, err := store.Patch(ctx, "123", db.PluginPatch{Stars: new(42)})
+	require.NoError(t, err)
+
+	want.Stars = 42
+	assert.Equal(t, want, toUTCPlugin(got))
+
+	// Only hidden.
+	got, err = store.Patch(ctx, "123", db.PluginPatch{Hidden: new(true)})
+	require.NoError(t, err)
+
+	want.Hidden = true
+	assert.Equal(t, want, toUTCPlugin(got))
+
+	// Only ETag, zero values are written.
+	got, err = store.Patch(ctx, "123", db.PluginPatch{Stars: new(0), TagsETag: new(`W/"new"`)})
+	require.NoError(t, err)
+
+	want.Stars = 0
+	want.TagsETag = `W/"new"`
+	assert.Equal(t, want, toUTCPlugin(got))
+
+	// Check the stored document, hashes included, is not changed in other fields.
+	stored, ok := getPlugin(t, store, "123")
+	require.True(t, ok)
+
+	assert.Equal(t, want, toUTCPlugin(stored.Plugin))
+	assert.Equal(t, fixtures["plugin"].Hashes, stored.Hashes)
+
+	// Empty patch.
+	_, err = store.Patch(ctx, "123", db.PluginPatch{})
+	require.Error(t, err)
+
+	// Unknown plugin.
+	_, err = store.Patch(ctx, "456", db.PluginPatch{Stars: new(1)})
+	require.ErrorAs(t, err, &db.NotFoundError{})
 }

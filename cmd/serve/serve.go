@@ -57,6 +57,7 @@ func run(ctx context.Context, cfg Config) error {
 	r.Handle("/external/", buildExternalRouter(handler))
 
 	registerInternalBlacklistRoutes(r, handler)
+	registerInternalStatesRoute(r, handler)
 	r.HandleFunc("/live", healthChecker.Live)
 	r.HandleFunc("/ready", healthChecker.Ready)
 
@@ -82,6 +83,7 @@ func buildInternalRouter(handler handlers.Handlers) http.Handler {
 	r.Handler(http.MethodGet, "/", otelhttp.NewHandler(http.HandlerFunc(handler.List), "internal_list"))
 	r.Handler(http.MethodPost, "/", otelhttp.NewHandler(http.HandlerFunc(handler.Create), "internal_create"))
 	r.Handler(http.MethodPut, "/:uuid", otelhttp.NewHandler(http.HandlerFunc(handler.Update), "internal_update"))
+	r.Handler(http.MethodPatch, "/:uuid", otelhttp.NewHandler(http.HandlerFunc(handler.Patch), "internal_patch"))
 	r.Handler(http.MethodDelete, "/:uuid", otelhttp.NewHandler(http.HandlerFunc(handler.Delete), "internal_delete"))
 
 	r.NotFound = http.HandlerFunc(handlers.NotFound)
@@ -97,6 +99,12 @@ func registerInternalBlacklistRoutes(r *http.ServeMux, handler handlers.Handlers
 	r.Handle("GET /internal/blacklist", otelhttp.NewHandler(http.HandlerFunc(handler.ListBlacklist), "internal_list_blacklist"))
 	r.Handle("POST /internal/blacklist", otelhttp.NewHandler(http.HandlerFunc(handler.AddToBlacklist), "internal_add_to_blacklist"))
 	r.Handle("DELETE /internal/blacklist/{owner}/{repo}", otelhttp.NewHandler(http.HandlerFunc(handler.DeleteFromBlacklist), "internal_delete_from_blacklist"))
+}
+
+// registerInternalStatesRoute registers the plugin states endpoint directly on
+// the ServeMux, like the blacklist endpoints.
+func registerInternalStatesRoute(r *http.ServeMux, handler handlers.Handlers) {
+	r.Handle("GET /internal/states", otelhttp.NewHandler(http.HandlerFunc(handler.ListStates), "internal_list_states"))
 }
 
 func buildExternalRouter(handler handlers.Handlers) http.Handler {

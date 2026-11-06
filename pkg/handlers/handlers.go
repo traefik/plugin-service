@@ -43,6 +43,7 @@ type PluginStorer interface {
 // Storer is capable of storing plugins and the plugin blacklist.
 type Storer interface {
 	PluginStorer
+	PluginStateStorer
 	BlacklistStorer
 }
 
