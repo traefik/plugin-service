@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -11,6 +10,9 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/traefik/plugin-service/pkg/db"
 )
+
+// maxPatchSize is the maximum size of a patch body.
+const maxPatchSize = 1 << 20
 
 // PluginStateStorer is capable of reading and updating the plugin state used by the scraper.
 type PluginStateStorer interface {
@@ -60,32 +62,34 @@ func (h Handlers) Patch(rw http.ResponseWriter, req *http.Request) {
 
 	logger := log.With().Str("plugin_id", id).Logger()
 
-	body, err := io.ReadAll(req.Body)
-	if err != nil {
+	var patch db.PluginPatch
+
+	dec := json.NewDecoder(http.MaxBytesReader(rw, req.Body, maxPatchSize))
+	dec.DisallowUnknownFields()
+
+	// An empty body is an empty patch.
+	if err = dec.Decode(&patch); err != nil && !errors.Is(err, io.EOF) {
 		span.RecordError(err)
-		logger.Error().Err(err).Msg("Unable to read body for patch")
+		logger.Error().Err(err).Msg("Unable to decode plugin patch")
 		JSONError(rw, http.StatusBadRequest, err.Error())
 
 		return
 	}
 
-	var patch db.PluginPatch
+	if dec.More() {
+		JSONError(rw, http.StatusBadRequest, "body must contain a single JSON object")
 
-	if len(body) > 0 {
-		dec := json.NewDecoder(bytes.NewReader(body))
-		dec.DisallowUnknownFields()
-
-		if err = dec.Decode(&patch); err != nil {
-			span.RecordError(err)
-			logger.Error().Err(err).Msg("Unable to decode plugin patch")
-			JSONError(rw, http.StatusBadRequest, err.Error())
-
-			return
-		}
+		return
 	}
 
 	if patch.IsEmpty() {
 		JSONError(rw, http.StatusBadRequest, "nothing to update")
+
+		return
+	}
+
+	if patch.Stars != nil && *patch.Stars < 0 {
+		JSONError(rw, http.StatusBadRequest, "stars must not be negative")
 
 		return
 	}

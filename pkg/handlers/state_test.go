@@ -125,6 +125,10 @@ func TestHandlers_Patch_badRequest(t *testing.T) {
 		{desc: "unknown field", path: "/123", body: `{"name":"other"}`},
 		{desc: "invalid JSON", path: "/123", body: `{`},
 		{desc: "missing id", path: "/", body: `{"stars":1}`},
+		{desc: "two JSON objects", path: "/123", body: `{"stars":1}{"hidden":true}`},
+		{desc: "trailing data", path: "/123", body: `{"stars":1} garbage`},
+		{desc: "negative stars", path: "/123", body: `{"stars":-5}`},
+		{desc: "too large", path: "/123", body: `{"tagsETag":"` + strings.Repeat("a", maxPatchSize) + `"}`},
 	}
 
 	for _, test := range testCases {
