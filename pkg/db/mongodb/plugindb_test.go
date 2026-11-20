@@ -707,6 +707,15 @@ func TestMongoDB_Update(t *testing.T) {
 
 	assert.Equal(t, want, got)
 
+	// An update without the ETag (an older scraper) keeps the stored one.
+	withoutETag := got
+	withoutETag.TagsETag = ""
+
+	got, err = store.Update(ctx, "123", withoutETag)
+	require.NoError(t, err)
+
+	assert.Equal(t, want, got)
+
 	// Check that we get a db.NotFound when no plugin have the given id.
 	_, err = store.Update(ctx, "456", got)
 	require.ErrorAs(t, err, &db.NotFoundError{})
