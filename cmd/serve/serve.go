@@ -82,6 +82,9 @@ func buildInternalRouter(handler handlers.Handlers) http.Handler {
 	r.Handler(http.MethodGet, "/", otelhttp.NewHandler(http.HandlerFunc(handler.List), "internal_list"))
 	r.Handler(http.MethodPost, "/", otelhttp.NewHandler(http.HandlerFunc(handler.Create), "internal_create"))
 	r.Handler(http.MethodPut, "/:uuid", otelhttp.NewHandler(http.HandlerFunc(handler.Update), "internal_update"))
+	r.Handler(http.MethodPatch, "/:uuid", otelhttp.NewHandler(http.HandlerFunc(handler.Patch), "internal_patch"))
+	// No conflict with "/:uuid": httprouter has one tree per method, and no GET route has a wildcard.
+	r.Handler(http.MethodGet, "/states", otelhttp.NewHandler(http.HandlerFunc(handler.ListStates), "internal_list_states"))
 	r.Handler(http.MethodDelete, "/:uuid", otelhttp.NewHandler(http.HandlerFunc(handler.Delete), "internal_delete"))
 
 	r.NotFound = http.HandlerFunc(handlers.NotFound)
