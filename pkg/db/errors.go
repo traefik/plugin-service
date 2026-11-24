@@ -1,6 +1,15 @@
 package db
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
+)
+
+// ErrEmptyPatch is returned for a patch that updates nothing.
+var ErrEmptyPatch = errors.New("nothing to update")
+
+// ErrAlreadyExists is returned when a plugin with the same name already exists, disabled or hidden included.
+var ErrAlreadyExists = errors.New("a plugin with this name already exists")
 
 // NotFoundError represents a document not found error.
 type NotFoundError struct {

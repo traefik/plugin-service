@@ -15,7 +15,7 @@ type mockDB struct {
 	searchByNameFn func(context.Context, string, db.Pagination) ([]db.Plugin, string, error)
 	updateFn       func(context.Context, string, db.Plugin) (db.Plugin, error)
 	listStatesFn   func(ctx context.Context) ([]db.PluginState, error)
-	patchFn        func(ctx context.Context, id string, patch db.PluginPatch) (db.Plugin, error)
+	patchFn        func(ctx context.Context, id string, patch db.PluginPatch) error
 
 	deleteHashFn         func(ctx context.Context, id string) error
 	createHashFn         func(ctx context.Context, module, version, hash string) (db.PluginHash, error)
@@ -59,7 +59,7 @@ func (m mockDB) ListStates(ctx context.Context) ([]db.PluginState, error) {
 	return m.listStatesFn(ctx)
 }
 
-func (m mockDB) Patch(ctx context.Context, id string, patch db.PluginPatch) (db.Plugin, error) {
+func (m mockDB) Patch(ctx context.Context, id string, patch db.PluginPatch) error {
 	return m.patchFn(ctx, id, patch)
 }
 

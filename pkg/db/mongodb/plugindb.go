@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"time"
 
+	"github.com/rs/zerolog/log"
 	"github.com/traefik/plugin-service/pkg/db"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -106,6 +107,18 @@ func (m *MongoDB) Create(ctx context.Context, plugin db.Plugin) (db.Plugin, erro
 	ctx, span := m.tracer.Start(ctx, "db_create")
 	defer span.End()
 
+	// GetByName does not return a disabled plugin: without this check, the scraper would create it again.
+	count, err := m.client.Collection(m.collName).CountDocuments(ctx, bson.D{{Key: "name", Value: plugin.Name}}, options.Count().SetLimit(1))
+	if err != nil {
+		span.RecordError(err)
+
+		return db.Plugin{}, fmt.Errorf("unable to count plugins by name: %w", err)
+	}
+
+	if count > 0 {
+		return db.Plugin{}, db.ErrAlreadyExists
+	}
+
 	id := primitive.NewObjectID()
 	plugin.ID = id.Hex()
 	plugin.CreatedAt = time.Now().Truncate(time.Millisecond)
@@ -116,7 +129,7 @@ func (m *MongoDB) Create(ctx context.Context, plugin db.Plugin) (db.Plugin, erro
 		Hashes:  []db.PluginHash{},
 	}
 
-	_, err := m.client.Collection(m.collName).InsertOne(ctx, doc)
+	_, err = m.client.Collection(m.collName).InsertOne(ctx, doc)
 	if err != nil {
 		span.RecordError(err)
 
@@ -352,19 +365,37 @@ func (m *MongoDB) ListStates(ctx context.Context) ([]db.PluginState, error) {
 		return nil, fmt.Errorf("unable to find plugin states: %w", err)
 	}
 
+	defer func() { _ = cursor.Close(ctx) }()
+
 	states := make([]db.PluginState, 0)
 
-	if err = cursor.All(ctx, &states); err != nil {
+	for cursor.Next(ctx) {
+		var state db.PluginState
+
+		// One malformed document must not hide the state of all the others.
+		if err = cursor.Decode(&state); err != nil {
+			span.RecordError(err)
+
+			id, _ := cursor.Current.Lookup("id").StringValueOK()
+			log.Error().Err(err).Str("plugin_id", id).Msg("Unable to decode a plugin state, skipped")
+
+			continue
+		}
+
+		states = append(states, state)
+	}
+
+	if err = cursor.Err(); err != nil {
 		span.RecordError(err)
 
-		return nil, fmt.Errorf("unable to unmarshal plugin states: %w", err)
+		return nil, fmt.Errorf("unable to read plugin states: %w", err)
 	}
 
 	return states, nil
 }
 
 // Patch updates only the non-nil fields of the patch.
-func (m *MongoDB) Patch(ctx context.Context, id string, patch db.PluginPatch) (db.Plugin, error) {
+func (m *MongoDB) Patch(ctx context.Context, id string, patch db.PluginPatch) error {
 	ctx, span := m.tracer.Start(ctx, "db_patch")
 	defer span.End()
 
@@ -383,29 +414,24 @@ func (m *MongoDB) Patch(ctx context.Context, id string, patch db.PluginPatch) (d
 	}
 
 	if len(set) == 0 {
-		return db.Plugin{}, errors.New("nothing to update")
+		return db.ErrEmptyPatch
 	}
 
 	filter := bson.D{{Key: "id", Value: id}}
 	update := bson.D{{Key: "$set", Value: set}}
 
-	opts := &options.FindOneAndUpdateOptions{}
-	opts.SetReturnDocument(options.After)
-	opts.SetProjection(bson.D{{Key: fieldHashes, Value: 0}})
-
-	var updated db.Plugin
-
-	if err := m.client.Collection(m.collName).FindOneAndUpdate(ctx, filter, update, opts).Decode(&updated); err != nil {
+	res, err := m.client.Collection(m.collName).UpdateOne(ctx, filter, update)
+	if err != nil {
 		span.RecordError(err)
 
-		if errors.Is(err, mongo.ErrNoDocuments) {
-			return db.Plugin{}, db.NotFoundError{Err: err}
-		}
-
-		return db.Plugin{}, fmt.Errorf("unable to patch plugin: %w", err)
+		return fmt.Errorf("unable to patch plugin: %w", err)
 	}
 
-	return updated, nil
+	if res.MatchedCount == 0 {
+		return db.NotFoundError{Err: mongo.ErrNoDocuments}
+	}
+
+	return nil
 }
 
 // CreateHash creates a new plugin hash.

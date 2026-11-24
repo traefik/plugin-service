@@ -56,7 +56,6 @@ func run(ctx context.Context, cfg Config) error {
 	r.Handle("/internal/", buildInternalRouter(handler))
 	r.Handle("/external/", buildExternalRouter(handler))
 
-	registerInternalBlacklistRoutes(r, handler)
 	r.HandleFunc("/live", healthChecker.Live)
 	r.HandleFunc("/ready", healthChecker.Ready)
 
@@ -76,30 +75,35 @@ func buildPublicRouter(handler handlers.Handlers) http.Handler {
 	return http.StripPrefix("/public", r)
 }
 
+// buildInternalRouter uses a ServeMux: a static segment ("states", "blacklist") takes precedence over "{uuid}".
 func buildInternalRouter(handler handlers.Handlers) http.Handler {
-	r := httprouter.New()
+	r := http.NewServeMux()
 
-	r.Handler(http.MethodGet, "/", otelhttp.NewHandler(http.HandlerFunc(handler.List), "internal_list"))
-	r.Handler(http.MethodPost, "/", otelhttp.NewHandler(http.HandlerFunc(handler.Create), "internal_create"))
-	r.Handler(http.MethodPut, "/:uuid", otelhttp.NewHandler(http.HandlerFunc(handler.Update), "internal_update"))
-	r.Handler(http.MethodPatch, "/:uuid", otelhttp.NewHandler(http.HandlerFunc(handler.Patch), "internal_patch"))
-	// No conflict with "/:uuid": httprouter has one tree per method, and no GET route has a wildcard.
-	r.Handler(http.MethodGet, "/states", otelhttp.NewHandler(http.HandlerFunc(handler.ListStates), "internal_list_states"))
-	r.Handler(http.MethodDelete, "/:uuid", otelhttp.NewHandler(http.HandlerFunc(handler.Delete), "internal_delete"))
+	r.Handle("GET /{$}", otelhttp.NewHandler(http.HandlerFunc(handler.List), "internal_list"))
+	r.Handle("POST /{$}", otelhttp.NewHandler(http.HandlerFunc(handler.Create), "internal_create"))
+	r.Handle("GET /states", otelhttp.NewHandler(http.HandlerFunc(handler.ListStates), "internal_list_states"))
+	r.Handle("PUT /{uuid}", otelhttp.NewHandler(http.HandlerFunc(handler.Update), "internal_update"))
+	r.Handle("PATCH /{uuid}", otelhttp.NewHandler(http.HandlerFunc(handler.Patch), "internal_patch"))
+	r.Handle("DELETE /{uuid}", otelhttp.NewHandler(http.HandlerFunc(handler.Delete), "internal_delete"))
+	r.Handle("GET /blacklist", otelhttp.NewHandler(http.HandlerFunc(handler.ListBlacklist), "internal_list_blacklist"))
+	r.Handle("POST /blacklist", otelhttp.NewHandler(http.HandlerFunc(handler.AddToBlacklist), "internal_add_to_blacklist"))
+	r.Handle("DELETE /blacklist/{owner}/{repo}", otelhttp.NewHandler(http.HandlerFunc(handler.DeleteFromBlacklist), "internal_delete_from_blacklist"))
+	r.HandleFunc("/", handlers.NotFound)
 
-	r.NotFound = http.HandlerFunc(handlers.NotFound)
-	r.PanicHandler = handlers.PanicHandler
-
-	return http.StripPrefix("/internal", r)
+	return http.StripPrefix("/internal", recoverPanic(r))
 }
 
-// registerInternalBlacklistRoutes registers the blacklist endpoints directly on
-// the ServeMux: they cannot live in the internal httprouter because the static
-// "blacklist" segment conflicts with its "/:uuid" wildcard routes.
-func registerInternalBlacklistRoutes(r *http.ServeMux, handler handlers.Handlers) {
-	r.Handle("GET /internal/blacklist", otelhttp.NewHandler(http.HandlerFunc(handler.ListBlacklist), "internal_list_blacklist"))
-	r.Handle("POST /internal/blacklist", otelhttp.NewHandler(http.HandlerFunc(handler.AddToBlacklist), "internal_add_to_blacklist"))
-	r.Handle("DELETE /internal/blacklist/{owner}/{repo}", otelhttp.NewHandler(http.HandlerFunc(handler.DeleteFromBlacklist), "internal_delete_from_blacklist"))
+// recoverPanic answers a panic with handlers.PanicHandler, as httprouter does.
+func recoverPanic(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+		defer func() {
+			if err := recover(); err != nil {
+				handlers.PanicHandler(rw, req, err)
+			}
+		}()
+
+		next.ServeHTTP(rw, req)
+	})
 }
 
 func buildExternalRouter(handler handlers.Handlers) http.Handler {

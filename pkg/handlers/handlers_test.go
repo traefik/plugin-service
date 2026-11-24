@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -194,4 +195,19 @@ func TestHandlers_List_SearchByName(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.JSONEq(t, string(file), rw.Body.String())
+}
+
+func TestHandlers_Create_alreadyExists(t *testing.T) {
+	testDB := mockDB{
+		createFn: func(_ context.Context, _ db.Plugin) (db.Plugin, error) {
+			return db.Plugin{}, db.ErrAlreadyExists
+		},
+	}
+
+	rw := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`{"name":"github.com/traefik/plugindemo"}`))
+
+	New(testDB, nil, nil, "").Create(rw, req)
+
+	assert.Equal(t, http.StatusConflict, rw.Code)
 }

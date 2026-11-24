@@ -170,11 +170,24 @@ func (h Handlers) Create(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	if pl.Stars < 0 {
+		JSONError(rw, http.StatusBadRequest, errNegativeStars)
+
+		return
+	}
+
 	logger := log.With().Str("module_name", pl.Name).Logger()
 
 	created, err := h.store.Create(ctx, pl)
 	if err != nil {
 		span.RecordError(err)
+
+		if errors.Is(err, db.ErrAlreadyExists) {
+			JSONError(rw, http.StatusConflict, err.Error())
+
+			return
+		}
+
 		logger.Error().Err(err).Msg("Error persisting plugin")
 		JSONError(rw, http.StatusInternalServerError, "Could not persist data")
 
@@ -217,6 +230,12 @@ func (h Handlers) Update(rw http.ResponseWriter, req *http.Request) {
 		span.RecordError(err)
 		logger.Error().Err(err).Msg("Error reading body for update")
 		JSONError(rw, http.StatusBadRequest, err.Error())
+
+		return
+	}
+
+	if input.Stars < 0 {
+		JSONError(rw, http.StatusBadRequest, errNegativeStars)
 
 		return
 	}

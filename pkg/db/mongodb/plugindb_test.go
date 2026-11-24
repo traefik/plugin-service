@@ -43,7 +43,6 @@ func TestMongoDB_Create(t *testing.T) {
 			"something": "there",
 		},
 		CreatedAt: time.Now().Add(-2 * time.Hour),
-		TagsETag:  `W/"abc"`,
 	}
 
 	got, err := store.Create(ctx, plugin)
@@ -67,6 +66,23 @@ func TestMongoDB_Create(t *testing.T) {
 
 	assert.Equal(t, got, stored.Plugin)
 	assert.Empty(t, stored.Hashes)
+}
+
+func TestMongoDB_Create_alreadyExists(t *testing.T) {
+	store, _ := createDatabase(t, []fixture{
+		{
+			key:    "disabled",
+			plugin: pluginDocument{Plugin: db.Plugin{ID: "123", Name: "plugin", Disabled: true}},
+		},
+	})
+
+	_, err := store.Create(context.Background(), db.Plugin{Name: "plugin"})
+	require.ErrorIs(t, err, db.ErrAlreadyExists)
+
+	count, err := store.client.Collection(store.collName).CountDocuments(context.Background(), bson.D{{Key: "name", Value: "plugin"}})
+	require.NoError(t, err)
+
+	assert.EqualValues(t, 1, count)
 }
 
 func TestMongoDB_Get(t *testing.T) {
@@ -651,9 +667,8 @@ func TestMongoDB_Update(t *testing.T) {
 					Versions: []string{
 						"v1.1.1",
 					},
-					Stars:    10,
-					Snippet:  nil,
-					TagsETag: `W/"old"`,
+					Stars:   10,
+					Snippet: nil,
 				},
 				Hashes: []db.PluginHash{
 					{Name: "plugin@v1.1.1", Hash: "123"},
@@ -678,16 +693,14 @@ func TestMongoDB_Update(t *testing.T) {
 		Versions: []string{
 			"v1.1.1",
 		},
-		Stars:    10,
-		Snippet:  nil,
-		TagsETag: `W/"new"`,
+		Stars:   10,
+		Snippet: nil,
 	})
 	require.NoError(t, err)
 
 	want := fixtures["plugin"].Plugin
 	want.Name = "New Name"
 	want.Author = "New Author"
-	want.TagsETag = `W/"new"`
 
 	assert.Equal(t, want, got)
 
@@ -703,15 +716,6 @@ func TestMongoDB_Update(t *testing.T) {
 
 	// Update with same values
 	got, err = store.Update(ctx, "123", got)
-	require.NoError(t, err)
-
-	assert.Equal(t, want, got)
-
-	// An update without the ETag (an older scraper) keeps the stored one.
-	withoutETag := got
-	withoutETag.TagsETag = ""
-
-	got, err = store.Update(ctx, "123", withoutETag)
 	require.NoError(t, err)
 
 	assert.Equal(t, want, got)
@@ -1015,7 +1019,6 @@ func TestMongoDB_ListStates(t *testing.T) {
 					LatestVersion: "v1.0.0",
 					Stars:         10,
 					Snippet:       map[string]any{"something": "there"},
-					TagsETag:      `W/"abc"`,
 				},
 				Hashes: []db.PluginHash{{Name: "active@v1.0.0", Hash: "123"}},
 			},
@@ -1033,6 +1036,17 @@ func TestMongoDB_ListStates(t *testing.T) {
 			},
 		},
 	})
+
+	require.NoError(t, store.Patch(ctx, "123", db.PluginPatch{TagsETag: new(`W/"abc"`)}))
+
+	// A malformed legacy document is skipped, not an error for all the others.
+	_, err := store.client.Collection(store.collName).InsertOne(ctx, bson.D{
+		{Key: "id", Value: "456"},
+		{Key: "name", Value: 42},
+		{Key: "stars", Value: 1.5},
+		{Key: "disabled", Value: true},
+	})
+	require.NoError(t, err)
 
 	states, err := store.ListStates(ctx)
 	require.NoError(t, err)
@@ -1072,7 +1086,6 @@ func TestMongoDB_Patch(t *testing.T) {
 					Stars:         10,
 					Snippet:       map[string]any{"something": "there"},
 					Disabled:      true,
-					TagsETag:      `W/"old"`,
 				},
 				Hashes: []db.PluginHash{
 					{Name: "plugin@v1.1.1", Hash: "123"},
@@ -1082,41 +1095,57 @@ func TestMongoDB_Patch(t *testing.T) {
 	})
 
 	want := fixtures["plugin"].Plugin
+	wantETag := ""
+
+	check := func(t *testing.T) {
+		t.Helper()
+
+		stored, ok := getPlugin(t, store, "123")
+		require.True(t, ok)
+
+		assert.Equal(t, want, toUTCPlugin(stored.Plugin))
+		assert.Equal(t, fixtures["plugin"].Hashes, stored.Hashes)
+
+		states, err := store.ListStates(ctx)
+		require.NoError(t, err)
+		require.Len(t, states, 1)
+
+		assert.Equal(t, wantETag, states[0].TagsETag)
+	}
 
 	// Only stars.
-	got, err := store.Patch(ctx, "123", db.PluginPatch{Stars: new(42)})
-	require.NoError(t, err)
+	require.NoError(t, store.Patch(ctx, "123", db.PluginPatch{Stars: new(42)}))
 
 	want.Stars = 42
-	assert.Equal(t, want, toUTCPlugin(got))
+	check(t)
 
 	// Only hidden.
-	got, err = store.Patch(ctx, "123", db.PluginPatch{Hidden: new(true)})
-	require.NoError(t, err)
+	require.NoError(t, store.Patch(ctx, "123", db.PluginPatch{Hidden: new(true)}))
 
 	want.Hidden = true
-	assert.Equal(t, want, toUTCPlugin(got))
+	check(t)
 
-	// Only ETag, zero values are written.
-	got, err = store.Patch(ctx, "123", db.PluginPatch{Stars: new(0), TagsETag: new(`W/"new"`)})
-	require.NoError(t, err)
+	// Only ETag.
+	require.NoError(t, store.Patch(ctx, "123", db.PluginPatch{TagsETag: new(`W/"new"`)}))
+
+	wantETag = `W/"new"`
+	check(t)
+
+	// Zero values are written.
+	require.NoError(t, store.Patch(ctx, "123", db.PluginPatch{Stars: new(0)}))
 
 	want.Stars = 0
-	want.TagsETag = `W/"new"`
-	assert.Equal(t, want, toUTCPlugin(got))
+	check(t)
 
-	// Check the stored document, hashes included, is not changed in other fields.
-	stored, ok := getPlugin(t, store, "123")
-	require.True(t, ok)
+	// An update does not touch the ETag.
+	_, err := store.Update(ctx, "123", want)
+	require.NoError(t, err)
 
-	assert.Equal(t, want, toUTCPlugin(stored.Plugin))
-	assert.Equal(t, fixtures["plugin"].Hashes, stored.Hashes)
+	check(t)
 
 	// Empty patch.
-	_, err = store.Patch(ctx, "123", db.PluginPatch{})
-	require.Error(t, err)
+	require.ErrorIs(t, store.Patch(ctx, "123", db.PluginPatch{}), db.ErrEmptyPatch)
 
 	// Unknown plugin.
-	_, err = store.Patch(ctx, "456", db.PluginPatch{Stars: new(1)})
-	require.ErrorAs(t, err, &db.NotFoundError{})
+	require.ErrorAs(t, store.Patch(ctx, "456", db.PluginPatch{Stars: new(1)}), &db.NotFoundError{})
 }

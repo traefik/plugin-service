@@ -14,10 +14,13 @@ import (
 // maxPatchSize is the maximum size of a patch body.
 const maxPatchSize = 1 << 20
 
+// errNegativeStars is the message returned for a plugin with negative stars, whatever the endpoint.
+const errNegativeStars = "stars must not be negative"
+
 // PluginStateStorer is capable of reading and updating the plugin state used by the scraper.
 type PluginStateStorer interface {
 	ListStates(ctx context.Context) ([]db.PluginState, error)
-	Patch(ctx context.Context, id string, patch db.PluginPatch) (db.Plugin, error)
+	Patch(ctx context.Context, id string, patch db.PluginPatch) error
 }
 
 // ListStates returns the state of all plugins, hidden and disabled plugins included, without pagination.
@@ -50,8 +53,6 @@ func (h Handlers) Patch(rw http.ResponseWriter, req *http.Request) {
 	ctx, span := h.tracer.Start(req.Context(), "handler_patch")
 	defer span.End()
 
-	rw.Header().Set("Content-Type", "application/json")
-
 	id, err := getPathParam(req.URL)
 	if err != nil {
 		span.RecordError(err)
@@ -62,59 +63,60 @@ func (h Handlers) Patch(rw http.ResponseWriter, req *http.Request) {
 
 	logger := log.With().Str("plugin_id", id).Logger()
 
-	var patch db.PluginPatch
-
-	dec := json.NewDecoder(http.MaxBytesReader(rw, req.Body, maxPatchSize))
-	dec.DisallowUnknownFields()
-
-	// An empty body is an empty patch.
-	if err = dec.Decode(&patch); err != nil && !errors.Is(err, io.EOF) {
+	patch, err := decodePatch(rw, req)
+	if err != nil {
 		span.RecordError(err)
 		logger.Error().Err(err).Msg("Unable to decode plugin patch")
-		JSONError(rw, http.StatusBadRequest, err.Error())
 
-		return
-	}
-
-	if dec.More() {
-		JSONError(rw, http.StatusBadRequest, "body must contain a single JSON object")
-
-		return
-	}
-
-	if patch.IsEmpty() {
-		JSONError(rw, http.StatusBadRequest, "nothing to update")
+		if errors.As(err, new(*http.MaxBytesError)) {
+			JSONError(rw, http.StatusRequestEntityTooLarge, err.Error())
+		} else {
+			JSONError(rw, http.StatusBadRequest, err.Error())
+		}
 
 		return
 	}
 
 	if patch.Stars != nil && *patch.Stars < 0 {
-		JSONError(rw, http.StatusBadRequest, "stars must not be negative")
+		JSONError(rw, http.StatusBadRequest, errNegativeStars)
 
 		return
 	}
 
-	updated, err := h.store.Patch(ctx, id, patch)
-	if err != nil {
+	if err = h.store.Patch(ctx, id, patch); err != nil {
 		span.RecordError(err)
 
-		if errors.As(err, &db.NotFoundError{}) {
+		switch {
+		case errors.Is(err, db.ErrEmptyPatch):
+			JSONError(rw, http.StatusBadRequest, err.Error())
+		case errors.As(err, &db.NotFoundError{}):
 			NotFound(rw, req)
-
-			return
+		default:
+			logger.Error().Err(err).Msg("Error patching plugin")
+			JSONInternalServerError(rw)
 		}
 
-		logger.Error().Err(err).Msg("Error patching plugin")
-		JSONInternalServerError(rw)
-
 		return
 	}
 
-	if err := json.NewEncoder(rw).Encode(updated); err != nil {
-		span.RecordError(err)
-		logger.Error().Err(err).Msg("Failed to encode patched plugin")
-		JSONInternalServerError(rw)
+	rw.WriteHeader(http.StatusNoContent)
+}
 
-		return
+// decodePatch decodes a body holding a single JSON object. An empty body is an empty patch.
+func decodePatch(rw http.ResponseWriter, req *http.Request) (db.PluginPatch, error) {
+	var patch db.PluginPatch
+
+	dec := json.NewDecoder(http.MaxBytesReader(rw, req.Body, maxPatchSize))
+	dec.DisallowUnknownFields()
+
+	if err := dec.Decode(&patch); err != nil && !errors.Is(err, io.EOF) {
+		return db.PluginPatch{}, err
 	}
+
+	// Anything after the object, even a lone "}" or "]", is rejected.
+	if err := dec.Decode(&struct{}{}); !errors.Is(err, io.EOF) {
+		return db.PluginPatch{}, errors.Join(errors.New("body must contain a single JSON object"), err)
+	}
+
+	return patch, nil
 }
