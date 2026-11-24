@@ -27,6 +27,27 @@ type Plugin struct {
 	UseUnsafe     bool           `json:"useUnsafe,omitempty" bson:"useUnsafe"`
 }
 
+// PluginState is the part of a plugin the scraper needs to know if a plugin changed.
+type PluginState struct {
+	ID            string `json:"id" bson:"id"`
+	Name          string `json:"name" bson:"name"`
+	LatestVersion string `json:"latestVersion" bson:"latestVersion"`
+	Stars         int    `json:"stars" bson:"stars"`
+	Hidden        bool   `json:"hidden" bson:"hidden"`
+	Disabled      bool   `json:"disabled" bson:"disabled"`
+	// TagsETag is the ETag of the last GitHub tags response seen by the scraper.
+	// It is not a Plugin field: only a PluginPatch writes it.
+	TagsETag string `json:"tagsETag" bson:"tagsETag"`
+}
+
+// PluginPatch holds the plugin fields that can be updated alone.
+// A nil field is not updated.
+type PluginPatch struct {
+	Stars    *int    `json:"stars,omitempty"`
+	Hidden   *bool   `json:"hidden,omitempty"`
+	TagsETag *string `json:"tagsETag,omitempty"`
+}
+
 // BlacklistEntry represents a repository excluded from the plugin scraping.
 // The Repository is the GitHub full name (owner/repo) and is the unique key.
 type BlacklistEntry struct {

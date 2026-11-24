@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"time"
 
+	"github.com/rs/zerolog/log"
 	"github.com/traefik/plugin-service/pkg/db"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -24,6 +25,8 @@ const (
 	fieldHashes   = "hashes"
 	fieldDisabled = "disabled"
 	fieldHidden   = "hidden"
+	fieldTagsETag = "tagsETag"
+	fieldStars    = "stars"
 )
 
 // MongoDB is a mongoDB client.
@@ -104,6 +107,18 @@ func (m *MongoDB) Create(ctx context.Context, plugin db.Plugin) (db.Plugin, erro
 	ctx, span := m.tracer.Start(ctx, "db_create")
 	defer span.End()
 
+	// GetByName does not return a disabled plugin: without this check, the scraper would create it again.
+	count, err := m.client.Collection(m.collName).CountDocuments(ctx, bson.D{{Key: "name", Value: plugin.Name}}, options.Count().SetLimit(1))
+	if err != nil {
+		span.RecordError(err)
+
+		return db.Plugin{}, fmt.Errorf("unable to count plugins by name: %w", err)
+	}
+
+	if count > 0 {
+		return db.Plugin{}, db.ErrAlreadyExists
+	}
+
 	id := primitive.NewObjectID()
 	plugin.ID = id.Hex()
 	plugin.CreatedAt = time.Now().Truncate(time.Millisecond)
@@ -114,7 +129,7 @@ func (m *MongoDB) Create(ctx context.Context, plugin db.Plugin) (db.Plugin, erro
 		Hashes:  []db.PluginHash{},
 	}
 
-	_, err := m.client.Collection(m.collName).InsertOne(ctx, doc)
+	_, err = m.client.Collection(m.collName).InsertOne(ctx, doc)
 	if err != nil {
 		span.RecordError(err)
 
@@ -160,7 +175,7 @@ func (m *MongoDB) List(ctx context.Context, page db.Pagination) ([]db.Plugin, st
 	opts := &options.FindOptions{}
 	opts.SetLimit(int64(page.Size + 1))
 	opts.SetProjection(bson.D{{Key: fieldHashes, Value: 0}})
-	opts.SetSort(bson.D{{Key: "stars", Value: -1}})
+	opts.SetSort(bson.D{{Key: fieldStars, Value: -1}})
 
 	cursor, err := m.client.Collection(m.collName).Find(ctx, criteria, opts)
 	if err != nil {
@@ -324,6 +339,99 @@ func (m *MongoDB) Update(ctx context.Context, id string, plugin db.Plugin) (db.P
 	}
 
 	return updated, nil
+}
+
+// ListStates returns the state of all plugins, hidden and disabled plugins included.
+func (m *MongoDB) ListStates(ctx context.Context) ([]db.PluginState, error) {
+	ctx, span := m.tracer.Start(ctx, "db_list_states")
+	defer span.End()
+
+	opts := &options.FindOptions{}
+	opts.SetProjection(bson.D{
+		{Key: "_id", Value: 0},
+		{Key: "id", Value: 1},
+		{Key: "name", Value: 1},
+		{Key: "latestVersion", Value: 1},
+		{Key: fieldStars, Value: 1},
+		{Key: fieldHidden, Value: 1},
+		{Key: fieldDisabled, Value: 1},
+		{Key: fieldTagsETag, Value: 1},
+	})
+
+	cursor, err := m.client.Collection(m.collName).Find(ctx, bson.D{}, opts)
+	if err != nil {
+		span.RecordError(err)
+
+		return nil, fmt.Errorf("unable to find plugin states: %w", err)
+	}
+
+	defer func() { _ = cursor.Close(ctx) }()
+
+	states := make([]db.PluginState, 0)
+
+	for cursor.Next(ctx) {
+		var state db.PluginState
+
+		// One malformed document must not hide the state of all the others.
+		if err = cursor.Decode(&state); err != nil {
+			span.RecordError(err)
+
+			id, _ := cursor.Current.Lookup("id").StringValueOK()
+			log.Error().Err(err).Str("plugin_id", id).Msg("Unable to decode a plugin state, skipped")
+
+			continue
+		}
+
+		states = append(states, state)
+	}
+
+	if err = cursor.Err(); err != nil {
+		span.RecordError(err)
+
+		return nil, fmt.Errorf("unable to read plugin states: %w", err)
+	}
+
+	return states, nil
+}
+
+// Patch updates only the non-nil fields of the patch.
+func (m *MongoDB) Patch(ctx context.Context, id string, patch db.PluginPatch) error {
+	ctx, span := m.tracer.Start(ctx, "db_patch")
+	defer span.End()
+
+	set := bson.D{}
+
+	if patch.Stars != nil {
+		set = append(set, bson.E{Key: fieldStars, Value: *patch.Stars})
+	}
+
+	if patch.Hidden != nil {
+		set = append(set, bson.E{Key: fieldHidden, Value: *patch.Hidden})
+	}
+
+	if patch.TagsETag != nil {
+		set = append(set, bson.E{Key: fieldTagsETag, Value: *patch.TagsETag})
+	}
+
+	if len(set) == 0 {
+		return db.ErrEmptyPatch
+	}
+
+	filter := bson.D{{Key: "id", Value: id}}
+	update := bson.D{{Key: "$set", Value: set}}
+
+	res, err := m.client.Collection(m.collName).UpdateOne(ctx, filter, update)
+	if err != nil {
+		span.RecordError(err)
+
+		return fmt.Errorf("unable to patch plugin: %w", err)
+	}
+
+	if res.MatchedCount == 0 {
+		return db.NotFoundError{Err: mongo.ErrNoDocuments}
+	}
+
+	return nil
 }
 
 // CreateHash creates a new plugin hash.

@@ -30,7 +30,7 @@ func (m *MongoDB) Bootstrap() error {
 			Options: &options.IndexOptions{
 				Name: new("_by_stars"),
 			},
-			Keys: bson.D{{Key: "stars", Value: 1}},
+			Keys: bson.D{{Key: fieldStars, Value: 1}},
 		},
 		{
 			Options: &options.IndexOptions{
